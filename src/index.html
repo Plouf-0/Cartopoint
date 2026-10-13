@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2e6e45">
+<!-- Image utilisée pour la carte d'un nouveau projet (remplacée par une URL data: dans la version autonome). -->
+<meta name="default-map" content="assets/plan-exemple.jpg">
+<title>Inventaire botanique</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,650;1,9..144,500&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="fatal" class="banner" role="alert" hidden></div>
+
+<header class="top">
+  <div class="brand">
+    <div class="brand-mark" data-brand-icon></div>
+    <div>
+      <h1 id="pageTitle">Inventaire botanique</h1>
+      <p id="mapName"></p>
+    </div>
+  </div>
+  <div class="students" id="studentsBox">
+    <label for="studentNames">Élève(s)</label>
+    <input id="studentNames" type="text" placeholder="Prénom(s) et nom(s)" autocomplete="off">
+  </div>
+  <span class="mode-pill" id="adminPill" hidden>⚙ Mode gestion</span>
+  <button class="btn ghost" id="modeBtn" type="button">⚙ Gestion</button>
+</header>
+
+<div id="draftBanner" class="draft-banner" hidden></div>
+
+<div class="layout">
+  <main class="stage"><div class="stage-inner" id="stageInner">
+    <div class="stage-bar">
+      <div class="progress" id="progress"></div>
+      <div class="legend">
+        <span><i class="lg-student"></i>Placement élève</span>
+        <span id="legendRef"><i class="lg-ref"></i>Position réelle</span>
+      </div>
+    </div>
+    <div class="map-frame" id="mapFrame">
+      <img id="plan" alt="Plan du site">
+      <svg class="map-lines" id="mapLines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="place-hint" id="placeHint" hidden><span id="placeHintText"></span><button type="button" id="placeCancel">Annuler</button></div>
+    </div>
+  </div></main>
+
+  <aside class="panel" id="panel" aria-label="Fiches"></aside>
+</div>
+
+<!-- Connexion au mode gestion -->
+<dialog id="dlgLogin">
+  <form class="dlg" id="loginForm">
+    <div class="dlg-head"><h2>Accès gestion</h2><button class="x" type="button" data-close aria-label="Fermer">×</button></div>
+    <div class="dlg-body">
+      <div class="field"><label for="loginPw">Mot de passe</label><input id="loginPw" type="password" autocomplete="current-password"></div>
+      <p class="hint" id="loginMsg"></p>
+    </div>
+    <div class="dlg-foot"><button class="btn ghost" type="button" data-close>Annuler</button><button class="btn" type="submit">Entrer</button></div>
+  </form>
+</dialog>
+
+<!-- Consultation d'une fiche (élèves) : contenu généré par views/reader.js -->
+<dialog id="dlgRead"><div class="dlg" id="readBox"></div></dialog>
+
+<!-- Édition d'une fiche (gestion) -->
+<dialog id="dlgEdit">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="editTitle">Fiche</h2><button class="x" type="button" data-close aria-label="Fermer">×</button></div>
+    <div class="dlg-body">
+      <label class="check"><input type="checkbox" id="eVisible"> Visible dans l'espace élèves</label>
+      <div class="form-grid">
+        <div class="field"><label for="eRef">Réf. photo (étiquette sur le terrain)</label><input id="eRef" placeholder="12b"><span class="hint">Le numéro vu par les élèves est automatique.</span></div>
+        <div class="field"><label for="eCommon">Nom commun</label><input id="eCommon" placeholder="Olivier"></div>
+        <div class="field"><label for="eSpecies">Nom scientifique</label><input id="eSpecies" placeholder="Olea europaea"></div>
+        <div class="field"><label for="eFamily">Famille</label><input id="eFamily" placeholder="Oleaceae"></div>
+        <div class="field"><label for="eDate">Date d'observation</label><input id="eDate" type="date"></div>
+        <div class="field"></div>
+
+        <div class="field wide needs-edit">
+          <div class="needs-head"><h3>Besoins de la plante</h3><span class="hint">Cliquez dans une case, puis sur un émoji pour l'ajouter</span></div>
+          <div class="emoji-bar" id="emojiBar" role="toolbar" aria-label="Émojis"></div>
+          <div class="needs-grid">
+            <div class="field"><label for="eExposure">☀️ Exposition</label><textarea id="eExposure" rows="2" placeholder="☀️☀️☀️ Plein soleil"></textarea></div>
+            <div class="field"><label for="eWatering">💧 Arrosage</label><textarea id="eWatering" rows="2" placeholder="💧 Faible une fois installé"></textarea></div>
+            <div class="field"><label for="eSoil">🌱 Sol</label><textarea id="eSoil" rows="2" placeholder="Léger, bien drainé"></textarea></div>
+            <div class="field"><label for="eHeat">🌡️ Chaleur</label><textarea id="eHeat" rows="2" placeholder="Très bonne tolérance · ❄️ jusqu'à -10 °C"></textarea></div>
+            <div class="field wide"><label for="eCare">✂️ Entretien</label><textarea id="eCare" rows="2" placeholder="Taille légère après floraison"></textarea></div>
+          </div>
+        </div>
+
+        <div class="field wide"><h3 class="mini-h">Mesures de terrain</h3></div>
+        <div class="field"><label for="eTemp">Température</label><div class="unit-input"><input id="eTemp" inputmode="decimal"><span>°C</span></div></div>
+        <div class="field"><label for="eHumidity">Hygrométrie</label><div class="unit-input"><input id="eHumidity" inputmode="decimal"><span>%</span></div></div>
+        <div class="field"><label for="eLight">Éclairement</label><div class="unit-input"><input id="eLight" inputmode="numeric"><span>lux</span></div></div>
+        <div class="field wide"><label for="eDesc">Description de l'espèce</label><textarea id="eDesc"></textarea></div>
+        <div class="field wide"><label for="eNotes">Observations de terrain</label><textarea id="eNotes"></textarea></div>
+      </div>
+      <div class="section">
+        <div class="inline spread">
+          <h3>Photos et vidéos</h3>
+          <div class="inline">
+            <button class="btn soft sm" type="button" id="aiBtn" hidden>✨ Identifier avec l'IA</button>
+            <label class="btn soft sm file-btn">＋ Ajouter<input id="eFiles" type="file" accept="image/*,video/*" multiple></label>
+          </div>
+        </div>
+        <p class="hint" id="aiStatus"></p>
+        <div class="gallery" id="eGallery"></div>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn danger spacer" type="button" id="eDelete">Supprimer la fiche</button>
+      <button class="btn ghost" type="button" data-close>Annuler</button>
+      <button class="btn" type="button" id="eSave">Enregistrer</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Résultats après vérification -->
+<dialog id="dlgResults"><div class="dlg" id="resultsBox"></div></dialog>
+
+<!-- Visionneuse photo plein écran -->
+<dialog id="dlgPhoto" class="photo-dlg" aria-label="Photo">
+  <div id="photoStage" class="photo-stage">
+    <img id="photoImg" alt="">
+    <button type="button" class="pv prev" id="photoPrev" aria-label="Photo précédente">‹</button>
+    <button type="button" class="pv next" id="photoNext" aria-label="Photo suivante">›</button>
+    <button type="button" class="x photo-x" id="photoClose" aria-label="Fermer">×</button>
+    <span class="photo-count" id="photoCount"></span>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Projet intégré : rempli quand on enregistre un fichier autonome (.html) depuis l'application. -->
+<script id="embedded-project" type="application/json">null</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

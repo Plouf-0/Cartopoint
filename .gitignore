@@ -4,3 +4,5 @@ data/backups/
 data/projets/*.tmp
 data/*.tmp
 .DS_Store
+
+.env

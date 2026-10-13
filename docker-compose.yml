@@ -1,13 +1,19 @@
-# Exemple de déploiement. Placez un proxy HTTPS devant (Caddy, Traefik, nginx…).
 services:
   inventaire:
     build: .
     restart: unless-stopped
-    ports:
-      - "8080:8080"
+    # ports:
+    #   - "8080:8080"
+    networks:
+      - traefik_network
     environment:
       # Mot de passe demandé dans l'application pour « Publier les modifications ».
       # Sans cette variable, la publication est désactivée.
-      PUBLISH_PASSWORD: "change-moi"
+      PUBLISH_PASSWORD: ${PUBLISH_PASSWORD:-}
     volumes:
       - ./data:/data
+
+
+networks:
+  traefik_network:
+    external: true

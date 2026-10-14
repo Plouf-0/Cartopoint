@@ -7,6 +7,7 @@ import { S, verified, progress } from './store.js';
 import { visibleFiches, numberOf, titleOf, hasRef, placedPos, evaluate, MEASURES } from './model.js';
 import { paletteOf } from './themes.js';
 import { studentNames } from './views/header.js';
+import { buildTeacherCsv } from './spreadsheet.js';
 
 const STUDENT = '#b3263e';
 const TRUTH = '#1d5fa6';
@@ -320,14 +321,21 @@ export async function downloadPlanImage() {
   }
 }
 
-export async function downloadReport() {
+/** Noms des élèves, ou null (avec un message) s'ils manquent hors gestion. */
+function requireNames() {
   const names = studentNames();
   if (!names && !S.admin) {
     $('#dlgResults').open && $('#dlgResults').close();
     toast('Indiquez vos noms en haut de la page avant de télécharger');
     $('#studentNames').focus();
-    return;
+    return null;
   }
+  return names;
+}
+
+export async function downloadReport() {
+  const names = requireNames();
+  if (names === null) return;
   try {
     toast('Préparation du compte rendu…');
     const blob = await toJpeg(await drawReport(names));
@@ -336,4 +344,12 @@ export async function downloadReport() {
   } catch (e) {
     toast('⚠ Compte rendu impossible à créer : ' + e.message);
   }
+}
+
+export function downloadTeacherCsv() {
+  const names = requireNames();
+  if (names === null) return;
+  const csv = buildTeacherCsv(resultRows(), { names, widthMeters: S.map.widthMeters });
+  download(csv, safeFileName(`Rendu prof - ${names || S.map.name}`) + '.csv', 'text/csv;charset=utf-8');
+  toast('✓ Rendu prof téléchargé');
 }

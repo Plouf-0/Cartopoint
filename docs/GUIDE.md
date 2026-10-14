@@ -52,6 +52,13 @@ fichier que les élèves rendent (ENT, mail…).
 
 ![Compte rendu](images/04-compte-rendu.jpg)
 
+**Rendu prof (CSV)**
+
+**Télécharger le rendu prof (CSV)** crée un tableau (lisible par Excel) avec, pour chaque fiche,
+les noms des élèves, les mesures relevées, le résultat et l'écart, puis une ligne **Moyenne**
+(moyenne de chaque mesure, écart moyen et score). Les noms étant répétés sur chaque ligne, on
+peut coller les rendus de plusieurs groupes les uns sous les autres.
+
 ---
 
 ## 2. Espace gestion

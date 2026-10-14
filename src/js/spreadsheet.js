@@ -231,6 +231,64 @@ export function buildCsv(list, progress = { entries: {} }) {
   return '﻿' + lines.join('\r\n') + '\r\n';
 }
 
+/** Nombre au format français (virgule décimale), '' si absent. */
+const frNum = (n, digits = 2) => (n === null || n === undefined ? '' : String(+n.toFixed(digits)).replace('.', ','));
+const average = (values) => {
+  const v = values.filter((x) => x !== null);
+  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+};
+
+/**
+ * Rendu pour l'enseignant : une ligne par fiche (mesures, résultat, écart),
+ * puis une ligne « Moyenne » sur les mesures et l'écart, avec le score.
+ * Le nom des élèves est répété sur chaque ligne pour pouvoir assembler les rendus.
+ * @param rows  lignes de `resultRows()` (report.js)
+ */
+export function buildTeacherCsv(rows, { names = '', widthMeters = null } = {}) {
+  const unit = widthMeters ? 'm' : '% du plan';
+  const header = [
+    'Élèves',
+    'N°',
+    'Réf. photo',
+    'Nom commun',
+    'Nom scientifique',
+    ...MEASURES.map(([, , u, label]) => `${label} (${u})`),
+    'Résultat',
+    `Écart (${unit})`
+  ];
+  const gap = (ev) => (ev.d === undefined ? null : widthMeters ? (ev.d / 100) * widthMeters : ev.d);
+  const lines = [header.map(csvCell).join(';')];
+  for (const { n, fiche, entry, ev } of rows) {
+    lines.push(
+      [
+        csvCell(names),
+        csvCell(n),
+        csvCell(fiche.ref),
+        csvCell(fiche.common),
+        csvCell(fiche.species),
+        ...MEASURE_KEYS.map((k) => (num(entry[k]) !== null ? frNum(num(entry[k])) : csvCell(entry[k]))),
+        csvCell(ev.label),
+        frNum(gap(ev))
+      ].join(';')
+    );
+  }
+  const scored = rows.filter((r) => r.ev.state !== 'noref');
+  const ok = scored.filter((r) => r.ev.state === 'ok').length;
+  lines.push(
+    [
+      csvCell(names),
+      '',
+      '',
+      'Moyenne',
+      '',
+      ...MEASURE_KEYS.map((k) => frNum(average(rows.map((r) => num(r.entry[k]))))),
+      scored.length ? `${ok} / ${scored.length} bien placée(s)` : '',
+      frNum(average(rows.map((r) => gap(r.ev))))
+    ].join(';')
+  );
+  return '﻿' + lines.join('\r\n') + '\r\n';
+}
+
 export function templateCsv() {
   const example = normalizeFiche({
     ref: '1',

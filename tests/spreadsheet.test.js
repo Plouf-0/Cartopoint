@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCSV, cellValue, mapHeaders, planImport, buildCsv } from '../src/js/spreadsheet.js';
+import { parseCSV, cellValue, mapHeaders, planImport, buildCsv, buildTeacherCsv } from '../src/js/spreadsheet.js';
 import { normalizeFiche } from '../src/js/model.js';
 
 test('CSV français : séparateur ;, guillemets, retours à la ligne', () => {
@@ -55,4 +55,22 @@ test('export CSV puis relecture : mêmes valeurs', () => {
   assert.equal(get('visible'), 'non');
   assert.equal(get('refX'), '12,35');
   assert.equal(get('temperature'), '21,5');
+});
+
+test('rendu prof : mesures, écart et ligne de moyenne', () => {
+  const row = (n, common, entry, ev) => ({ n, fiche: normalizeFiche({ ref: String(n), common }), entry, ev });
+  const csv = buildTeacherCsv(
+    [
+      row(1, 'Olivier', { temperature: '20', humidity: '50,5', light: '1000' }, { state: 'ok', label: 'Bien placée', d: 2 }),
+      row(2, 'Chêne; vert', { temperature: '22.5', humidity: '', light: 'nuageux' }, { state: 'far', label: 'À revoir', d: 12 }),
+      row(3, 'Romarin', {}, { state: 'noref', label: 'Pas de position réelle' })
+    ],
+    { names: 'Léa et Tom', widthMeters: 50 }
+  );
+  const lines = csv.replace(/^﻿/, '').trim().split('\r\n');
+  assert.equal(lines[0], 'Élèves;N°;Réf. photo;Nom commun;Nom scientifique;Température (°C);Hygrométrie (%);Éclairement (lux);Résultat;Écart (m)');
+  assert.equal(lines[1], 'Léa et Tom;1;1;Olivier;;20;50,5;1000;Bien placée;1');
+  assert.equal(lines[2], 'Léa et Tom;2;2;"Chêne; vert";;22,5;;nuageux;À revoir;6');
+  assert.equal(lines[3], 'Léa et Tom;3;3;Romarin;;;;;Pas de position réelle;');
+  assert.equal(lines[4], 'Léa et Tom;;;Moyenne;;21,25;50,5;1000;1 / 2 bien placée(s);3,5');
 });

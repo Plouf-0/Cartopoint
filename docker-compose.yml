@@ -2,6 +2,7 @@ services:
   inventaire:
     build: .
     restart: unless-stopped
+    user: "1001:1001" #changer selon l'utilisateur et le groupe souhaités
     # ports:
     #   - "8080:8080"
     networks:

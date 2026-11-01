@@ -9,6 +9,8 @@ chaque plante sur le plan, puis vérifient leurs placements et téléchargent un
 
 - Guide d'utilisation (enseignant et élèves) : [docs/GUIDE.md](docs/GUIDE.md)
 - Fonctionnement interne, format des données : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- Exigences du projet (source de vérité) : [docs/CAHIER_DES_CHARGES.md](docs/CAHIER_DES_CHARGES.md)
+- Grande mise à jour en préparation : [docs/FEUILLE_DE_ROUTE.md](docs/FEUILLE_DE_ROUTE.md)
 
 ## En bref
 

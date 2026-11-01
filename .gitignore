@@ -1,8 +1,6 @@
 node_modules/
 dist/
-data/backups/
-data/projets/*.tmp
-data/*.tmp
+data/
 .DS_Store
 
 .env

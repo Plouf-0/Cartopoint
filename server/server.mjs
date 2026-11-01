@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Petit serveur web pour héberger l'application (Node 18+, aucune dépendance).
+ * Petit serveur web pour héberger l'application (Node 24, aucune dépendance).
  *
  *   node server/server.mjs [--root dist] [--data data] [--port 8080]
  *

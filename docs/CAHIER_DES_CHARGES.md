@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.9** · 1er novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.10** · 1er novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -509,7 +509,7 @@ Code : [`project-io.js`](../src/js/project-io.js), [`server/server.mjs`](../serv
 
 Code : [`server/server.mjs`](../server/server.mjs) · Tests : [`tests/server.test.js`](../tests/server.test.js)
 
-- **SRV-01** Node 18 ou plus récent, sans dépendance. Il sert l'application, les projets et reçoit les
+- **SRV-01** Node 24, sans dépendance. Il sert l'application, les projets et reçoit les
   publications.
 - **SRV-02** Routes : `GET /config.json`, `GET /project.json`, `GET /projets/<nom>.json`,
   `PUT /api/project[?projet=nom]`, `GET /*` pour les fichiers de l'application.
@@ -535,9 +535,10 @@ Code : [`scripts/`](../scripts/), [`Dockerfile`](../Dockerfile),
 - **DEP-02** `scripts/build.mjs --embed <projet> --out <fichier>` produit un fichier autonome contenant un
   projet.
 - **DEP-03** `npm run convert` convertit un ancien `.html` ou `.json` au format actuel.
-- **DEP-04** L'image Docker construit l'application, puis la sert (Node 22 Alpine) sans outils de
+- **DEP-04** L'image Docker construit l'application, puis la sert (Node 24 Alpine) sans outils de
   développement. Le volume `/data` contient les projets et les sauvegardes.
-- **DEP-05** Au démarrage, si `/data` ne contient pas de `project.json`, le projet d'exemple y est copié.
+- **DEP-05** Le dépôt et l'image ne contiennent aucun projet. Sur un volume `/data` vide, l'application démarre
+  sur un nouveau projet local, et ne propose de publier qu'une fois un `project.json` déposé à la main.
 - **DEP-06** `docker-compose.yml` fait tourner le conteneur en utilisateur non root (`1001:1001`), sans
   port publié, sur le réseau externe `traefik_network`. `PUBLISH_PASSWORD` vient du fichier `.env`,
   exclu de Git (modèle : `.env.example`). ⚠️ E-15
@@ -603,7 +604,8 @@ Code : [`model.js`](../src/js/model.js), [`db.js`](../src/js/db.js) · Tests :
 - **QUA-01** `npm test` couvre le modèle (8 tests), le tableur (6), le mot de passe (2) et le serveur
   (4) : 20 tests, tous réussis au 1er novembre 2026. ⚠️ E-09
 - **QUA-02** Le code est formaté avec `prettier` (`npm run format`).
-- **QUA-03** `npm run dev` sert `src/` directement, sans construction.
+- **QUA-03** `npm run dev` sert `src/` directement, sans construction, avec ses données dans `.dev-data/`, jamais
+  dans `data/`.
 
 ---
 
@@ -644,7 +646,7 @@ réelle, placées ou non. Les fiches « Proche » sont indiquées à part et ne 
 
 Différences entre ce que le projet annonce et ce qu'il fait réellement, relevées en écrivant ce document.
 Elles ont été établies **à la lecture du code**, sauf E-05, E-16 et E-17 (constatés sur le serveur). Rien n'a été testé
-dans un navigateur : E-01, E-02 et E-07 sont à confirmer en conditions réelles. Aucun n'est corrigé à ce
+dans un navigateur : E-01, E-02 et E-07 sont à confirmer en conditions réelles. Seul E-17 est corrigé à ce
 jour.
 
 ### Priorité haute
@@ -718,8 +720,8 @@ jour.
   une version publiée ensuite par un autre. _Lié à `DEM-02`, EV-04._
 - **E-17 — Les publications modifient un fichier suivi par Git.** `data/project.json` est à la fois le projet
   en service et un fichier du dépôt : chaque publication le fait apparaître comme modifié. Il peut alors
-  partir dans un commit par erreur ou gêner un `git pull`. Décidé : `data/` sort du dépôt, y compris le projet
-  d'exemple. _Lié à `DEP-05`._
+  partir dans un commit par erreur ou gêner un `git pull`. **Corrigé :** `data/` est sorti du dépôt, et le projet
+  d'exemple de l'image. _Lié à `DEP-05`._
 
 ---
 
@@ -1011,3 +1013,4 @@ Ils ne sont pas réutilisés.
 | 0.7     | 1er novembre 2026 | Fichier de réponses en cas de problème de réseau, export CSV (Q-21)       |
 | 0.8     | 1er novembre 2026 | Feuille de route ; constats sur la publication et le routage Traefik      |
 | 0.9     | 1er novembre 2026 | Données en service supprimables : fiches exportées, pas de reprise automatique |
+| 0.10    | 1er novembre 2026 | Étape 0 de la feuille de route : Node 24, `data/` hors du dépôt et de l'image (E-17) |

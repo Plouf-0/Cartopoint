@@ -27,11 +27,11 @@ chaque plante sur le plan, puis vérifient leurs placements et téléchargent un
 
 ## Démarrer
 
-Prérequis : Node.js 18 ou plus récent.
+Prérequis : Node.js 24 (`nvm use` lit le fichier `.nvmrc`).
 
 ```bash
 npm install          # outils de développement (esbuild, prettier)
-npm run dev          # http://localhost:8080 — sert src/ directement, sans construction
+npm run dev          # http://localhost:8080 — sert src/ sans construction, données dans .dev-data/
 npm test             # tests (modèle, tableur, mot de passe, serveur)
 npm run build        # dist/index.html : application complète en un seul fichier
 npm start            # sert dist/ et data/ comme en production
@@ -67,7 +67,9 @@ docker compose up -d     # voir docker-compose.yml (changez PUBLISH_PASSWORD)
 ```
 
 Le dossier `data/` est un volume : il contient les projets et les 20 dernières sauvegardes
-automatiques (`data/backups/`, une copie avant chaque publication).
+automatiques (`data/backups/`, une copie avant chaque publication). Il ne fait pas partie du dépôt,
+et l'image ne contient aucun projet : sur un volume vide, déposez un `project.json` dans `data/` pour
+que l'application propose de publier.
 
 Mettez un proxy **HTTPS** devant (Caddy, Traefik, nginx). Exemple Caddy :
 
@@ -138,7 +140,6 @@ src/
 server/server.mjs       serveur de production (statique + projets + publication)
 scripts/                construction et conversion
 tests/                  tests node:test
-data/project.json       projet du parc ouest (Nice), exemple et point de départ
 ```
 
 Détails dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

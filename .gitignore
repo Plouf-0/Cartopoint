@@ -1,6 +1,7 @@
 node_modules/
 dist/
 data/
+.dev-data/
 .DS_Store
 
 .env

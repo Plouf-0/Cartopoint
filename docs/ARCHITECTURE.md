@@ -151,8 +151,49 @@ sont fixes, pour garder le même sens d'un thème à l'autre.
    qu'il apparaisse avec les besoins) ;
 4. `spreadsheet.js` : une entrée dans `COLUMNS` pour l'import / export.
 
+## Serveur
+
+| Fichier             | Rôle                                                                     |
+| ------------------- | ------------------------------------------------------------------------ |
+| `index.mjs`         | Démarrage : options, variables d'environnement, sauvegarde, arrêt propre |
+| `app.mjs`           | Assemble la base, les routes et les fichiers statiques, sans rien lancer |
+| `http.mjs`          | Routage, corps des requêtes, JSON, fichiers (ETag, 304, gzip), erreurs   |
+| `db.mjs`            | SQLite, migrations, copies de la base. Seul à importer `node:sqlite`     |
+| `security.mjs`      | IP du client (`TRUST_PROXY`), limites d'essais                           |
+| `routes/legacy.mjs` | Projet unique et publication, jusqu'aux espaces enseignants              |
+
+**Base de données.** `DATA_DIR/app.db`, SQLite, avec les clés étrangères actives, le mode WAL et
+`synchronous = NORMAL`. `node:sqlite` est synchrone : une écriture bloque tout le serveur le temps
+qu'elle dure, soit 50 ms avec le réglage par défaut et 0,13 ms ainsi (mesuré sur le serveur). La base ne
+peut pas se corrompre, mais une coupure de courant peut perdre les toutes dernières écritures.
+
+**Migrations.** Pour changer le schéma, ajouter `server/migrations/NNN-nom.sql` avec le numéro
+suivant, sans trou. `PRAGMA user_version` garde la version de la base. Chaque fichier s'applique dans
+une transaction, en entier ou pas du tout, et le serveur refuse une base plus récente que son code.
+Ne jamais modifier une migration déjà livrée.
+
+**Sauvegardes.** Au démarrage puis chaque heure, le serveur vérifie si la copie du jour existe :
+`backups/app-AAAA-MM-JJ.db`, 14 conservées. Une publication copie aussi l'ancienne version du projet
+dans `backups/`, 20 conservées par projet. Les noms sont comparés en entier, pour ne jamais confondre
+`rocaille`, `rocaille-2` et les copies de la base.
+
+**Mise en cache.** Tout fichier et toute réponse JSON portent un ETag, et le serveur répond 304 si le
+client a déjà cette version. L'ETag d'un fichier vient de sa taille et de sa date, celui d'un JSON de
+son contenu. Il est « faible » (`W/`), car il reste le même avec et sans compression. Le gzip vaut
+pour le texte à partir de 1 Ko, jamais pour les images, déjà compressées.
+
+**IP du client.** Derrière un proxy, seule la **dernière** valeur de `X-Forwarded-For` est sûre : c'est
+celle que le proxy a ajoutée, les précédentes viennent du client. Elle n'est lue qu'avec `TRUST_PROXY=1`.
+
 ## Tests
 
 `npm test` lance `node:test` sur le modèle (migration v2, numérotation, évaluation), le tableur
 (CSV, correspondance des colonnes, import avec réf. en double), le mot de passe (SHA-256 de
-secours) et le serveur (chemins, publication, sauvegardes).
+secours) et le serveur (`http`, `security`, `db`, routes, démarrage réel du processus).
+
+`npm run test:coverage` les relance en mesurant la couverture par fichier (`scripts/coverage.mjs`). Il
+échoue sous les seuils. Contrairement au résumé de `node --test`, un fichier qu'aucun test ne charge y
+compte pour 0 % de ses lignes.
+
+`npm run test:mutants` casse le code exprès, une modification à la fois, sur une copie du projet, et
+échoue si aucun test ne le remarque (`scripts/mutants.mjs`). Chaque comportement sensible y a sa ligne.

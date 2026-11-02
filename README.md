@@ -32,7 +32,9 @@ Prérequis : Node.js 24 (`nvm use` lit le fichier `.nvmrc`).
 ```bash
 npm install          # outils de développement (esbuild, prettier)
 npm run dev          # http://localhost:8080 — sert src/ sans construction, données dans .dev-data/
-npm test             # tests (modèle, tableur, mot de passe, serveur)
+npm test             # tests (modèle, tableur, mot de passe, serveur, base de données)
+npm run test:coverage  # les mêmes, avec la couverture par fichier et ses seuils
+npm run test:mutants   # casse le code exprès et vérifie que les tests le voient (plusieurs minutes)
 npm run build        # dist/index.html : application complète en un seul fichier
 npm start            # sert dist/ et data/ comme en production
 ```
@@ -44,21 +46,22 @@ Mot de passe de gestion par défaut : `admin`.
 
 ### Avec le petit serveur fourni (recommandé)
 
-`server/server.mjs` (Node, sans dépendance) sert l'application, les projets, et permet à
+`server/index.mjs` (Node, sans dépendance) sert l'application, les projets, et permet à
 l'enseignant de **publier** ses modifications depuis l'application.
 
 ```bash
 npm ci && npm run build
-PUBLISH_PASSWORD='un-mot-de-passe-solide' node server/server.mjs --root dist --data data
+PUBLISH_PASSWORD='un-mot-de-passe-solide' node server/index.mjs --root dist --data data
 ```
 
 | Variable           | Rôle                                                                 | Défaut  |
 | ------------------ | -------------------------------------------------------------------- | ------- |
 | `PORT`             | port d'écoute                                                        | `8080`  |
 | `ROOT`             | dossier de l'application construite                                  | `dist`  |
-| `DATA_DIR`         | dossier des projets (`project.json`, `projets/<nom>.json`, `backups/`) | `data`  |
+| `DATA_DIR`         | dossier des données (`app.db`, `project.json`, `projets/<nom>.json`, `backups/`) | `data`  |
 | `PUBLISH_PASSWORD` | mot de passe de publication ; absent = publication désactivée         | —       |
 | `MAX_BODY_MB`      | taille maximale d'un projet publié (photos comprises)                 | `100`   |
+| `TRUST_PROXY`      | `1` si un proxy est placé devant : l'IP du client est lue dans `X-Forwarded-For`. Sans proxy, ne pas le définir : n'importe qui pourrait choisir son IP | — |
 
 Avec Docker :
 
@@ -66,8 +69,9 @@ Avec Docker :
 docker compose up -d     # voir docker-compose.yml (changez PUBLISH_PASSWORD)
 ```
 
-Le dossier `data/` est un volume : il contient les projets et les 20 dernières sauvegardes
-automatiques (`data/backups/`, une copie avant chaque publication). Il ne fait pas partie du dépôt,
+Le dossier `data/` est un volume : il contient la base `app.db`, les projets et leurs sauvegardes
+automatiques dans `data/backups/` (les 20 dernières versions de chaque projet, une copie de la base
+par jour pendant 14 jours). Il ne fait pas partie du dépôt,
 et l'image ne contient aucun projet : sur un volume vide, déposez un `project.json` dans `data/` pour
 que l'application propose de publier.
 
@@ -111,7 +115,8 @@ L'enseignant peut aussi ouvrir l'application hébergée, passer en Gestion › P
 - `project.json` est **public** (les élèves le téléchargent) : n'y mettez rien de confidentiel.
 - Le mot de passe **de gestion** ne fait qu'empêcher les modifications accidentelles : son
   empreinte est dans le projet, donc lisible. La protection réelle est le **mot de passe de
-  publication**, vérifié par le serveur (comparaison à temps constant, 10 essais / 10 min / IP).
+  publication**, vérifié par le serveur (comparaison à temps constant, 10 essais / 10 min / IP ;
+  derrière un proxy, définir `TRUST_PROXY=1` pour que l'IP soit bien celle du client).
 - Le serveur refuse les chemins sortant de `ROOT` et `DATA_DIR`, vérifie le format du projet
   publié et écrit de façon atomique.
 - L'identification par IA (facultative) appelle une adresse fournie par l'enseignant : ne mettez
@@ -137,8 +142,14 @@ src/
     auth.js  ai.js  util.js
     views/              en-tête, plan, panneaux, fenêtres (fiche, édition, résultats…)
       admin/            onglets du mode gestion
-server/server.mjs       serveur de production (statique + projets + publication)
-scripts/                construction et conversion
+server/
+  index.mjs             démarrage : options, sauvegarde quotidienne, arrêt propre
+  app.mjs               assemble la base, les routes et les fichiers statiques
+  http.mjs              routage, corps des requêtes, JSON, fichiers (ETag, gzip)
+  db.mjs                SQLite, migrations (migrations/*.sql), copies de la base
+  security.mjs          IP du client, limites d'essais
+  routes/legacy.mjs     projet unique et publication, jusqu'aux espaces enseignants
+scripts/                construction, conversion, couverture des tests
 tests/                  tests node:test
 ```
 

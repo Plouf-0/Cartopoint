@@ -3,7 +3,7 @@
  *  - choix du projet au démarrage (navigateur, fichier autonome, serveur) ;
  *  - enregistrement en fichier autonome (.html) ou en données (.json) ;
  *  - version élèves ; ouverture d'un fichier ; nouveau projet ;
- *  - publication sur le serveur (si configurée, voir server/server.mjs).
+ *  - publication sur le serveur (si configurée, voir server/routes/legacy.mjs).
  *
  * Format d'un fichier de projet : voir docs/ARCHITECTURE.md.
  */

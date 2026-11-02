@@ -1,4 +1,4 @@
-# Image de production : construit l'application puis la sert avec server/server.mjs.
+# Image de production : construit l'application puis la sert avec server/index.mjs.
 #
 #   docker build -t inventaire-botanique .
 #   docker run -p 8080:8080 -v ./data:/data -e PUBLISH_PASSWORD=change-moi inventaire-botanique
@@ -20,4 +20,4 @@ RUN mkdir -p /data && chown -R node:node /data
 USER node
 EXPOSE 8080
 VOLUME ["/data"]
-CMD ["node", "server/server.mjs"]
+CMD ["node", "server/index.mjs"]

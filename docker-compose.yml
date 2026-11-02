@@ -11,6 +11,8 @@ services:
       # Mot de passe demandé dans l'application pour « Publier les modifications ».
       # Sans cette variable, la publication est désactivée.
       PUBLISH_PASSWORD: ${PUBLISH_PASSWORD:-}
+      # 1 derrière un proxy (Traefik) : l'IP du client est lue dans X-Forwarded-For.
+      TRUST_PROXY: ${TRUST_PROXY:-}
     volumes:
       - ./data:/data
 

@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, writeFile, readdir, readFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, writeFile, readdir, readFile, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -16,14 +16,18 @@ before(async () => {
   await writeFile(path.join(data, 'project.json'), JSON.stringify({ format: 'inventaire-botanique', maps: [], title: 'v1' }));
   await mkdir(path.join(data, 'projets'));
   await writeFile(path.join(data, 'secret.txt'), 'ne doit pas sortir');
-  server = spawn(process.execPath, ['server/server.mjs', '--root', root, '--data', data, '--port', String(PORT)], {
+  server = spawn(process.execPath, ['server/index.mjs', '--root', root, '--data', data, '--port', String(PORT)], {
     env: { ...process.env, PUBLISH_PASSWORD: 'pw-test' },
     stdio: 'pipe'
   });
   await new Promise((resolve) => server.stdout.once('data', resolve));
 });
 
-after(() => server.kill());
+after(async () => {
+  server.kill();
+  await rm(data, { recursive: true, force: true });
+  await rm(root, { recursive: true, force: true });
+});
 
 const put = (url, body, password) =>
   fetch(base + url, {
@@ -52,7 +56,7 @@ test('publication : mot de passe obligatoire, format vérifié, sauvegarde de la
   assert.equal((await put('/api/project', { hello: 1 }, 'pw-test')).status, 400);
   assert.equal((await put('/api/project', project, 'pw-test')).status, 200);
   assert.equal(JSON.parse(await readFile(path.join(data, 'project.json'), 'utf8')).title, 'v2');
-  assert.equal((await readdir(path.join(data, 'backups'))).length, 1);
+  assert.equal((await readdir(path.join(data, 'backups'))).filter((f) => f.startsWith('project-')).length, 1);
 });
 
 test('projets nommés : /?projet=nom', async () => {

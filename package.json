@@ -9,10 +9,12 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "node server/server.mjs --root src --data .dev-data --port 8080",
+    "dev": "node server/index.mjs --root src --data .dev-data --port 8080",
     "build": "node scripts/build.mjs",
-    "start": "node server/server.mjs --root dist --data data",
+    "start": "node server/index.mjs --root dist --data data",
     "test": "node --test tests/*.test.js",
+    "test:coverage": "node scripts/coverage.mjs",
+    "test:mutants": "node scripts/mutants.mjs",
     "convert": "node scripts/convert-project.mjs",
     "format": "prettier --write \"src/**/*.js\" \"server/**/*.mjs\" \"scripts/**/*.mjs\" \"tests/**/*.js\""
   },

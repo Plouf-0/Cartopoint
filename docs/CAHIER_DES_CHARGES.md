@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.10** · 1er novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.11** · 1er novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -63,6 +63,7 @@ trace.
 | EV-17   | 01/11/2026 | Côté élève, un bouton Terminer notifie l'enseignant et envoie les réponses s'il y a du réseau.                                                                                               | Q-05, Q-20                               | Haute    | Validée. Voir 12.5                                                                     |
 | EV-18   | 01/11/2026 | Sans réseau, permettre à l'élève de récupérer un fichier de réponses à donner à l'enseignant.                                                                                                | HOR-04                                   | Moyenne  | Validée. Voir 12.4 et 12.5                                                             |
 | EV-19   | 01/11/2026 | Exporter un lancement de l'historique dans un tableur.                                                                                                                                       | Q-21, REN-03                             | Moyenne  | Validée. Voir 12.4                                                                     |
+| EV-28   | 01/11/2026 | Ne pas négliger les tests, et arriver à une bonne couverture à la fin de la mise à jour. (Numéro choisi après EV-27 : les lignes EV-20 à EV-27 restent réservées dans la copie Google Docs.) | E-09, QUA-01                             | Haute    | Validée. Voir 12.12                                                                    |
 
 - **Exigence concernée :** son identifiant (`PLA-03`, `E-01`…), ou rien pour un besoin nouveau.
 - **Priorité :** Haute (empêche une séance), Moyenne (gêne réelle), Basse (confort).
@@ -494,7 +495,7 @@ Code : [`project-io.js`](../src/js/project-io.js)
 
 ### 6.5 Plusieurs projets — `MUL`
 
-Code : [`project-io.js`](../src/js/project-io.js), [`server/server.mjs`](../server/server.mjs)
+Code : [`project-io.js`](../src/js/project-io.js), [`routes/legacy.mjs`](../server/routes/legacy.mjs)
 
 - **MUL-01** L'adresse `/?projet=nom` charge `projets/nom.json` et publie vers ce même fichier. Noms
   autorisés : lettres, chiffres et tirets (61 caractères au plus, sans tiret au début). ⚠️ E-12
@@ -507,23 +508,34 @@ Code : [`project-io.js`](../src/js/project-io.js), [`server/server.mjs`](../serv
 
 ### 7.1 Serveur — `SRV`
 
-Code : [`server/server.mjs`](../server/server.mjs) · Tests : [`tests/server.test.js`](../tests/server.test.js)
+Code : [`server/`](../server/) · Tests : [`tests/`](../tests/) (`server`, `server-start`, `http`, `security`, `db`,
+`routes-legacy`)
 
 - **SRV-01** Node 24, sans dépendance. Il sert l'application, les projets et reçoit les
   publications.
 - **SRV-02** Routes : `GET /config.json`, `GET /project.json`, `GET /projets/<nom>.json`,
   `PUT /api/project[?projet=nom]`, `GET /*` pour les fichiers de l'application.
-- **SRV-03** Réglages : `PORT`, `ROOT`, `DATA_DIR`, `PUBLISH_PASSWORD`, `MAX_BODY_MB` (détail dans le
+- **SRV-03** Réglages : `PORT`, `ROOT`, `DATA_DIR`, `PUBLISH_PASSWORD`, `MAX_BODY_MB`, `TRUST_PROXY` (détail dans le
   [README](../README.md)).
 - **SRV-04** Sans `PUBLISH_PASSWORD`, la publication est désactivée et l'application ne la propose pas.
 - **SRV-05** Une publication exige le mot de passe (`Authorization: Bearer`), comparé à temps constant.
-- **SRV-06** Les échecs répétés sont bloqués (voir section 9). ⚠️ E-04
-- **SRV-07** Le serveur refuse un contenu qui n'a pas le format d'un projet, ou trop volumineux.
-- **SRV-08** L'écriture est atomique, et la version précédente est sauvegardée dans `backups/`. ⚠️ E-11
+- **SRV-06** Les échecs répétés sont bloqués pour le client concerné (voir section 9). Derrière un proxy, il
+  faut `TRUST_PROXY=1` pour que le serveur reconnaisse le client.
+- **SRV-07** Le serveur refuse un contenu qui n'a pas le format d'un projet, ou trop volumineux : le client reçoit
+  alors une réponse 413, sans que la connexion soit coupée.
+- **SRV-08** L'écriture est atomique, et la version précédente est sauvegardée dans `backups/`, séparément pour
+  chaque projet.
 - **SRV-09** Le serveur refuse tout chemin sortant de `ROOT` et de `DATA_DIR`, et les noms de projet
   invalides. Les sauvegardes ne sont pas accessibles par une adresse.
 - **SRV-10** Les pages et les projets sont envoyés sans mise en cache durable, pour que les mises à jour
-  arrivent tout de suite. Les autres fichiers sont mis en cache une heure. ⚠️ E-05
+  arrivent tout de suite. Les autres fichiers sont mis en cache une heure.
+- **SRV-11** Les fichiers et les réponses JSON portent un ETag : un navigateur qui a déjà la bonne version ne la
+  retélécharge pas (réponse 304). Le texte de 1 Ko ou plus part compressé en gzip si le navigateur l'accepte.
+- **SRV-12** Les données du serveur sont dans une base SQLite, `DATA_DIR/app.db`. Son schéma évolue par migrations
+  numérotées, appliquées au démarrage, et le serveur refuse une base plus récente que son code.
+- **SRV-13** Une copie de la base est faite chaque jour dans `backups/`. Les 14 dernières sont conservées, sans
+  toucher aux sauvegardes des projets.
+- **SRV-14** Le serveur s'arrête proprement à la demande (`docker stop`), en fermant la base.
 
 ### 7.2 Construction et déploiement — `DEP`
 
@@ -536,12 +548,12 @@ Code : [`scripts/`](../scripts/), [`Dockerfile`](../Dockerfile),
   projet.
 - **DEP-03** `npm run convert` convertit un ancien `.html` ou `.json` au format actuel.
 - **DEP-04** L'image Docker construit l'application, puis la sert (Node 24 Alpine) sans outils de
-  développement. Le volume `/data` contient les projets et les sauvegardes.
+  développement. Le volume `/data` contient la base, les projets et les sauvegardes.
 - **DEP-05** Le dépôt et l'image ne contiennent aucun projet. Sur un volume `/data` vide, l'application démarre
   sur un nouveau projet local, et ne propose de publier qu'une fois un `project.json` déposé à la main.
 - **DEP-06** `docker-compose.yml` fait tourner le conteneur en utilisateur non root (`1001:1001`), sans
   port publié, sur le réseau externe `traefik_network`. `PUBLISH_PASSWORD` vient du fichier `.env`,
-  exclu de Git (modèle : `.env.example`). ⚠️ E-15
+  exclu de Git (modèle : `.env.example`), tout comme `TRUST_PROXY`. ⚠️ E-15
 - **DEP-07** Le HTTPS est assuré par un proxy placé devant le serveur.
 - **DEP-08** Un hébergement statique suffit, sans publication : `index.html`, `project.json` et, si
   besoin, `config.json`.
@@ -601,8 +613,9 @@ Code : [`model.js`](../src/js/model.js), [`db.js`](../src/js/db.js) · Tests :
 
 ### 8.5 Qualité — `QUA`
 
-- **QUA-01** `npm test` couvre le modèle (8 tests), le tableur (6), le mot de passe (2) et le serveur
-  (4) : 20 tests, tous réussis au 1er novembre 2026. ⚠️ E-09
+- **QUA-01** `npm test` couvre le modèle, le tableur, le mot de passe, le serveur et la base. `npm run test:coverage`
+  mesure la couverture par fichier. Les chiffres à jour sont dans la
+  [feuille de route](FEUILLE_DE_ROUTE.md#11-tests-et-couverture). ⚠️ E-09
 - **QUA-02** Le code est formaté avec `prettier` (`npm run format`).
 - **QUA-03** `npm run dev` sert `src/` directement, sans construction, avec ses données dans `.dev-data/`, jamais
   dans `data/`.
@@ -636,9 +649,11 @@ réelle, placées ou non. Les fiches « Proche » sont indiquées à part et ne 
 | Photos envoyées à l'IA                  | 4 au plus                   | `ai.js`                     |
 | Liste compacte                          | plus de 6 fiches            | `views/panel.js`            |
 | Liste très compacte                     | plus de 14 fiches           | `views/panel.js`            |
-| Taille maximale d'un projet publié      | 100 Mo (`MAX_BODY_MB`)      | `server/server.mjs`         |
-| Sauvegardes conservées                  | 20 par projet               | `server/server.mjs`         |
-| Blocage de la publication               | 10 échecs, 10 minutes       | `server/server.mjs`         |
+| Taille maximale d'un projet publié      | 100 Mo (`MAX_BODY_MB`)      | `server/index.mjs`          |
+| Sauvegardes conservées                  | 20 par projet               | `server/routes/legacy.mjs`  |
+| Copies de la base conservées            | 14, une par jour            | `server/db.mjs`             |
+| Blocage de la publication               | 10 échecs, 10 minutes       | `server/routes/legacy.mjs`  |
+| Compression (gzip)                      | texte de 1 Ko ou plus       | `server/http.mjs`           |
 
 ---
 
@@ -646,8 +661,8 @@ réelle, placées ou non. Les fiches « Proche » sont indiquées à part et ne 
 
 Différences entre ce que le projet annonce et ce qu'il fait réellement, relevées en écrivant ce document.
 Elles ont été établies **à la lecture du code**, sauf E-05, E-16 et E-17 (constatés sur le serveur). Rien n'a été testé
-dans un navigateur : E-01, E-02 et E-07 sont à confirmer en conditions réelles. Seul E-17 est corrigé à ce
-jour.
+dans un navigateur : E-01, E-02 et E-07 sont à confirmer en conditions réelles. E-04, E-11 et E-17 sont corrigés à ce
+jour, E-05 et E-09 en partie.
 
 ### Priorité haute
 
@@ -669,12 +684,14 @@ jour.
 - **E-04 — Le blocage des échecs de publication est commun à tout le monde derrière un proxy.** Le serveur
   compte les échecs par adresse IP, mais derrière Traefik il ne voit que celle du proxy. Dix erreurs, de
   n'importe qui, bloquent donc aussi l'enseignant pendant 10 minutes. Le README annonce « par IP ». _Lié à
-  `SRV-06`._
+  `SRV-06`._ **Corrigé :** avec `TRUST_PROXY=1`, le client est reconnu par la dernière valeur de
+  `X-Forwarded-For`. Reste à le vérifier derrière le vrai proxy, à la mise en service.
 - **E-05 — Le projet est retéléchargé en entier à chaque ouverture.** Le serveur envoie `project.json`
   sans compression ni `ETag` ou `Last-Modified` (vérifié sur le serveur Node, sans le proxy : 4,15 Mo à
   chaque chargement, pour chaque élève, et jusqu'à 100 Mo autorisés). Les photos et vidéos des fiches ne
   sont pas réduites et s'ajoutent au même fichier JSON. C'est coûteux sur le terrain, en réseau mobile.
-  _Lié à `EDI-08`, `SRV-10`._
+  _Lié à `EDI-08`, `SRV-10`._ **Corrigé en partie :** compression et ETag sont en place (`SRV-11`). Réduire les
+  photos et les sortir du JSON reste à faire (`LEG-01`, `LEG-02`).
 - **E-06 — Le mode hébergé ne fonctionne pas sans réseau.** Il n'y a ni service worker ni manifeste :
   sans connexion, recharger la page échoue, alors que l'usage prévu est la sortie de terrain.
   `ARCHITECTURE.md` annonce « Tout fonctionne hors ligne », ce qui n'est vrai que pour le fichier autonome.
@@ -688,8 +705,8 @@ jour.
   (RGPD). Hors ligne, les polices du système prennent le relais.
 - **E-09 — La partie la plus risquée n'est pas testée.** Aucun test ne couvre le choix du projet au
   démarrage et la publication côté navigateur (`project-io.js`), le stockage (`store.js`), les rendus
-  (`report.js`), la lecture `.xlsx` (`xlsx.js`) ni les vues. Il n'y a pas d'intégration continue. _Lié à
-  `QUA-01`._
+  (`report.js`), la lecture `.xlsx` (`xlsx.js`) ni les vues. _Lié à `QUA-01`._ **Corrigé en partie :** le serveur est
+  couvert et l'intégration continue en place. Le code du navigateur reste à couvrir (`QUA-07`).
 
 ### Priorité basse
 
@@ -697,8 +714,8 @@ jour.
   entre-temps. Les sauvegardes permettent de récupérer une version écrasée, à la main.
 - **E-11 — Sauvegardes mélangées entre projets aux noms proches.** Le tri se fait sur le début du nom : les
   sauvegardes de `rocaille-2` comptent dans les 20 de `rocaille`, et une sauvegarde de l'un peut être
-  supprimée à la place de celle de l'autre. Aucune restauration n'existe dans l'application. _Lié à
-  `SRV-08`._
+  supprimée à la place de celle de l'autre. _Lié à `SRV-08`._ **Corrigé :** les noms sont comparés en entier. Il
+  n'existe toujours aucune restauration dans l'application.
 - **E-12 — Un projet nommé ne se crée pas depuis l'application.** Si `projets/nom.json` n'existe pas encore,
   le bouton Publier n'apparaît pas : il faut déposer le fichier à la main. Aucune liste des projets
   n'existe non plus. _Lié à `MUL-01`._
@@ -982,7 +999,8 @@ Demande : EV-04. L'ancienne publication a pu échouer avec un message illisible,
 - `FIL-01` à `FIL-05` : l'enregistrement en fichier devient l'export de secours (`EXP-01`).
 - `SEC-01` : le cours envoyé aux élèves ne contient plus les réponses (`CRG-01`).
 - `SEC-05`, `PRI-04` : des données d'élèves arrivent désormais sur le serveur (`ANO-05`, `HIS-01`).
-- `PRI-01` : les comptes demandent un stockage côté serveur, à concilier avec ce principe.
+- `PRI-01` : les comptes demandent un stockage côté serveur. Ce principe est respecté : la base SQLite est celle
+  fournie par Node (`SRV-12`).
 - `PRI-07` : pas de reprise automatique du projet en service. Ses fiches ont été exportées en CSV, sans les photos
   ni le plan. Le projet complet pourra être réimporté depuis une copie de `data/project.json`.
 - E-03, E-05, E-06, E-08, E-12 et E-14 : traités par ces évolutions.
@@ -997,6 +1015,22 @@ Ils ne sont pas réutilisés.
 - **ANO-03** « Seules les données des enseignants sont conservées » : remplacée par `ANO-05` et `HIS-01`.
 - **ANO-07** « Aucune autre donnée d'élève » : le serveur conserve aussi les réponses (`HIS-01`).
 - **CRG-04** « Correction rechargée à chaque consultation » : remplacée par `CRG-08`.
+
+### 12.12 Tests et couverture — `QUA`
+
+Demande : EV-28
+
+- **QUA-04** Chaque évolution arrive avec ses tests, dans le même commit. Un défaut corrigé garde un test qui le
+  reproduit.
+- **QUA-05** Chaque exigence de la section 12 est couverte par au moins un test automatique, dont le titre cite
+  l'identifiant. Si l'automatisation est impossible, comme sur de vrais téléphones, un essai à la main est noté dans
+  la feuille de route.
+- **QUA-06** La couverture se mesure sur **tous** les fichiers : un fichier qu'aucun test ne charge compte pour 0 %.
+  `npm run test:coverage` échoue sous un seuil, et les seuils ne baissent jamais.
+- **QUA-07** Objectif à la mise en service : au moins 95 % des lignes et 90 % des branches du serveur, et au moins
+  70 % des lignes du code du navigateur, grâce à des tests de parcours dans un vrai navigateur.
+- **QUA-08** Le chiffre ne suffit pas : les parties sensibles (fuite des réponses, séparation des espaces, limites
+  d'essais) sont vérifiées en cassant le code exprès, pour s'assurer qu'un test échoue.
 
 ---
 
@@ -1014,3 +1048,4 @@ Ils ne sont pas réutilisés.
 | 0.8     | 1er novembre 2026 | Feuille de route ; constats sur la publication et le routage Traefik      |
 | 0.9     | 1er novembre 2026 | Données en service supprimables : fiches exportées, pas de reprise automatique |
 | 0.10    | 1er novembre 2026 | Étape 0 de la feuille de route : Node 24, `data/` hors du dépôt et de l'image (E-17) |
+| 0.11    | 1er novembre 2026 | Étape 1 : base SQLite, ETag et gzip, E-04 et E-11 corrigés ; exigences sur les tests (EV-28) |

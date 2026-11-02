@@ -4,7 +4,7 @@
  * Seule l'empreinte SHA-256 est enregistrée dans le projet. Comme le projet est lisible
  * par les élèves, cela empêche les accès « par hasard » mais ne résiste pas à une
  * personne déterminée : la vraie protection d'un site hébergé est le mot de passe de
- * publication, vérifié par le serveur (voir server/server.mjs).
+ * publication, vérifié par le serveur (voir server/routes/legacy.mjs).
  */
 import { DEFAULT_PASSWORD } from './model.js';
 

@@ -1,5 +1,5 @@
 /**
- * Point d'entrée de l'application « Inventaire botanique ».
+ * Point d'entrée de l'application d'origine.
  *
  * Ordre de démarrage :
  *   1. mémoriser la page d'origine (pour pouvoir générer des fichiers autonomes) ;
@@ -15,7 +15,7 @@ import { onRender, render } from './render.js';
 import { captureTemplate, resolveStartupProject } from './project-io.js';
 import { renderHeader, bindHeader } from './views/header.js';
 import { renderMap, bindMap } from './views/map.js';
-import { renderPanel, fitPanel } from './views/panel.js';
+import { renderPanel } from './views/panel.js';
 import { bindLogin } from './views/login.js';
 import { bindEditor } from './views/editor.js';
 import { bindReader } from './views/reader.js';
@@ -38,8 +38,6 @@ async function start() {
   bindEditor();
   bindReader();
   bindViewer();
-  if (window.ResizeObserver) new ResizeObserver(fitPanel).observe($('#stageInner'));
-  window.addEventListener('resize', fitPanel);
 
   try {
     await openDb();

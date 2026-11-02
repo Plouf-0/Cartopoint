@@ -49,7 +49,7 @@ export function studentPanelHTML() {
   return `<div class="panel-scroll">
       <h2>Fiches à placer</h2>
       <p class="sub">Notez vos mesures directement dans les cases de chaque fiche, ouvrez-la pour la lire, puis placez-la sur le plan.</p>
-      <input class="search" id="search" type="search" placeholder="Rechercher une espèce, une famille…" value="${esc(S.ui.query)}">
+      <input class="search" id="search" type="search" placeholder="Rechercher une fiche…" value="${esc(S.ui.query)}">
       <div class="chips">${chip('all', 'Toutes')}${chip('unplaced', 'À placer')}${chip('placed', 'Placées')}</div>
       <div class="labels">${cards}</div>
     </div>

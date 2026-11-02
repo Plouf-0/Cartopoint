@@ -62,7 +62,7 @@ function periodicTasks() {
 }
 
 app.server.listen(PORT, () => {
-  console.log(`Inventaire botanique : http://localhost:${PORT}`);
+  console.log(`Cartopoint : http://localhost:${PORT}`);
   console.log(`  application : ${ROOT}`);
   console.log(`  données     : ${DATA}`);
   console.log(`  publication : ${PASSWORD ? 'activée' : 'désactivée (définir PUBLISH_PASSWORD)'}`);

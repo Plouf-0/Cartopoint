@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.15** · 2 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.16** · 2 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -67,6 +67,9 @@ trace.
 | EV-29   | 02/11/2026 | Un enseignant dont le compte est désactivé doit l'apprendre en se connectant : « mot de passe incorrect » porte à confusion.                                                                 | ADM-06                                   | Moyenne  | En cours. Voir 12.1                                                                    |
 | EV-30   | 02/11/2026 | Un bouton supprime un compte désactivé et ses cours, après avoir recopié un mot, pour ne pas le faire par erreur.                                                                            | ADM-10                                   | Moyenne  | En cours. Voir 12.1                                                                    |
 | EV-31   | 02/11/2026 | Un compte supprimé reste restaurable un temps, dans un tableau à part, avec un bouton Restaurer. Souhait de confort, pas une priorité.                                                       | ADM-10                                   | Basse    | En cours. Voir 12.1                                                                    |
+| EV-32   | 02/11/2026 | Le cadre des options, à droite de la page d'un cours, reste tout petit quand le plan est petit ou absent : il doit descendre plus bas. | EDI | Basse | Fait |
+| EV-33   | 02/11/2026 | Enlever l'identification par IA des réglages d'un cours. | IAI-01 | Basse | Fait pour l'espace enseignant ; l'application d'origine la garde jusqu'à l'étape 10 |
+| EV-34   | 02/11/2026 | Rendre le site générique : des valeurs par défaut liées à Cartopoint plutôt qu'à « Inventaire botanique », en gardant le vert comme couleur par défaut. | Q-01 | Moyenne | Fait pour le nom, les valeurs par défaut et les textes. Voir Q-01 |
 
 - **Exigence concernée :** son identifiant (`PLA-03`, `E-01`…), ou rien pour un besoin nouveau.
 - **Priorité :** Haute (empêche une séance), Moyenne (gêne réelle), Basse (confort).
@@ -429,6 +432,7 @@ Code : [`ai.js`](../src/js/ai.js)
 
 - **IAI-01** L'enseignant règle l'adresse d'un service qu'il fournit lui-même. Sans adresse, le bouton
   n'apparaît pas.
+  _Dans l'application d'origine seulement : un cours de l'espace enseignant n'a pas cette identification (EV-33)._
 - **IAI-02** Le service reçoit jusqu'à 4 photos de la fiche et renvoie une proposition en JSON. Le
   contrat est décrit en tête de [`ai.js`](../src/js/ai.js).
 - **IAI-03** Seuls les champs **vides** du formulaire sont remplis, et l'enseignant vérifie avant
@@ -769,6 +773,12 @@ Ces choix ne se déduisent pas du code. Les pistes sont des suggestions.
   mesures, les libellés et la demande à l'IA restent botaniques et codés en dur. _À trancher en premier :
   ce choix conditionne le nom, le vocabulaire et le modèle de données. Piste : ne généraliser que s'il
   existe un vrai second usage._
+  **Tranchée le 2 novembre 2026 pour le nom et les valeurs par défaut (EV-34) :** le site s'appelle Cartopoint. Un nouveau cours
+  s'appelle Cartopoint, sa carte Plan, sa couleur reste le vert et son icône est un repère. **Reste botanique, faute de
+  décision :** les champs d'une fiche (nom scientifique, famille, exposition, arrosage, sol, chaleur, entretien) et les
+  mesures, car ils touchent le modèle de données et le travail du premier enseignant. Les rendre réglables serait une demande à part.
+  L'identifiant `inventaire-botanique` des fichiers et du stockage du navigateur ne change pas : les fichiers existants
+  doivent continuer à s'ouvrir.
 - **Q-06 — Les seuils de correction doivent-ils être réglables ?** Ils sont fixes (4 % et 10 %), quelle que
   soit la taille du terrain : sur 180 m de large, par exemple, cela fait environ 7 m et 18 m.
 - **Q-07 — Sous quelle licence ?** `LICENSE` contient la GPL v3, alors que `package.json` indique
@@ -820,7 +830,7 @@ Toutes le 1er novembre 2026.
 ## 12. Fonctionnement cible
 
 Ce qui suit **n'est pas encore en place**. Une fois livrées, ces exigences rejoignent les sections 4 à 8
-et remplacent celles qu'elles contredisent. Les questions encore ouvertes (Q-01, Q-06, Q-07 et Q-08) ne bloquent pas ce fonctionnement.
+et remplacent celles qu'elles contredisent. Les questions encore ouvertes (Q-06, Q-07 et Q-08) ne bloquent pas ce fonctionnement.
 
 **Parcours visé**
 
@@ -1086,3 +1096,4 @@ Demande : EV-28
 | 0.13    | 2 novembre 2026   | Message pour un compte désactivé, suppression d'un compte et de ses cours et restauration (EV-29 à EV-31) ; symptôme de EV-04 |
 | 0.14    | 2 novembre 2026   | Étape 3 : cours, publication, fichiers, import ; cause de EV-04 en partie trouvée ; SRV-15 à SRV-17 |
 | 0.15    | 2 novembre 2026   | EV-04 : fichiers du premier enseignant analysés et rejoués, erreur revenue sur deux navigateurs, correctif essayé sur une copie |
+| 0.16    | 2 novembre 2026   | EV-32 à EV-34 : panneau plus haut, IA retirée des cours, site générique sous le nom de Cartopoint (Q-01) |

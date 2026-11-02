@@ -1,5 +1,5 @@
 /*
- * Inventaire botanique — feuille de style unique.
+ * Cartopoint — feuille de style unique.
  *
  * Les couleurs passent toutes par les variables de :root. Les thèmes (js/themes.js)
  * remplacent --accent, --paper, --ink… : n'écrivez pas de couleur « en dur » pour
@@ -155,8 +155,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @keyframes flash { from { box-shadow: 0 0 0 0 #ffffffcc, 0 2px 6px #0006; } to { box-shadow: 0 0 0 18px #ffffff00, 0 2px 6px #0006; } }
 
 /* 7. Panneau --------------------------------------------------------------- */
-/* La hauteur maximale est ajustée à celle du plan par views/panel.js */
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); position: sticky; top: 12px; max-height: calc(100dvh - 120px); display: flex; flex-direction: column; min-height: 0; }
+/* Même limite que le plan (.stage-inner), même quand il est petit ou absent : la liste défile à l'intérieur */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); position: sticky; top: 12px; max-height: max(420px, calc(100dvh - 150px)); display: flex; flex-direction: column; min-height: 0; }
 .panel-scroll { overflow: auto; padding: 14px; flex: 1; min-height: 0; }
 .panel > .tabs, .panel-foot { flex: 0 0 auto; } /* ne pas les écraser quand la liste est longue */
 .panel-foot { border-top: 1px solid var(--line); padding: 12px 14px; display: grid; gap: 8px; background: var(--sand-soft); border-radius: 0 0 var(--radius) var(--radius); }

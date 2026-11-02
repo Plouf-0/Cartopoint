@@ -9,7 +9,7 @@
 
 export const PRESETS = {
   vegetal: {
-    label: 'Végétal',
+    label: 'Vert',
     accent: '#2e6e45',
     accentDark: '#24573a',
     accentTint: '#e3edda',
@@ -72,6 +72,7 @@ export const PRESETS = {
 
 /** Icônes possibles pour l'en-tête et les fiches sans photo (tracés SVG 24×24). */
 export const ICONS = {
+  pin: { label: 'Repère', path: '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>' },
   leaf: { label: 'Feuille', path: '<path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14z"/><path d="M5 19l8-8"/>' },
   flower: {
     label: 'Plante',
@@ -87,7 +88,7 @@ export const ICONS = {
 };
 
 export function iconSVG(name, size = 22) {
-  const icon = ICONS[name] || ICONS.leaf;
+  const icon = ICONS[name] || ICONS.pin;
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon.path}</svg>`;
 }
 

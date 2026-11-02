@@ -60,7 +60,7 @@ autonomes.
   "id": "proj-…",            // stable : relie un projet à la progression des élèves
   "revision": "…",           // change à chaque enregistrement / publication
   "savedAt": "2026-10-12T15:04:59.952Z",
-  "title": "Inventaire botanique",
+  "title": "Sortie au parc",
   "theme": { "preset": "vegetal", "accent": "", "icon": "leaf" },
   "passwordHash": "sha256:…",  // null = mot de passe « admin »
   "aiEndpoint": "",

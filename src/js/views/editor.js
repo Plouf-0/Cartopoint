@@ -48,7 +48,7 @@ export function openEditor(id) {
   for (const [field, key] of Object.entries(measureFields())) $('#' + field).value = e[key] || '';
   $('#eVisible').checked = d.visible;
   $('#eDelete').hidden = edit.isNew;
-  $('#aiBtn').hidden = !S.project.aiEndpoint;
+  $('#aiBtn').hidden = S.teacherSpace || !S.project.aiEndpoint;
   $('#aiStatus').textContent = '';
   renderGallery();
   $('#dlgEdit').showModal();

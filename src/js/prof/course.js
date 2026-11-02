@@ -11,7 +11,7 @@ import { $, errorText, fatal, pickFile, toast } from '../util.js';
 import { setProjectTab } from '../views/admin/index.js';
 import { bindEditor } from '../views/editor.js';
 import { bindMap, renderMap } from '../views/map.js';
-import { fitPanel, renderPanel } from '../views/panel.js';
+import { renderPanel } from '../views/panel.js';
 import { bindViewer } from '../views/viewer.js';
 import { createCourseBackend } from './course-backend.js';
 import * as courseTab from './course-tab.js';
@@ -102,8 +102,6 @@ async function start() {
   bindEditor();
   bindViewer();
   bindPlanChoice();
-  if (window.ResizeObserver) new ResizeObserver(fitPanel).observe($('#stageInner'));
-  window.addEventListener('resize', fitPanel);
   render();
 
   // Une dernière écriture si l'on change d'onglet, et un avertissement si l'on quitte la page avant qu'elle ait abouti

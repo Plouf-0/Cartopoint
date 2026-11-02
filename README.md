@@ -1,9 +1,9 @@
-# Inventaire botanique
+# Cartopoint
 
-Application web pour les sorties de terrain : l'enseignant prépare des **fiches d'espèces**
-(photos, besoins de la plante, description) et leur **position réelle sur un plan** ; les élèves
+Application web pour les sorties de terrain : l'enseignant prépare des **fiches**
+(photos, description) et leur **position réelle sur un plan** ; les élèves
 lisent les fiches, notent leurs **mesures** (température, hygrométrie, éclairement), **placent**
-chaque plante sur le plan, puis vérifient leurs placements et téléchargent un **compte rendu en JPG**.
+chaque point sur le plan, puis vérifient leurs placements et téléchargent un **compte rendu en JPG**.
 
 ![Vue élèves](docs/images/01-eleves-placement.jpg)
 

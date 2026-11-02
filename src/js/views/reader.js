@@ -36,7 +36,7 @@ export async function openReader(id) {
       <div class="read-text">
         ${ev ? `<p><span class="grade ${ev.cls}">${esc(ev.label)}</span>${ev.dist ? ` <span class="state">écart : ${esc(ev.dist)}</span>` : ''}</p>` : ''}
         ${facts ? `<dl class="facts">${facts}</dl>` : ''}
-        ${needs ? `<h3 class="mini-h">Besoins de la plante</h3><dl class="needs">${needs}</dl>` : ''}
+        ${needs ? `<h3 class="mini-h">Besoins</h3><dl class="needs">${needs}</dl>` : ''}
         <div class="measures">
           <h3>Vos mesures</h3>
           <p>Notez ce que vous mesurez sur place. C'est enregistré automatiquement.</p>

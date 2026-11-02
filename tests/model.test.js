@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { draftOf, normalizeProject, numberOf, evaluate, sortByRef, projectFromText, newProject, VERSION } from '../src/js/model.js';
+import { draftOf, normalizeProject, numberOf, evaluate, sortByRef, projectFromText, newProject, FORMAT, VERSION } from '../src/js/model.js';
+import { ICONS, PRESETS, iconSVG, paletteOf } from '../src/js/themes.js';
 
 /** Projet au format 2 (fichiers « Inventaire botanique N.html » de 2026). */
 const legacy = {
@@ -114,7 +115,32 @@ test('COU-02 : le contenu d’un cours ne garde ni progression, ni carte affich�
     progress: { m1: { verified: true, entries: {} } }
   });
   const draft = draftOf(project);
-  assert.deepEqual(Object.keys(draft).sort(), ['aiEndpoint', 'format', 'maps', 'theme', 'title', 'version']);
+  assert.deepEqual(Object.keys(draft).sort(), ['format', 'maps', 'theme', 'title', 'version']);
   assert.equal(draft.maps.length, 2);
   assert.doesNotThrow(() => normalizeProject(draft), 'il se relit');
+});
+
+test('EV-34 : un nouveau projet s’appelle Cartopoint, avec une carte « Plan », le vert et un repère', () => {
+  const project = newProject();
+  assert.equal(project.title, 'Cartopoint');
+  assert.equal(project.maps[0].name, 'Plan');
+  assert.deepEqual(project.theme, { preset: 'vegetal', accent: '', icon: 'pin' });
+  assert.equal(paletteOf(project.theme).accent, '#2e6e45');
+  assert.equal(PRESETS.vegetal.label, 'Vert');
+  assert.equal(iconSVG('inconnue'), iconSVG('pin'), 'une icône inconnue devient un repère');
+});
+
+test('EV-34 : les fichiers existants gardent leur nom, leur thème et leur icône', () => {
+  assert.equal(FORMAT, 'inventaire-botanique', 'les fichiers déjà enregistrés portent cet identifiant');
+  const project = normalizeProject({
+    format: FORMAT,
+    version: VERSION,
+    title: 'Sortie',
+    theme: { preset: 'vegetal', icon: 'leaf' },
+    maps: [{ name: 'Plan du parc' }]
+  });
+  assert.equal(project.title, 'Sortie');
+  assert.equal(project.maps[0].name, 'Plan du parc');
+  assert.equal(project.theme.icon, 'leaf');
+  assert.ok(ICONS.leaf, 'l’icône reste au choix');
 });

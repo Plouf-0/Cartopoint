@@ -225,6 +225,38 @@ test('une erreur reste le temps d’être lue, un message ordinaire disparaît v
   assert.equal(await page.locator('#toast.show', { hasText: '⚠' }).count(), 1, 'l’erreur est toujours là');
 });
 
+test('l’identification par IA envoie les photos enregistrées dans le navigateur, et remplit les champs vides', async (t) => {
+  const { page } = await openApp(t);
+  await enterManagement(page);
+  await page.locator('[data-tab=reglages]').click();
+  await page.locator('#aiUrl').fill('https://ia.example.org/identifier');
+  await page.locator('#saveAi').click();
+  await page.locator('[data-tab=fiches]').click();
+
+  let sent;
+  await page.route('https://ia.example.org/**', async (route) => {
+    const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type' };
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    sent = JSON.parse(route.request().postData());
+    return route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify({ family: 'Oleaceae' }) });
+  });
+  await page.locator('#newFiche').click();
+  await page.locator('#eCommon').fill('Olivier');
+  await page.locator('#eFiles').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
+  await page.locator('#eGallery img').waitFor();
+  await page.locator('#aiBtn').click();
+  await page.waitForFunction(() => document.querySelector('#eFamily').value === 'Oleaceae');
+  assert.match(sent.images[0], /^data:image\/png;base64,/);
+});
+
+test('EV-34 : sans projet, la page s’appelle Cartopoint, avec une carte « Plan », et la recherche parle de fiches', async (t) => {
+  const { page } = await openApp(t);
+  await page.waitForFunction(() => document.querySelector('#mapName').textContent === 'Plan');
+  assert.equal(await page.locator('#pageTitle').textContent(), 'Cartopoint');
+  assert.match(await page.title(), /Cartopoint/);
+  assert.match(await page.locator('#search').getAttribute('placeholder'), /fiche/);
+});
+
 test('publier envoie le projet au serveur, et un mauvais mot de passe s’explique', async (t) => {
   const { site, page } = await openApp(t, { password: PUBLISH_PASSWORD });
   await enterManagement(page);

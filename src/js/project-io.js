@@ -162,7 +162,7 @@ export async function saveProject(kind = 'html', fixedName = null) {
   toast('Préparation du fichier…');
   try {
     const bundle = await exportProject();
-    const base = safeFileName(name) || 'Inventaire botanique';
+    const base = safeFileName(name) || DEFAULT_TITLE;
     if (kind === 'html') download(pageWithProject(bundle), base + '.html', 'text/html;charset=utf-8');
     else download(JSON.stringify(bundle), base + '.json', 'application/json');
     S.project.savedAt = bundle.savedAt;
@@ -182,7 +182,7 @@ export async function exportStudentVersion({ clearPositions = true, clearMeasure
   toast('Préparation de la version élèves…');
   try {
     const bundle = await exportProject({ studentsOnly: true, keepPositions: !clearPositions, keepMeasures: !clearMeasures });
-    const base = safeFileName(name) || 'Inventaire élèves';
+    const base = safeFileName(name) || `${DEFAULT_TITLE} - élèves`;
     if (kind === 'html') download(pageWithProject(bundle), base + '.html', 'text/html;charset=utf-8');
     else download(JSON.stringify(bundle), base + '.json', 'application/json');
     toast('✓ Version élèves téléchargée');

@@ -548,7 +548,7 @@ const MUTANTS = [
   ['cours : pas d’avertissement en quittant', 'src/js/prof/course.js', 'if (hasPendingChanges()) event.preventDefault();', ''],
   ['cours : plan absent non signalé', 'src/js/prof/course.js', "$('#planEmpty').hidden = !!S.map.image;", "$('#planEmpty').hidden = true;"],
   ['cours : pas de renvoi vers la connexion', 'src/js/prof/course.js', "if (e.status === 401) return location.replace('/prof');", ''],
-  ['cours : contenu hors de son format', 'src/js/model.js', 'return { format, version, title, theme, aiEndpoint, maps };', 'return project;'],
+  ['cours : contenu hors de son format', 'src/js/model.js', 'return { format, version, title, theme, maps };', 'return project;'],
   [
     'publication : pas d’avertissement',
     'src/js/prof/course-tab.js',
@@ -582,12 +582,26 @@ const MUTANTS = [
     ''
   ],
   ['API : erreur sans texte', 'src/js/api.js', 'text || `Le serveur a répondu ${response.status}.`', 'text'],
+  ['EV-32 : panneau de droite trop court', 'src/css/app.css', 'max-height: max(420px, calc(100dvh - 150px));', 'max-height: 420px;'],
+  ['EV-32 : panneau plus haut que l’écran', 'src/css/app.css', 'max-height: max(420px, calc(100dvh - 150px));', 'max-height: 100dvh;'],
+  ['EV-33 : IA dans les réglages d’un cours', 'src/js/views/admin/settings.js', "${S.teacherSpace ? '' : aiHTML()}", '${aiHTML()}'],
+  ['EV-33 : bouton IA dans un cours', 'src/js/views/editor.js', 'S.teacherSpace || !S.project.aiEndpoint', '!S.project.aiEndpoint'],
   [
-    'IA : photo du serveur envoyée comme une adresse',
-    'src/js/ai.js',
-    "if (m.data?.startsWith('/media/')) images.push(await blobToDataURL(await (await fetch(m.data)).blob()));\n      else if (m.data)",
-    'if (m.data)'
+    'EV-33 : adresse du service gardée dans un cours',
+    'src/js/model.js',
+    'return { format, version, title, theme, maps };',
+    'return { format, version, title, theme, maps, aiEndpoint: project.aiEndpoint };'
   ],
+  ['EV-33 : IA retirée aussi de l’application d’origine', 'src/js/views/admin/settings.js', "${S.teacherSpace ? '' : aiHTML()}", ''],
+  ['EV-34 : ancien titre par défaut', 'src/js/model.js', "DEFAULT_TITLE = 'Cartopoint'", "DEFAULT_TITLE = 'Inventaire botanique'"],
+  ['EV-34 : ancienne icône par défaut', 'src/js/model.js', "raw?.icon || 'pin'", "raw?.icon || 'leaf'"],
+  ['EV-34 : le vert n’est plus la couleur par défaut', 'src/js/model.js', "raw?.preset || 'vegetal'", "raw?.preset || 'ocean'"],
+  ['EV-34 : ancien nom de carte', 'src/js/model.js', "str(raw.name) || 'Plan'", "str(raw.name) || 'Plan du parc'"],
+  ['EV-34 : icône inconnue devenue une feuille', 'src/js/themes.js', 'ICONS[name] || ICONS.pin', 'ICONS[name] || ICONS.leaf'],
+  ['EV-34 : couleur verte perdue', 'src/js/themes.js', "accent: '#2e6e45'", "accent: '#1f5f8b'"],
+  ['EV-34 : botanique dans une fiche ouverte', 'src/js/views/reader.js', '<h3 class="mini-h">Besoins</h3>', '<h3 class="mini-h">Besoins de la plante</h3>'],
+  ['EV-34 : botanique dans la page d’un cours', 'src/prof-cours.html', '<h3>Besoins</h3>', '<h3>Besoins de la plante</h3>'],
+  ['EV-34 : ancien nom du modèle de tableur', 'src/js/views/admin/fiches.js', "'Modèle de fiches.csv'", "'Modèle fiches botaniques.csv'"],
   ['EDI-10 : mesures dans la liste', 'src/js/views/admin/fiches.js', "${S.teacherSpace ? '' : measuresHTML(f)}", '${measuresHTML(f)}'],
   ['EDI-10 : séance dans l’espace enseignant', 'src/js/views/admin/fiches.js', "${S.teacherSpace ? '' : sessionHTML()}", '${sessionHTML()}'],
   [
@@ -700,7 +714,10 @@ const TESTS_FOR = {
   'server/routes/legacy.mjs': ['routes-legacy', 'server'],
   'server/index.mjs': ['server-start'],
   'server/app.mjs': ['server-start', 'courses'],
-  'src/js/model.js': ['model', 'e2e/courses'],
+  'src/js/model.js': ['model', 'e2e/courses', 'e2e/legacy'],
+  'src/js/themes.js': ['model', 'e2e/courses'],
+  'src/js/views/reader.js': ['wording'],
+  'src/prof-cours.html': ['wording', 'e2e/courses'],
   'src/js/spreadsheet.js': ['spreadsheet', 'e2e/courses'],
   'src/js/util.js': ['util', 'e2e/legacy', 'e2e/courses'],
   'src/js/db.js': ['e2e/legacy'],
@@ -708,7 +725,7 @@ const TESTS_FOR = {
   'src/js/project-io.js': ['e2e/legacy'],
   'src/js/views/editor.js': ['e2e/courses'],
   'src/js/views/admin/fiches.js': ['e2e/courses'],
-  'src/js/views/admin/settings.js': ['e2e/courses'],
+  'src/js/views/admin/settings.js': ['e2e/courses', 'e2e/legacy'],
   'src/js/views/admin/maps.js': ['e2e/courses', 'e2e/legacy'],
   'src/js/prof/course.js': ['e2e/courses'],
   'src/js/prof/course-backend.js': ['e2e/courses'],
@@ -716,7 +733,7 @@ const TESTS_FOR = {
   'src/js/prof/course-tab.js': ['e2e/courses'],
   'src/js/prof/main.js': ['e2e/courses'],
   'src/js/api.js': ['e2e/courses'],
-  'src/js/ai.js': ['e2e/courses'],
+  'src/js/ai.js': ['e2e/legacy'],
   'src/js/admin/main.js': ['e2e/accounts', 'e2e/courses'],
   'src/js/compte/main.js': ['e2e/accounts'],
   'src/js/compte/ui.js': ['e2e/accounts'],
@@ -726,9 +743,11 @@ const testsFor = (file) => (TESTS_FOR[file] ?? []).map((name) => `tests/${name}.
 
 // Sur du code intact, tout doit passer : sinon chaque modification paraîtrait attrapée, à tort.
 for (const tests of new Set(selected.map(([, file]) => testsFor(file).join(' ')))) {
-  const { code, blocked } = await runTests(copy, tests.split(' '));
+  const { code, blocked, out } = await runTests(copy, tests.split(' '));
   if (code !== 0 || blocked) {
-    console.error(`Les tests échouent déjà sur le code intact : ${tests}\nRien n'a été vérifié.`);
+    const failing = new Set([...out.matchAll(/^✖ (.+?) \(\d/gm)].map((match) => match[1]));
+    const cause = blocked ? `délai de ${RUN_TIMEOUT / 60000} min dépassé` : [...failing].join('\n') || out.slice(-2000);
+    console.error(`Les tests échouent déjà sur le code intact : ${tests}\n${cause}\nRien n'a été vérifié.`);
     rmSync(copy, { recursive: true, force: true });
     process.exit(1);
   }

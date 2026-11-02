@@ -157,7 +157,7 @@ export function bind(panel) {
     e.target.value = '';
     if (file) await importSpreadsheet(file);
   };
-  $('#sheetTemplate').onclick = () => download(templateCsv(), 'Modèle fiches botaniques.csv', 'text/csv;charset=utf-8');
+  $('#sheetTemplate').onclick = () => download(templateCsv(), 'Modèle de fiches.csv', 'text/csv;charset=utf-8');
   $('#sheetExport').onclick = () => download(buildCsv(fiches(), progress()), safeFileName(`Fiches - ${S.map.name}`) + '.csv', 'text/csv;charset=utf-8');
 
   if (!S.teacherSpace) bindSession();

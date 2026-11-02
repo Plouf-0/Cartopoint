@@ -35,8 +35,7 @@ export async function identifyWithAI(draft, statusEl) {
   try {
     const images = [];
     for (const m of photos) {
-      if (m.data?.startsWith('/media/')) images.push(await blobToDataURL(await (await fetch(m.data)).blob()));
-      else if (m.data) images.push(m.data);
+      if (m.data) images.push(m.data);
       else if (m.key) {
         const blob = await Files.get(m.key);
         if (blob) images.push(await blobToDataURL(blob));

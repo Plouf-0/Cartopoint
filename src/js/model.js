@@ -14,13 +14,14 @@
  */
 import { uid, str, num, natural } from './util.js';
 
+/** Identifiant technique : tous les fichiers déjà enregistrés le portent, il ne change pas avec le nom du site. */
 export const FORMAT = 'inventaire-botanique';
 export const VERSION = 3;
-export const DEFAULT_TITLE = 'Inventaire botanique';
+export const DEFAULT_TITLE = 'Cartopoint';
 /** Mot de passe de gestion tant que l'enseignant n'en a pas choisi un. */
 export const DEFAULT_PASSWORD = 'admin';
 
-/** Besoins de la plante : clé, icône, libellé. */
+/** Besoins : clé, icône, libellé. */
 export const NEEDS = [
   ['exposure', '☀️', 'Exposition'],
   ['watering', '💧', 'Arrosage'],
@@ -129,7 +130,7 @@ export function legacyProgressOf(rawMap) {
 }
 
 export function normalizeTheme(raw) {
-  return { preset: raw?.preset || 'vegetal', accent: raw?.accent || '', icon: raw?.icon || 'leaf' };
+  return { preset: raw?.preset || 'vegetal', accent: raw?.accent || '', icon: raw?.icon || 'pin' };
 }
 
 /**
@@ -142,7 +143,7 @@ export function normalizeProject(raw, fallbackImage = '') {
   if (!raw || raw.format !== FORMAT || !Array.isArray(raw.maps)) throw new Error('fichier de projet non reconnu');
   const legacy = (raw.version || 1) < 3;
   const maps = raw.maps.map((m) => normalizeMap(m, fallbackImage));
-  if (!maps.length) maps.push(normalizeMap({ name: 'Plan du parc' }, fallbackImage));
+  if (!maps.length) maps.push(normalizeMap({}, fallbackImage));
 
   let progress = {};
   if (legacy) for (const m of raw.maps) progress[m.id] = legacyProgressOf(m);
@@ -166,12 +167,12 @@ export function normalizeProject(raw, fallbackImage = '') {
 }
 
 /**
- * Contenu d'un cours sur le serveur : ni progression, ni carte affichée, ni mot de passe de gestion. Changer de
- * carte à l'écran ne compte donc pas comme une modification du cours.
+ * Contenu d'un cours sur le serveur : ni progression, ni carte affichée, ni mot de passe de gestion, ni service
+ * d'identification. Changer de carte à l'écran ne compte donc pas comme une modification du cours.
  */
 export function draftOf(project) {
-  const { format, version, title, theme, aiEndpoint, maps } = project;
-  return { format, version, title, theme, aiEndpoint, maps };
+  const { format, version, title, theme, maps } = project;
+  return { format, version, title, theme, maps };
 }
 
 /**
@@ -191,7 +192,7 @@ export function projectFromText(text) {
 
 /** Nouveau projet vide avec une carte. */
 export function newProject(title = DEFAULT_TITLE, image = '') {
-  return normalizeProject({ format: FORMAT, version: VERSION, title, maps: [{ name: 'Plan du parc', image, fiches: [] }] }, image);
+  return normalizeProject({ format: FORMAT, version: VERSION, title, maps: [{ image, fiches: [] }] }, image);
 }
 
 /* ------------------------------------------------------------------ */

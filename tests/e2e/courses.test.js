@@ -240,7 +240,7 @@ test('plusieurs cartes : en ajouter, changer de carte et en supprimer', async (t
   const id = onlyCourse(site).id;
   assert.deepEqual(
     draftInDb(site, id).maps.map((map) => map.name),
-    ['Plan du parc', 'Bord de mer']
+    ['Plan', 'Bord de mer']
   );
 
   await page.locator('[data-map-del]').last().click();
@@ -420,7 +420,7 @@ test('COU-02 : changer de carte à l’écran ne compte pas comme une modificati
   await page.locator('#toast', { hasText: 'publiée' }).waitFor();
 
   await page.locator('[data-map-open]').click();
-  await page.locator('#mapName', { hasText: 'Plan du parc' }).waitFor();
+  await page.locator('#mapName', { hasText: 'Plan' }).waitFor();
   await page.waitForTimeout(500);
   assert.equal(await page.locator('#publishTop').isDisabled(), true);
 });
@@ -928,29 +928,77 @@ test('l’onglet Réglages enregistre le thème dans le cours', async (t) => {
   assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--accent') !== ''), true);
 });
 
-test('l’identification par IA envoie les photos du serveur comme des images, et remplit les champs vides', async (t) => {
-  const { page } = await setup(t);
-  await createCourse(page);
-  await tab(page, 'Réglages');
-  await page.locator('#aiUrl').fill('https://ia.example.org/identifier');
-  await page.locator('#saveAi').click();
-  await saved(page);
-  await tab(page, 'Fiches');
+test('EV-33 : un cours n’a pas d’identification par IA, même importé d’un projet qui en avait une', async (t) => {
+  const { site, page } = await setup(t);
+  await importFile(page, 'projet.json', JSON.stringify(projectFile({ aiEndpoint: 'https://ia.example.org/identifier' })));
+  await page.locator('.course-row', { hasText: 'Projet importé' }).waitFor();
+  assert.doesNotMatch(onlyCourse(site).draft, /ia\.example\.org|aiEndpoint/);
 
-  let sent;
-  await page.route('https://ia.example.org/**', async (route) => {
-    const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type' };
-    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
-    sent = JSON.parse(route.request().postData());
-    return route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify({ family: 'Oleaceae' }) });
-  });
+  // Un cours créé avant ce retrait peut encore contenir l'adresse : elle ne sert plus à rien
+  const course = onlyCourse(site);
+  site.db.prepare('UPDATE courses SET draft = ?').run(JSON.stringify({ ...JSON.parse(course.draft), aiEndpoint: 'https://ia.example.org/identifier' }));
+  await page.goto(`/prof/cours/${course.id}`);
+  await tab(page, 'Réglages');
+  await page.getByRole('heading', { name: 'Apparence' }).waitFor();
+  assert.equal(await page.locator('#aiUrl').count(), 0);
+  assert.doesNotMatch(await page.locator('#panel').textContent(), /IA\b/);
+
+  await tab(page, 'Fiches');
   await page.locator('#newFiche').click();
-  await page.locator('#eCommon').fill('Olivier');
-  await page.locator('#eFiles').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
-  await page.locator('#eGallery img[src^="/media/"]').waitFor();
-  await page.locator('#aiBtn').click();
-  await page.waitForFunction(() => document.querySelector('#eFamily').value === 'Oleaceae');
-  assert.match(sent.images[0], /^data:image\/png;base64,/);
+  await page.locator('#eCommon').waitFor();
+  assert.equal(await page.locator('#aiBtn').isVisible(), false);
+});
+
+for (const [what, plan, screen] of [
+  ['sans plan', null, 900],
+  ['avec un plan très large', makePng(400, 100), 900],
+  ['sur un écran bas', null, 600]
+]) {
+  test(`EV-32 : ${what}, le panneau de droite descend presque jusqu’en bas de l’écran, sans en sortir`, async (t) => {
+    const { page } = await setup(t, { viewport: { width: 1900, height: screen } });
+    await createCourse(page);
+    if (plan) {
+      const chooser = page.waitForEvent('filechooser');
+      await page.locator('#planChoose').click();
+      await (await chooser).setFiles({ name: 'plan.png', mimeType: 'image/png', buffer: plan });
+      await page.locator('#plan[src^="/media/"]').waitFor();
+    }
+    const { height, bottom, hidden } = await page.locator('#panel').evaluate((panel) => {
+      const box = panel.getBoundingClientRect();
+      const scroll = panel.querySelector('.panel-scroll');
+      return { height: box.height, bottom: box.bottom, hidden: scroll.scrollHeight - scroll.clientHeight };
+    });
+    assert.ok(bottom <= screen, `le panneau finit à ${bottom}`);
+    assert.ok(height >= screen - 150 || hidden === 0, `${height} px de haut alors que ${hidden} px restent à faire défiler`);
+  });
+}
+
+test('EV-34 : l’espace enseignant s’appelle Cartopoint, garde le vert par défaut et ne parle plus de botanique', async (t) => {
+  const { page } = await setup(t);
+  const BOTANICAL = /botani|inventaire|la plante|espèce/i;
+  const noBotany = async (where) =>
+    assert.doesNotMatch(await page.evaluate(() => document.title + ' ' + document.documentElement.textContent), BOTANICAL, where);
+  await noBotany('liste des cours');
+  assert.match(await page.title(), /Cartopoint/);
+
+  // Un cours créé sans nom reçoit les valeurs par défaut
+  await page.getByRole('button', { name: 'Créer le cours' }).click();
+  await page.locator('#planChoose').waitFor();
+  assert.equal(await page.locator('#pageTitle').textContent(), 'Cartopoint');
+  assert.equal(await page.locator('#mapName').textContent(), 'Plan');
+  assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--accent')), '#2e6e45');
+  assert.equal(await page.locator('.brand-mark circle').count(), 1, 'l’icône est un repère, plus une feuille');
+
+  for (const name of ['Fiches', 'Cartes', 'Cours', 'Réglages']) {
+    await tab(page, name);
+    await noBotany(`onglet ${name}`);
+  }
+  await page.locator('.swatch[data-preset=vegetal]', { hasText: 'Vert' }).waitFor();
+
+  await tab(page, 'Fiches');
+  const download = page.waitForEvent('download');
+  await page.locator('#sheetTemplate').click();
+  assert.equal((await download).suggestedFilename(), 'Modèle de fiches.csv');
 });
 
 test('la visionneuse montre les photos du serveur, et passe de l’une à l’autre', async (t) => {

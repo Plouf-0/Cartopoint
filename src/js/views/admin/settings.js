@@ -16,7 +16,7 @@ export function html() {
     <h2>Réglages</h2>
     <div class="section first">
       <h3>Apparence</h3>
-      <p>Couleurs et icône de la page, pour adapter l'application à d'autres sujets que les plantes. Elles sont enregistrées avec le projet : les élèves les verront aussi.</p>
+      <p>Couleurs et icône de la page. Elles sont enregistrées avec ${S.teacherSpace ? 'le cours' : 'le projet'} : les élèves les verront aussi.</p>
       <div class="swatches">
         ${Object.entries(PRESETS)
           .map(([k, p]) => swatch(k, p))
@@ -37,8 +37,11 @@ export function html() {
     </div>
 
     ${S.teacherSpace ? '' : passwordHTML()}
+    ${S.teacherSpace ? '' : aiHTML()}`;
+}
 
-    <div class="section">
+function aiHTML() {
+  return `<div class="section">
       <h3>Identification par IA</h3>
       <p>Adresse d'un serveur qui reçoit les photos d'une fiche et renvoie une proposition (nom commun, nom scientifique, famille, besoins…). Laissez vide pour masquer le bouton. Ne mettez jamais de clé d'API dans ce champ : elle serait visible par tous.</p>
       <div class="inline"><input id="aiUrl" class="text-input" type="url" value="${esc(S.project.aiEndpoint)}" placeholder="https://…"><button type="button" class="btn soft sm" id="saveAi">Enregistrer</button></div>
@@ -83,9 +86,9 @@ export function bind(panel) {
     $('#pw1').value = $('#pw2').value = '';
     toast('Mot de passe changé');
   });
-  $('#saveAi').onclick = () => {
+  $('#saveAi')?.addEventListener('click', () => {
     S.project.aiEndpoint = $('#aiUrl').value.trim();
     changedMeta();
     toast('Adresse enregistrée');
-  };
+  });
 }

@@ -20,16 +20,4 @@ export function renderPanel() {
   const sc = panel.querySelector('.panel-scroll');
   if (sc) sc.scrollTop = scroll;
   hydrateThumbs(panel);
-  fitPanel();
-}
-
-/** Sur grand écran, le panneau prend la hauteur du plan et défile à l'intérieur. */
-export function fitPanel() {
-  const panel = $('#panel');
-  if (window.innerWidth <= 900) {
-    panel.style.maxHeight = '';
-    return;
-  }
-  const h = $('#stageInner').getBoundingClientRect().height;
-  panel.style.maxHeight = Math.max(420, Math.min(h, window.innerHeight - 24)) + 'px';
 }

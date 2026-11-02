@@ -70,6 +70,7 @@ trace.
 | EV-32   | 02/11/2026 | Le cadre des options, à droite de la page d'un cours, reste tout petit quand le plan est petit ou absent : il doit descendre plus bas. | EDI | Basse | Fait |
 | EV-33   | 02/11/2026 | Enlever l'identification par IA des réglages d'un cours. | IAI-01 | Basse | Fait pour l'espace enseignant ; l'application d'origine la garde jusqu'à l'étape 10 |
 | EV-34   | 02/11/2026 | Rendre le site générique : des valeurs par défaut liées à Cartopoint plutôt qu'à « Inventaire botanique », en gardant le vert comme couleur par défaut. | Q-01 | Moyenne | Fait pour le nom, les valeurs par défaut et les textes. Voir Q-01 |
+| EV-35   | 02/11/2026 | Plus aucune donnée d'utilisateur sur GitHub à partir de maintenant. L'historique sera réécrit plus tard si besoin. | Dépôt | Haute | Fait dans la branche : plan d'exemple inventé, captures retirées, `tests/repo.test.js`. Ce qui est déjà public le reste |
 
 - **Exigence concernée :** son identifiant (`PLA-03`, `E-01`…), ou rien pour un besoin nouveau.
 - **Priorité :** Haute (empêche une séance), Moyenne (gêne réelle), Basse (confort).
@@ -776,7 +777,8 @@ Ces choix ne se déduisent pas du code. Les pistes sont des suggestions.
   **Tranchée le 2 novembre 2026 pour le nom et les valeurs par défaut (EV-34) :** le site s'appelle Cartopoint. Un nouveau cours
   s'appelle Cartopoint, sa carte Plan, sa couleur reste le vert et son icône est un repère. **Reste botanique, faute de
   décision :** les champs d'une fiche (nom scientifique, famille, exposition, arrosage, sol, chaleur, entretien) et les
-  mesures, car ils touchent le modèle de données et le travail du premier enseignant. Les rendre réglables serait une demande à part.
+  mesures, car ils touchent le modèle de données et le travail du premier enseignant. L'utilisateur a reporté ce point le 2 novembre : « pour
+  le moment il lui faut un truc qui fonctionne ».
   L'identifiant `inventaire-botanique` des fichiers et du stockage du navigateur ne change pas : les fichiers existants
   doivent continuer à s'ouvrir.
 - **Q-06 — Les seuils de correction doivent-ils être réglables ?** Ils sont fixes (4 % et 10 %), quelle que
@@ -1096,4 +1098,4 @@ Demande : EV-28
 | 0.13    | 2 novembre 2026   | Message pour un compte désactivé, suppression d'un compte et de ses cours et restauration (EV-29 à EV-31) ; symptôme de EV-04 |
 | 0.14    | 2 novembre 2026   | Étape 3 : cours, publication, fichiers, import ; cause de EV-04 en partie trouvée ; SRV-15 à SRV-17 |
 | 0.15    | 2 novembre 2026   | EV-04 : fichiers du premier enseignant analysés et rejoués, erreur revenue sur deux navigateurs, correctif essayé sur une copie |
-| 0.16    | 2 novembre 2026   | EV-32 à EV-34 : panneau plus haut, IA retirée des cours, site générique sous le nom de Cartopoint (Q-01) |
+| 0.16    | 2 novembre 2026   | EV-32 à EV-35 : panneau plus haut, IA retirée des cours, site générique sous le nom de Cartopoint (Q-01), plus de données d'utilisateur sur GitHub |

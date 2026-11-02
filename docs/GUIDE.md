@@ -18,8 +18,6 @@ les **mesures relevées** (température, hygrométrie, éclairement) se notent s
 dans les petites cases de la fiche, soit dans la grande fiche ouverte : c'est enregistré tout
 seul.
 
-![Placer une fiche](images/01-eleves-placement.jpg)
-
 **Placer une espèce**
 
 - Cliquer sur **Placer sur le plan**, puis cliquer à l'endroit voulu sur le plan.
@@ -34,23 +32,17 @@ Cliquer sur le nom d'une fiche l'ouvre en grand : photo, famille, besoins de la 
 (☀️ exposition, 💧 arrosage, 🌱 sol, 🌡️ chaleur, ✂️ entretien), mesures, description.
 Un clic sur une photo l'affiche en plein écran (flèches ← → pour passer à la suivante).
 
-![Fiche ouverte](images/02-fiche-eleve.jpg)
-
 **Vérifier**
 
 Une fois l'exercice fait, **Vérifier mes placements** termine l'exercice : les placements sont
 figés et les positions réelles apparaissent (carrés bleus, reliés au rond de l'élève par des
 pointillés). Chaque fiche indique **Bien placée**, **Proche** ou **À revoir**, avec l'écart.
 
-![Résultats](images/03-resultats.jpg)
-
 **Compte rendu**
 
 **Télécharger le compte rendu (JPG)** crée une image avec les noms des élèves, le plan et
 les repères, le score, et pour chaque fiche les mesures relevées et le résultat. C'est ce
 fichier que les élèves rendent (ENT, mail…).
-
-![Compte rendu](images/04-compte-rendu.jpg)
 
 **Rendu prof (CSV)**
 
@@ -69,8 +61,6 @@ voir Réglages). Quatre onglets : **Fiches**, **Cartes**, **Projet**, **Réglage
 
 ### Fiches
 
-![Gestion des fiches](images/05-gestion-fiches.jpg)
-
 - **Case « élèves »** : la fiche est montrée aux élèves ou non.
 - **🗑** supprime définitivement une fiche et ses photos (le bouton **Supprimer la fiche** existe aussi
   en bas de la fenêtre « Modifier »). **Supprimer les fiches masquées** retire d'un coup toutes les
@@ -85,8 +75,6 @@ voir Réglages). Quatre onglets : **Fiches**, **Cartes**, **Projet**, **Réglage
   (cliquer dans une case puis sur l'émoji), mesures, description, photos et vidéos. On choisit
   la photo qui sert de **vignette**. Sur PC, la touche Windows + « . » ouvre aussi tous les émojis.
 
-![Modifier une fiche](images/06-edition-fiche.jpg)
-
 - **Importer un tableau** : fiches préparées dans Excel, LibreOffice ou Google Sheets. Le
   **modèle** se télécharge juste à côté. Préférez le format **.xlsx**, qui garde les émojis.
   Une fiche qui existe déjà (même réf. photo, ou à défaut même nom) est complétée au lieu d'être
@@ -96,15 +84,11 @@ voir Réglages). Quatre onglets : **Fiches**, **Cartes**, **Projet**, **Réglage
 
 ### Cartes
 
-![Cartes](images/07-gestion-cartes.jpg)
-
 - Changer l'image du plan, ou ajouter d'autres cartes (chacune garde ses fiches).
 - **Échelle** : la largeur réelle du terrain, en mètres. Les écarts des élèves seront alors
   donnés en mètres.
 
 ### Projet
-
-![Projet](images/08-gestion-projet.jpg)
 
 - **Nom du projet** : le titre en haut de la page.
 - **En ligne** (site hébergé) : **Publier les modifications** met la nouvelle version à disposition
@@ -119,8 +103,6 @@ voir Réglages). Quatre onglets : **Fiches**, **Cartes**, **Projet**, **Réglage
   **Nouveau projet vide**.
 
 ### Réglages
-
-![Réglages](images/09-reglages-theme.jpg)
 
 - **Apparence** : thème de couleurs (Végétal, Océan, Terre, Ardoise, Lavande, ou une couleur au
   choix) et icône, pour utiliser l'application pour un autre sujet que les plantes. Les élèves
@@ -140,4 +122,3 @@ voir Réglages). Quatre onglets : **Fiches**, **Cartes**, **Projet**, **Réglage
 - Le travail des élèves **n'est pas effacé** quand l'enseignant publie une nouvelle version des fiches.
 - Sur téléphone, le plan passe au-dessus et la liste des fiches en dessous.
 
-![Sur téléphone](images/10-telephone.jpg)

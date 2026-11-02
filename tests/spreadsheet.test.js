@@ -27,14 +27,11 @@ test('valeurs : dates, oui/non, positions', () => {
 });
 
 test('import : complète par réf. photo, même quand une réf. est en double', () => {
-  const existing = [
-    normalizeFiche({ ref: '2', common: "Plante d’exemple" }),
-    normalizeFiche({ ref: '2', common: 'Plante d’exemple', species: 'Plante d’exemple' })
-  ];
+  const existing = [normalizeFiche({ ref: '2', common: 'Laurier rose' }), normalizeFiche({ ref: '2', common: 'Tamaris', species: 'Tamarix gallica' })];
   const rows = [
     ['Réf. photo', 'Nom commun', 'Nom scientifique'],
-    ['2', 'Plante d’exemple', 'Plante d’exemple'],
-    ['2', "Plante d’exemple", ''],
+    ['2', 'Tamaris', 'Tamarix gallica'],
+    ['2', 'Laurier rose', ''],
     ['', 'Olivier', 'Olea europaea'],
     ['', '', '']
   ];
@@ -64,7 +61,7 @@ test('rendu prof : mesures, écart et ligne de moyenne', () => {
     [
       row(1, 'Olivier', { temperature: '20', humidity: '50,5', light: '1000' }, { state: 'ok', label: 'Bien placée', d: 2 }),
       row(2, 'Chêne; vert', { temperature: '22.5', humidity: '', light: 'nuageux' }, { state: 'far', label: 'À revoir', d: 12 }),
-      row(3, 'Romarin', {}, { state: 'noref', label: 'Pas de position réelle' })
+      row(3, 'Laurier', {}, { state: 'noref', label: 'Pas de position réelle' })
     ],
     { names: 'Léa et Tom', widthMeters: 50 }
   );
@@ -72,7 +69,7 @@ test('rendu prof : mesures, écart et ligne de moyenne', () => {
   assert.equal(lines[0], 'Élèves;N°;Réf. photo;Nom commun;Nom scientifique;Température (°C);Hygrométrie (%);Éclairement (lux);Résultat;Écart (m)');
   assert.equal(lines[1], 'Léa et Tom;1;1;Olivier;;20;50,5;1000;Bien placée;1');
   assert.equal(lines[2], 'Léa et Tom;2;2;"Chêne; vert";;22,5;;nuageux;À revoir;6');
-  assert.equal(lines[3], 'Léa et Tom;3;3;Romarin;;;;;Pas de position réelle;');
+  assert.equal(lines[3], 'Léa et Tom;3;3;Laurier;;;;;Pas de position réelle;');
   assert.equal(lines[4], 'Léa et Tom;;;Moyenne;;21,25;50,5;1000;1 / 2 bien placée(s);3,5');
 });
 

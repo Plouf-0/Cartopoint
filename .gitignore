@@ -1,6 +1,9 @@
 node_modules/
 dist/
 data/
+*.db
+*.db-*
+*.sqlite
 .dev-data/
 .DS_Store
 

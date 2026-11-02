@@ -5,8 +5,6 @@ Application web pour les sorties de terrain : l'enseignant prépare des **fiches
 lisent les fiches, notent leurs **mesures** (température, hygrométrie, éclairement), **placent**
 chaque point sur le plan, puis vérifient leurs placements et téléchargent un **compte rendu en JPG**.
 
-![Vue élèves](docs/images/01-eleves-placement.jpg)
-
 - Guide d'utilisation (enseignant et élèves) : [docs/GUIDE.md](docs/GUIDE.md)
 - Fonctionnement interne, format des données : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - Exigences du projet (source de vérité) : [docs/CAHIER_DES_CHARGES.md](docs/CAHIER_DES_CHARGES.md)

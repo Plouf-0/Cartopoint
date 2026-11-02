@@ -68,15 +68,15 @@ autonomes.
   "maps": [
     {
       "id": "map-…",
-      "name": "Plan du parc",
+      "name": "Plan",
       "image": "data:image/jpeg;base64,…",
       "widthMeters": 180,       // facultatif : écarts en mètres
       "fiches": [
         {
           "id": "loc-…",
           "ref": "12b",           // réf. photo / étiquette terrain (libre)
-          "common": "Plante d’exemple",
-          "species": "Plante d’exemple",
+          "common": "Tamaris",
+          "species": "Tamarix gallica",
           "family": "Lamiaceae",
           "date": "2026-09-28",
           "exposure": "☀️☀️☀️ Plein soleil", "watering": "💧💧 Modéré…",

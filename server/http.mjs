@@ -25,6 +25,8 @@ const TYPES = {
   '.svg': 'image/svg+xml',
   '.webp': 'image/webp',
   '.ico': 'image/x-icon',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
   '.txt': 'text/plain; charset=utf-8'
 };
 
@@ -88,6 +90,18 @@ export async function sendJson(req, res, value, { status = 200, cache = 'no-cach
   res.end(payload);
 }
 
+/**
+ * Lit l'en-tête Range : `{ start, end }`, null s'il faut envoyer tout le fichier, ou false si la plage est impossible.
+ * Une seule plage : c'est ce que demandent les navigateurs pour une vidéo, et Safari ne la lit pas autrement.
+ */
+function parseRange(header, size) {
+  const match = /^bytes=(\d*)-(\d*)$/.exec(header ?? '');
+  if (!match || (!match[1] && !match[2])) return null;
+  const start = match[1] ? Number(match[1]) : Math.max(0, size - Number(match[2]));
+  const end = match[1] && match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
+  return start <= end ? { start, end } : false;
+}
+
 export async function sendFile(req, res, file, cache) {
   let stat;
   try {
@@ -106,6 +120,22 @@ export async function sendFile(req, res, file, cache) {
   };
   if (isFresh(req, headers.ETag)) return notModified(res, headers);
 
+  if (!compressible) {
+    headers['Accept-Ranges'] = 'bytes';
+    const range = parseRange(req.headers.range, stat.size);
+    if (range === false) return send(res, 416, 'Plage impossible', undefined, { 'Content-Range': `bytes */${stat.size}` });
+    if (range) {
+      res.writeHead(206, {
+        ...headers,
+        'Content-Type': type,
+        'Content-Range': `bytes ${range.start}-${range.end}/${stat.size}`,
+        'Content-Length': range.end - range.start + 1
+      });
+      if (req.method === 'HEAD') return res.end();
+      return pipeFile(createReadStream(file, range), res);
+    }
+  }
+
   const compress = compressible && acceptsGzip(req);
   res.writeHead(200, {
     ...headers,
@@ -113,8 +143,12 @@ export async function sendFile(req, res, file, cache) {
     ...(compress ? { 'Content-Encoding': 'gzip' } : { 'Content-Length': stat.size })
   });
   if (req.method === 'HEAD') return res.end();
+  return compress ? pipeFile(createReadStream(file), createGzip(), res) : pipeFile(createReadStream(file), res);
+}
+
+async function pipeFile(...streams) {
   try {
-    await (compress ? pipeline(createReadStream(file), createGzip(), res) : pipeline(createReadStream(file), res));
+    await pipeline(...streams);
   } catch {
     /* client parti en cours de route : pipeline a déjà fermé la connexion */
   }

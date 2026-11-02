@@ -114,6 +114,8 @@ export function accountBar(account, onLogout) {
 }
 
 const dateAndTime = (iso) => new Date(iso).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
+/** Pour un tableau : 2 nov. 2026. */
+const shortDate = (iso) => new Date(iso).toLocaleDateString('fr-FR', { dateStyle: 'medium' });
 
 /** Un lien à transmettre, avec son bouton de copie. Hors HTTPS, le navigateur refuse de copier : le lien est alors sélectionné. */
 export function linkBox(title, { link, expiresAt }) {
@@ -137,4 +139,4 @@ export function linkBox(title, { link, expiresAt }) {
   return el('div', { className: 'link-box' }, el('p', { className: 'mini-h' }, title), el('div', { className: 'inline' }, input, copy), note);
 }
 
-export { dateAndTime };
+export { dateAndTime, shortDate };

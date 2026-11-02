@@ -166,6 +166,15 @@ export function normalizeProject(raw, fallbackImage = '') {
 }
 
 /**
+ * Contenu d'un cours sur le serveur : ni progression, ni carte affichée, ni mot de passe de gestion. Changer de
+ * carte à l'écran ne compte donc pas comme une modification du cours.
+ */
+export function draftOf(project) {
+  const { format, version, title, theme, aiEndpoint, maps } = project;
+  return { format, version, title, theme, aiEndpoint, maps };
+}
+
+/**
  * Extrait les données brutes d'un projet depuis le contenu d'un fichier :
  * .json, ou page .html contenant un projet intégré (version actuelle ou versions 2026).
  */

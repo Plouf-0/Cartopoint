@@ -44,6 +44,13 @@ export const safeFileName = (s) =>
     .trim()
     .slice(0, 100);
 
+/** Texte d'une erreur à montrer : jamais « undefined », même si ce qu'on a reçu n'est pas une vraie erreur. */
+export const errorText = (e) => e?.message || e?.name || (typeof e === 'string' && e) || 'erreur inconnue';
+
+/** Taille lisible : 850 Ko, 1,2 Mo. */
+export const formatSize = (bytes) =>
+  bytes < 1e6 ? `${Math.max(1, Math.round(bytes / 1e3))} Ko` : `${(bytes / 1e6).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo`;
+
 /** Date du jour au format AAAA-MM-JJ. */
 export const today = () => new Date().toISOString().slice(0, 10);
 
@@ -88,14 +95,16 @@ export const loadImage = (src) =>
   });
 
 /**
- * Réduit une image trop lourde (côté max 2600 px, JPEG) pour garder le projet léger.
- * Renvoie une URL data:.
+ * Réduit une image trop lourde pour garder le projet léger. Une image assez petite reste telle quelle.
+ * Renvoie une URL data:. Le plan garde ces réglages, car il doit rester lisible ; les photos en ont d'autres.
  */
-export async function prepareImage(file, max = 2600) {
+export async function prepareImage(file, { max = 2600, quality = 0.88, keepBelow = 1.5e6, convert = false } = {}) {
   const src = await blobToDataURL(file);
   try {
     const img = await loadImage(src);
-    if (img.naturalWidth <= max && img.naturalHeight <= max && file.size < 1.5e6) return src;
+    // `convert` : le serveur n'accepte que ces formats. Un autre format lisible par le navigateur passe donc en JPEG.
+    const accepted = !convert || /^image\/(jpeg|png|webp)$/.test(file.type);
+    if (accepted && img.naturalWidth <= max && img.naturalHeight <= max && file.size < keepBelow) return src;
     const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
     const c = document.createElement('canvas');
     c.width = Math.round(img.naturalWidth * k);
@@ -104,7 +113,9 @@ export async function prepareImage(file, max = 2600) {
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, c.width, c.height);
     ctx.drawImage(img, 0, 0, c.width, c.height);
-    return c.toDataURL('image/jpeg', 0.88);
+    const smaller = c.toDataURL('image/jpeg', quality);
+    // Recompresser une image déjà légère peut l'alourdir : on garde alors l'originale, si le serveur l'accepte
+    return accepted && smaller.length >= src.length ? src : smaller;
   } catch {
     return src;
   }
@@ -158,7 +169,8 @@ export function toast(message) {
   el.textContent = message;
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+  // Une erreur reste le temps d'être lue et notée
+  toastTimer = setTimeout(() => el.classList.remove('show'), message.startsWith('⚠') ? 10000 : 2800);
 }
 
 /** Bandeau d'erreur permanent en haut de la page. */

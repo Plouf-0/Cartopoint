@@ -10,7 +10,8 @@ import { createHandler } from '../server/http.mjs';
 /** Dossier temporaire supprimé à la fin du test. */
 export async function tempDir(t) {
   const dir = await mkdtemp(path.join(tmpdir(), 'ib-test-'));
-  t.after(() => rm(dir, { recursive: true, force: true }));
+  // Les nouvelles tentatives couvrent un fichier créé pendant l'effacement
+  t.after(() => rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   return dir;
 }
 

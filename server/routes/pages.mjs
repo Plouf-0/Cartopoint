@@ -16,5 +16,7 @@ export function pageRoutes(router, root) {
   for (const [route, file] of Object.entries(PAGES)) {
     router.add('GET', route, (req, res) => sendFile(req, res, path.join(root, file), 'no-cache'));
   }
+  // La même page pour tous les cours : elle lit l'identifiant dans l'adresse
+  router.add('GET', '/prof/cours/:id', (req, res) => sendFile(req, res, path.join(root, 'prof-cours.html'), 'no-cache'));
   router.add('GET', '/robots.txt', (req, res) => send(res, 200, 'User-agent: *\nDisallow: /\n'));
 }

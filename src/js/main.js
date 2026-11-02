@@ -7,7 +7,7 @@
  *   3. ouvrir le stockage du navigateur et choisir le projet à afficher ;
  *   4. appliquer le thème et dessiner.
  */
-import { $, fatal } from './util.js';
+import { $, fatal, errorText } from './util.js';
 import { S, flush } from './store.js';
 import { openDb } from './db.js';
 import { applyTheme } from './themes.js';
@@ -20,8 +20,11 @@ import { bindLogin } from './views/login.js';
 import { bindEditor } from './views/editor.js';
 import { bindReader } from './views/reader.js';
 import { bindViewer } from './views/viewer.js';
+import { setProjectTab } from './views/admin/index.js';
+import * as projectTab from './views/admin/project.js';
 
 captureTemplate();
+setProjectTab('Projet', projectTab);
 
 onRender(() => applyTheme(S.project.theme));
 onRender(renderHeader);
@@ -42,13 +45,13 @@ async function start() {
     await openDb();
   } catch (e) {
     S.storageOk = false;
-    fatal('Le stockage du navigateur est indisponible (navigation privée ?) : les modifications ne seront pas conservées. Détail : ' + e.message);
+    fatal('Le stockage du navigateur est indisponible (navigation privée ?) : les modifications ne seront pas conservées. Détail : ' + errorText(e));
   }
   try {
     await resolveStartupProject();
   } catch (e) {
     console.error(e);
-    fatal('Impossible de charger le projet : ' + e.message);
+    fatal('Impossible de charger le projet : ' + errorText(e));
     return;
   }
   render();

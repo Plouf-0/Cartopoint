@@ -37,6 +37,7 @@ async function teacherPage(t, site) {
 }
 
 const shownLink = (page) => page.getByLabel('Lien à transmettre').inputValue();
+const deleteButton = (page) => page.getByRole('button', { name: 'Supprimer le compte et ses cours' });
 
 /** Sans tiret ni point : rien ne permet au navigateur de la couper de lui-même. */
 const UNBREAKABLE_EMAIL = 'jeanpaulmartindelacroixavecunetreslongueadressesanscoupure@lyceeexemple';
@@ -197,12 +198,12 @@ test('ADM-06 : désactiver demande confirmation, coupe l’accès, et se répare
 
 const DISABLED_AT = '2026-01-01T00:00:00.000Z';
 const addDisabledTeacher = (site, email = TEACHER.email) => addAccount(site.db, { email, hash: HASH, disabledAt: DISABLED_AT });
-const accountExists = (site, id) => Boolean(site.db.prepare('SELECT 1 FROM accounts WHERE id = ?').get(id));
+const isDeleted = (site, id) => Boolean(site.db.prepare('SELECT deleted_at FROM accounts WHERE id = ?').get(id).deleted_at);
 
-const deleteButton = (page) => page.getByRole('button', { name: 'Supprimer le compte et ses cours' });
 const deleteDialog = (page) => page.getByRole('dialog', { name: 'Supprimer ce compte ?' });
 const wordField = (page) => page.getByLabel('Pour confirmer, recopiez le mot SUPPRIMER');
-const confirmDelete = (page) => page.getByRole('button', { name: 'Supprimer définitivement' });
+const confirmDelete = (page) => deleteDialog(page).getByRole('button', { name: 'Supprimer', exact: true });
+const deletedTable = (page) => page.locator('.deleted-accounts');
 
 async function openDeleteDialog(page) {
   await deleteButton(page).click();
@@ -233,7 +234,7 @@ test('ADM-10 : il faut recopier le mot, et renoncer ne supprime rien', async (t)
 
   const dialog = deleteDialog(admin);
   await dialog.getByText(TEACHER.email).waitFor();
-  await dialog.getByText('supprimés définitivement, avec leur historique et les résultats des élèves').waitFor();
+  await dialog.getByText('effacés définitivement dans 14 jours').waitFor();
   assert.equal(await wordField(admin).evaluate((input) => input === document.activeElement), true, 'le curseur est déjà dans la case');
   assert.equal(await confirmDelete(admin).isDisabled(), true, 'bouton bloqué à l’ouverture');
 
@@ -241,7 +242,7 @@ test('ADM-10 : il faut recopier le mot, et renoncer ne supprime rien', async (t)
   assert.equal(await confirmDelete(admin).isDisabled(), true, 'mot incomplet');
   await wordField(admin).press('Enter');
   await dialog.waitFor();
-  assert.equal(accountExists(site, id), true, 'la touche Entrée ne contourne pas le blocage');
+  assert.equal(isDeleted(site, id), false, 'la touche Entrée ne contourne pas le blocage');
 
   await wordField(admin).fill('SUPPRIMER');
   assert.equal(await confirmDelete(admin).isEnabled(), true);
@@ -252,22 +253,23 @@ test('ADM-10 : il faut recopier le mot, et renoncer ne supprime rien', async (t)
   await dialog.getByRole('button', { name: 'Annuler' }).click();
   await dialog.waitFor({ state: 'detached' });
   assert.equal(await admin.locator('dialog').count(), 0, 'la fenêtre ne reste pas dans la page');
-  assert.equal(accountExists(site, id), true);
+  assert.equal(isDeleted(site, id), false);
 
   await openDeleteDialog(admin);
   assert.equal(await wordField(admin).inputValue(), '', 'il faut recopier le mot à chaque fois');
   assert.equal(await confirmDelete(admin).isDisabled(), true);
   await admin.keyboard.press('Escape');
   await dialog.waitFor({ state: 'detached' });
-  assert.equal(accountExists(site, id), true);
+  assert.equal(isDeleted(site, id), false);
 });
 
-test('ADM-10 : le mot recopié supprime le compte et ses cours, et le tableau de bord le confirme', async (t) => {
+test('ADM-10 : le mot recopié met le compte de côté, et le tableau de bord le confirme', async (t) => {
   const site = await startSite(t);
   const id = addDisabledTeacher(site);
   addTeacher(site, 'autre@example.org');
   site.db.prepare("INSERT INTO courses (id, account_id, title, draft, updated_at) VALUES ('c1', ?, 'Cours', '{}', 'd')").run(id);
   const admin = await adminPage(t, site);
+  assert.equal(await deletedTable(admin).isVisible(), false, 'pas de tableau tant qu’aucun compte n’est supprimé');
   await openDeleteDialog(admin);
 
   await wordField(admin).fill(' supprimer ');
@@ -275,20 +277,59 @@ test('ADM-10 : le mot recopié supprime le compte et ses cours, et le tableau de
   await deleteDialog(admin).waitFor({ state: 'detached' });
   await admin
     .getByRole('status')
-    .filter({ hasText: `Le compte ${TEACHER.email} et ses cours ont été supprimés.` })
+    .filter({ hasText: `Le compte ${TEACHER.email} est supprimé. Vous pouvez le restaurer jusqu'au` })
     .waitFor();
   await admin.getByRole('cell', { name: 'autre@example.org' }).waitFor();
-  assert.equal(await admin.getByRole('cell', { name: TEACHER.email }).count(), 0, 'la ligne a disparu');
-  assert.equal(accountExists(site, id), false);
-  assert.equal(site.db.prepare('SELECT COUNT(*) AS n FROM courses').get().n, 0);
+  await deletedTable(admin).getByRole('cell', { name: TEACHER.email }).waitFor();
+  assert.equal(await admin.getByRole('cell', { name: TEACHER.email }).count(), 1, 'la ligne a quitté le tableau principal');
+  assert.equal(await deletedTable(admin).getByRole('button', { name: 'Réactiver' }).count(), 0, 'seule la restauration est proposée');
+  assert.equal(await deletedTable(admin).getByRole('button', { name: 'Supprimer le compte et ses cours' }).count(), 0);
+  const color = await deletedTable(admin)
+    .locator('td')
+    .first()
+    .evaluate((cell) => getComputedStyle(cell).color);
+  assert.notEqual(color, await admin.locator('td', { hasText: 'autre@example.org' }).evaluate((cell) => getComputedStyle(cell).color), 'la ligne est en rouge');
+  assert.equal(isDeleted(site, id), true);
+  assert.equal(site.db.prepare('SELECT COUNT(*) AS n FROM courses').get().n, 1, 'ses cours sont gardés');
 
   await admin.reload();
-  await admin.getByRole('cell', { name: 'autre@example.org' }).waitFor();
-  assert.equal(await admin.getByRole('cell', { name: TEACHER.email }).count(), 0, 'et ne revient pas après un rechargement');
+  await deletedTable(admin).getByRole('cell', { name: TEACHER.email }).waitFor();
 
   const former = await openPage(t, browser, { base: site.base });
   await logIn(former, TEACHER, '/prof');
-  await former.getByRole('alert').filter({ hasText: 'Adresse e-mail ou mot de passe incorrect.' }).waitFor();
+  await former.getByRole('alert').filter({ hasText: 'Votre compte a été désactivé.' }).waitFor();
+});
+
+test('ADM-10 : restaurer ramène le compte désactivé dans le tableau principal, avec ses cours', async (t) => {
+  const site = await startSite(t);
+  const id = addDisabledTeacher(site);
+  site.db.prepare("INSERT INTO courses (id, account_id, title, draft, updated_at) VALUES ('c1', ?, 'Cours', '{}', 'd')").run(id);
+  const admin = await adminPage(t, site);
+  await openDeleteDialog(admin);
+  await wordField(admin).fill('SUPPRIMER');
+  await confirmDelete(admin).click();
+  const restore = admin.getByRole('button', { name: 'Restaurer' });
+  await restore.waitFor();
+
+  await admin.route('**/restore', (route) => route.abort());
+  await restore.click();
+  await admin.getByRole('alert').filter({ hasText: 'Le serveur ne répond pas.' }).waitFor();
+  assert.equal(isDeleted(site, id), true);
+  await admin.unroute('**/restore');
+
+  await restore.click();
+  await admin.getByRole('cell', { name: 'Désactivé' }).waitFor();
+  await admin.getByRole('button', { name: 'Réactiver' }).waitFor();
+  await deleteButton(admin).waitFor();
+  assert.equal(await deletedTable(admin).isVisible(), false, 'le tableau se referme');
+  assert.equal(await admin.getByRole('status').isVisible(), false, 'le message de suppression n’a plus lieu d’être');
+  assert.equal(isDeleted(site, id), false);
+  assert.equal(site.db.prepare('SELECT COUNT(*) AS n FROM courses').get().n, 1);
+
+  await admin.getByRole('button', { name: 'Réactiver' }).click();
+  await admin.getByRole('cell', { name: 'Actif' }).waitFor();
+  const teacher = await teacherPage(t, site);
+  await heading(teacher, 'Mes cours');
 });
 
 test('ADM-10 : la touche Entrée confirme une fois le mot recopié, et la liste vide le dit', async (t) => {
@@ -299,6 +340,7 @@ test('ADM-10 : la touche Entrée confirme une fois le mot recopié, et la liste 
   await wordField(admin).fill('SUPPRIMER');
   await wordField(admin).press('Enter');
   await see(admin, 'Aucun enseignant pour le moment.');
+  await deletedTable(admin).getByRole('cell', { name: TEACHER.email }).waitFor();
 });
 
 test('ADM-10 : un lien de réinitialisation affiché disparaît avec le compte', async (t) => {
@@ -333,12 +375,12 @@ test('ADM-10 : un échec s’affiche dans la fenêtre, sans rien supprimer, et o
   site.db.prepare('UPDATE accounts SET disabled_at = NULL WHERE id = ?').run(id);
   await confirmDelete(admin).click();
   await dialog.getByRole('alert').filter({ hasText: 'Désactivez ce compte avant de le supprimer.' }).waitFor();
-  assert.equal(accountExists(site, id), true);
+  assert.equal(isDeleted(site, id), false);
 
   site.db.prepare('UPDATE accounts SET disabled_at = ? WHERE id = ?').run(DISABLED_AT, id);
   await confirmDelete(admin).click();
   await see(admin, 'Aucun enseignant pour le moment.');
-  assert.equal(accountExists(site, id), false);
+  assert.equal(isDeleted(site, id), true);
 });
 
 test('ADM-10 : une session expirée pendant la confirmation ramène à la connexion, sans fenêtre restée ouverte', async (t) => {
@@ -352,7 +394,7 @@ test('ADM-10 : une session expirée pendant la confirmation ramène à la connex
   await heading(admin, 'Administration');
   await admin.getByRole('button', { name: 'Se connecter' }).waitFor();
   assert.equal(await admin.locator('dialog').count(), 0);
-  assert.equal(accountExists(site, id), true);
+  assert.equal(isDeleted(site, id), false);
 });
 
 test('ADM-10 : la fenêtre tient dans un téléphone, même avec une très longue adresse', async (t) => {
@@ -379,6 +421,8 @@ test('ADM-10 : la fenêtre tient dans un téléphone, même avec une très longu
   await confirmDelete(admin).click();
   await admin.getByRole('status').waitFor();
   assert.equal(await pageOverflow(admin), 0, 'le message de confirmation tient aussi');
+  await inScreen(admin.getByRole('button', { name: 'Restaurer' }), 'restauration');
+  await inScreen(deletedTable(admin).locator('td').first(), 'adresse du compte supprimé');
 });
 
 test('SEC-04 : une adresse piégée s’affiche aussi comme du texte dans la fenêtre de suppression', async (t) => {
@@ -391,7 +435,8 @@ test('SEC-04 : une adresse piégée s’affiche aussi comme du texte dans la fen
   await wordField(admin).fill('SUPPRIMER');
   await confirmDelete(admin).click();
   await admin.getByRole('status').filter({ hasText: trap }).waitFor();
-  assert.equal(await admin.locator('dialog img, [role=status] img').count(), 0);
+  await deletedTable(admin).getByRole('cell', { name: trap }).waitFor();
+  assert.equal(await admin.locator('dialog img, [role=status] img, .deleted-accounts img').count(), 0);
   assert.equal(await admin.evaluate(() => window.piege), undefined);
 });
 
@@ -494,6 +539,29 @@ test('la barre du compte tient dans un téléphone, même avec une très longue 
   const box = await page.locator('.account-bar span').boundingBox();
   assert.ok(box.x >= 0 && box.x + box.width <= 390, `de ${box.x} à ${box.x + box.width}`);
 });
+
+for (const width of [1280, 1040, 1001, 800]) {
+  test(`sur un écran de ${width} px, le tableau tient : aucun bouton n’est coupé, même avec une très longue adresse`, async (t) => {
+    const site = await startSite(t);
+    addTeacher(site, UNBREAKABLE_EMAIL);
+    addAccount(site.db, { email: 'desactive@example.org', hash: HASH, disabledAt: '2026-01-01T00:00:00.000Z' });
+    const admin = await adminPage(t, site, { viewport: { width, height: 800 } });
+    await deleteButton(admin).waitFor();
+    const wrap = await admin
+      .locator('.table-wrap')
+      .first()
+      .evaluate((box) => box.scrollWidth - box.clientWidth);
+    assert.equal(wrap, 0, 'pas de défilement dans le tableau');
+    const right = await admin
+      .locator('.table-wrap')
+      .first()
+      .evaluate((box) => box.getBoundingClientRect().right);
+    for (const button of await admin.locator('table.teachers .row-actions .btn:not([hidden])').all()) {
+      const box = await button.boundingBox();
+      assert.ok(box.x + box.width <= right + 0.5, `${await button.textContent()} : jusqu’à ${box.x + box.width}, le tableau s’arrête à ${right}`);
+    }
+  });
+}
 
 test('sur ordinateur, le tableau reste un vrai tableau : toutes les cellules ont la hauteur de leur ligne', async (t) => {
   const site = await startSite(t);

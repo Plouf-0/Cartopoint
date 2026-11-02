@@ -5,7 +5,7 @@
  * voir COLUMNS). Une fiche déjà présente — même réf. photo, ou à défaut même nom —
  * est complétée au lieu d'être créée en double.
  */
-import { num, normKey, today, toast } from './util.js';
+import { num, normKey, today, toast, errorText } from './util.js';
 import { S, fiches, entryOf, changedMap, changedProgress } from './store.js';
 import { normalizeFiche, sortByRef, MEASURES } from './model.js';
 import { parseXlsx } from './xlsx.js';
@@ -54,6 +54,8 @@ export const COLUMNS = [
   ['refY', 'Position réelle Y (%)', ['position reelle y', 'y reel', 'refy', 'y']]
 ];
 const MEASURE_KEYS = MEASURES.map(([k]) => k);
+/** Dans l'espace enseignant, les mesures n'ont plus de colonnes : seuls les élèves les relèvent. */
+const columns = () => (S.teacherSpace ? COLUMNS.filter(([k]) => !MEASURE_KEYS.includes(k)) : COLUMNS);
 
 /* ------------------------------------------------------------------ */
 /* Lecture                                                              */
@@ -125,7 +127,7 @@ export function cellValue(key, raw) {
 
 /** Associe chaque colonne du fichier à une clé connue (ou null). */
 export function mapHeaders(headerRow) {
-  return headerRow.map((h) => COLUMNS.find(([, , aliases]) => aliases.includes(normKey(h)))?.[0] ?? null);
+  return headerRow.map((h) => columns().find(([, , aliases]) => aliases.includes(normKey(h)))?.[0] ?? null);
 }
 
 /**
@@ -177,7 +179,7 @@ export async function importSpreadsheet(file) {
     if (rows.length < 2) throw new Error('aucune ligne de fiche sous les titres de colonnes');
     plan = planImport(rows, fiches());
   } catch (e) {
-    return toast('⚠ Import impossible : ' + e.message);
+    return toast('⚠ Import impossible : ' + errorText(e));
   }
   if (!plan.ops.length) return toast('⚠ Aucune fiche avec un nom dans ce fichier');
   const msg =
@@ -216,16 +218,22 @@ const csvCell = (v) => {
 
 /** CSV « à la française » (séparateur ;) lisible directement par Excel. */
 export function buildCsv(list, progress = { entries: {} }) {
-  const lines = [COLUMNS.map((c) => c[1]).join(';')];
+  const lines = [
+    columns()
+      .map((c) => c[1])
+      .join(';')
+  ];
   for (const f of list) {
     const e = progress.entries[f.id] || {};
     lines.push(
-      COLUMNS.map(([k]) => {
-        if (k === 'visible') return f.visible ? 'oui' : 'non';
-        if (k === 'refX' || k === 'refY') return f[k] === null ? '' : String(+f[k].toFixed(2)).replace('.', ',');
-        if (MEASURE_KEYS.includes(k)) return csvCell(e[k]);
-        return csvCell(f[k]);
-      }).join(';')
+      columns()
+        .map(([k]) => {
+          if (k === 'visible') return f.visible ? 'oui' : 'non';
+          if (k === 'refX' || k === 'refY') return f[k] === null ? '' : String(+f[k].toFixed(2)).replace('.', ',');
+          if (MEASURE_KEYS.includes(k)) return csvCell(e[k]);
+          return csvCell(f[k]);
+        })
+        .join(';')
     );
   }
   return '﻿' + lines.join('\r\n') + '\r\n';

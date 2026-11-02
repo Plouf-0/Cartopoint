@@ -1,13 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdir, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { backupDatabase, migrate, openDatabase } from '../server/db.mjs';
 import { tempDir } from './helpers.js';
 
 const TABLES = ['accounts', 'course_versions', 'courses', 'launches', 'links', 'media', 'participants', 'sessions'];
 
+const SCHEMA_VERSION = 3;
 const version = (db) => db.prepare('PRAGMA user_version').get().user_version;
 const count = (db, table) => db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
 const tables = (db) =>
@@ -29,7 +30,7 @@ function seed(db) {
     INSERT INTO accounts (id, email, role, created_at) VALUES ('a1', 'Prof@example.org', 'teacher', '2026-11-01');
     INSERT INTO sessions VALUES ('s1', 'a1', '2026-12-01');
     INSERT INTO links (token_hash, kind, account_id, expires_at, created_at) VALUES ('t1', 'reset', 'a1', '2026-12-01', '2026-11-01');
-    INSERT INTO media VALUES ('h1', 'a1', 'jpg', 10);
+    INSERT INTO media (hash, account_id, ext, size) VALUES ('h1', 'a1', 'jpg', 10);
     INSERT INTO courses (id, account_id, title, draft, updated_at) VALUES ('c1', 'a1', 'Cours', '{}', '2026-11-01');
     INSERT INTO course_versions VALUES ('v1', 'c1', 1, '{}', '2026-11-01');
     INSERT INTO launches (id, course_id, version_id, code, opened_at) VALUES ('l1', 'c1', 'v1', 'ABC234', '2026-11-01');
@@ -42,7 +43,7 @@ function seed(db) {
 test('une base neuve reçoit le schéma complet', async (t) => {
   const db = await open(t);
   assert.deepEqual(tables(db), TABLES);
-  assert.equal(version(db), 1);
+  assert.equal(version(db), SCHEMA_VERSION);
 });
 
 test('rejouer les migrations ne change rien : ni le schéma, ni les données', async (t) => {
@@ -51,12 +52,12 @@ test('rejouer les migrations ne change rien : ni le schéma, ni les données', a
   const first = openDatabase(file);
   seed(first);
   migrate(first);
-  assert.equal(version(first), 1);
+  assert.equal(version(first), SCHEMA_VERSION);
   first.close();
 
   const second = openDatabase(file);
   t.after(() => second.close());
-  assert.equal(version(second), 1);
+  assert.equal(version(second), SCHEMA_VERSION);
   assert.equal(count(second, 'participants'), 1);
 });
 
@@ -144,6 +145,20 @@ test('une base plus récente que le code est refusée, au lieu d’être abîmé
   db.exec('PRAGMA user_version = 5');
   db.close();
   assert.throws(() => openDatabase(file, dir), /version 5, plus récente que le code \(1\)/);
+});
+
+test('ADM-10 : une base existante reçoit la nouvelle colonne, sans perdre ses comptes', async (t) => {
+  const real = path.resolve('server/migrations');
+  const dir = await migrationsDir(t, { '001-initial.sql': await readFile(path.join(real, '001-initial.sql'), 'utf8') });
+  const file = path.join(await tempDir(t), 'app.db');
+  const old = openDatabase(file, dir);
+  old.exec("INSERT INTO accounts (id, email, role, created_at) VALUES ('a1', 'prof@example.org', 'teacher', 'd')");
+  old.close();
+
+  for (const name of ['002-account-deletion.sql', '003-media-date.sql']) await writeFile(path.join(dir, name), await readFile(path.join(real, name), 'utf8'));
+  const db = openDatabase(file, dir);
+  t.after(() => db.close());
+  assert.deepEqual({ ...db.prepare('SELECT email, deleted_at FROM accounts').get() }, { email: 'prof@example.org', deleted_at: null });
 });
 
 /* --- Contraintes du schéma --- */

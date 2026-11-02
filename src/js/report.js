@@ -2,7 +2,7 @@
  * Exports image : plan avec repères, et compte rendu complet des élèves en JPG
  * (noms, plan, résultats, mesures), facile à rendre sur l'ENT ou à imprimer.
  */
-import { $, toast, download, safeFileName, loadImage } from './util.js';
+import { $, toast, download, safeFileName, loadImage, errorText } from './util.js';
 import { S, verified, progress } from './store.js';
 import { visibleFiches, numberOf, titleOf, hasRef, placedPos, evaluate, MEASURES } from './model.js';
 import { paletteOf } from './themes.js';
@@ -317,7 +317,7 @@ export async function downloadPlanImage() {
     const blob = await toJpeg(await drawPlan());
     download(blob, safeFileName(`Plan - ${S.map.name}${names ? ' - ' + names : ''}`) + '.jpg');
   } catch (e) {
-    toast('⚠ Image impossible à créer : ' + e.message);
+    toast('⚠ Image impossible à créer : ' + errorText(e));
   }
 }
 
@@ -342,7 +342,7 @@ export async function downloadReport() {
     download(blob, safeFileName(`Compte rendu - ${names || S.map.name}`) + '.jpg');
     toast('✓ Compte rendu téléchargé');
   } catch (e) {
-    toast('⚠ Compte rendu impossible à créer : ' + e.message);
+    toast('⚠ Compte rendu impossible à créer : ' + errorText(e));
   }
 }
 

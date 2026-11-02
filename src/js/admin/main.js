@@ -3,7 +3,8 @@
  * désactiver puis supprimer un compte. Il ne montre jamais le contenu des cours (ADM-07).
  */
 import { api, currentAccount } from '../api.js';
-import { accountBar, card, changePasswordForm, dateAndTime, el, errorLine, linkBox, loginForm, show, showError } from '../compte/ui.js';
+import { accountBar, card, changePasswordForm, dateAndTime, el, errorLine, linkBox, loginForm, shortDate, show, showError } from '../compte/ui.js';
+import { formatSize } from '../util.js';
 
 function showLogin() {
   show([
@@ -48,7 +49,7 @@ const DELETE_WORD = 'SUPPRIMER';
 function askToDelete(teacher, onDeleted) {
   const error = errorLine();
   const input = el('input', { id: 'mot-de-suppression', className: 'text-input', autocomplete: 'off', autocapitalize: 'characters', spellcheck: false });
-  const confirmButton = el('button', { className: 'btn danger', type: 'submit', disabled: true }, 'Supprimer définitivement');
+  const confirmButton = el('button', { className: 'btn danger', type: 'submit', disabled: true }, 'Supprimer');
   const cancel = el('button', { className: 'btn ghost', type: 'button' }, 'Annuler');
   const typedWord = () => input.value.trim().toUpperCase();
   const form = el(
@@ -59,7 +60,11 @@ function askToDelete(teacher, onDeleted) {
       'div',
       { className: 'dlg-body' },
       el('p', {}, 'Compte : ', el('strong', {}, teacher.email)),
-      el('p', {}, 'Le compte et tous ses cours seront supprimés définitivement, avec leur historique et les résultats des élèves.'),
+      el(
+        'p',
+        {},
+        "Le compte et tous ses cours, avec leur historique et les résultats des élèves, seront effacés définitivement dans 14 jours. D'ici là, vous pourrez tout restaurer."
+      ),
       el('div', { className: 'field' }, el('label', { htmlFor: input.id }, `Pour confirmer, recopiez le mot ${DELETE_WORD}`), input),
       error
     ),
@@ -76,13 +81,14 @@ function askToDelete(teacher, onDeleted) {
     event.preventDefault();
     confirmButton.disabled = true;
     run(error, async () => {
+      let deleted;
       try {
-        await api('POST', `/admin/teachers/${teacher.id}/delete`, { word: typedWord() });
+        deleted = await api('POST', `/admin/teachers/${teacher.id}/delete`, { word: typedWord() });
       } finally {
         confirmButton.disabled = false;
       }
       dialog.close();
-      await onDeleted();
+      await onDeleted(deleted);
     });
   });
 
@@ -111,9 +117,9 @@ function teacherRow(teacher, { error, links, notice, refresh }) {
 
   const remove = el('button', { className: 'btn danger sm', type: 'button', hidden: !teacher.disabled }, 'Supprimer le compte et ses cours');
   remove.addEventListener('click', () =>
-    askToDelete(teacher, async () => {
+    askToDelete(teacher, async ({ eraseAt }) => {
       links.replaceChildren();
-      notice.textContent = `Le compte ${teacher.email} et ses cours ont été supprimés.`;
+      notice.textContent = `Le compte ${teacher.email} est supprimé. Vous pouvez le restaurer jusqu'au ${dateAndTime(eraseAt)}.`;
       notice.hidden = false;
       await refresh();
     })
@@ -124,11 +130,37 @@ function teacherRow(teacher, { error, links, notice, refresh }) {
     {},
     cell('Adresse e-mail', teacher.email),
     cell('État', teacher.disabled ? 'Désactivé' : 'Actif'),
-    cell('Compte créé', dateAndTime(teacher.createdAt)),
-    cell('Dernière connexion', teacher.lastLoginAt ? dateAndTime(teacher.lastLoginAt) : 'Jamais'),
+    cell('Compte créé', shortDate(teacher.createdAt)),
+    cell('Dernière connexion', teacher.lastLoginAt ? shortDate(teacher.lastLoginAt) : 'Jamais'),
+    cell('Cours', String(teacher.courses)),
+    cell('Fiches', String(teacher.fiches)),
+    cell('Lancements', String(teacher.launches)),
+    cell('Place occupée', formatSize(teacher.bytes)),
     el('td', {}, el('div', { className: 'row-actions' }, reset, toggle, remove))
   );
 }
+
+function deletedRow(teacher, { error, notice, refresh }) {
+  const restore = el('button', { className: 'btn soft sm', type: 'button' }, 'Restaurer');
+  restore.addEventListener('click', () =>
+    run(error, async () => {
+      await api('POST', `/admin/teachers/${teacher.id}/restore`, {});
+      notice.hidden = true;
+      await refresh();
+    })
+  );
+  return el(
+    'tr',
+    {},
+    cell('Adresse e-mail', teacher.email),
+    cell('Supprimé le', dateAndTime(teacher.deletedAt)),
+    cell('Effacé définitivement le', dateAndTime(teacher.eraseAt)),
+    el('td', {}, el('div', { className: 'row-actions' }, restore))
+  );
+}
+
+const teachersTable = (titles, body) =>
+  el('table', { className: 'results teachers' }, el('thead', {}, el('tr', {}, ...titles.map((title) => el('th', {}, title)))), body);
 
 function teachersCard() {
   const error = errorLine();
@@ -136,21 +168,28 @@ function teachersCard() {
   const links = el('div', {});
   const body = el('tbody', {});
   const empty = el('div', { className: 'empty-box', hidden: true }, 'Aucun enseignant pour le moment.');
-  const table = el(
-    'table',
-    { className: 'results teachers' },
-    el('thead', {}, el('tr', {}, ...['Adresse e-mail', 'État', 'Compte créé', 'Dernière connexion', ''].map((title) => el('th', {}, title)))),
-    body
+  const table = teachersTable(['Adresse e-mail', 'État', 'Compte créé', 'Dernière connexion', 'Cours', 'Fiches', 'Lancements', 'Place occupée', ''], body);
+  const deletedBody = el('tbody', {});
+  const deletedAccounts = el(
+    'div',
+    { className: 'deleted-accounts', hidden: true },
+    el('p', { className: 'mini-h' }, 'Comptes supprimés'),
+    el('p', { className: 'hint' }, 'Ils restent restaurables 14 jours, avec leurs cours. Ils sont ensuite effacés définitivement.'),
+    el('div', { className: 'table-wrap' }, teachersTable(['Adresse e-mail', 'Supprimé le', 'Effacé définitivement le', ''], deletedBody))
   );
 
   async function refresh() {
     const teachers = await api('GET', '/admin/teachers');
-    body.replaceChildren(...teachers.map((teacher) => teacherRow(teacher, { error, links, notice, refresh })));
-    table.hidden = !teachers.length;
-    empty.hidden = teachers.length > 0;
+    const current = teachers.filter((teacher) => !teacher.deletedAt);
+    const deleted = teachers.filter((teacher) => teacher.deletedAt);
+    body.replaceChildren(...current.map((teacher) => teacherRow(teacher, { error, links, notice, refresh })));
+    deletedBody.replaceChildren(...deleted.map((teacher) => deletedRow(teacher, { error, notice, refresh })));
+    table.hidden = !current.length;
+    empty.hidden = current.length > 0;
+    deletedAccounts.hidden = !deleted.length;
   }
   run(error, refresh);
-  return card('Enseignants', error, notice, el('div', { className: 'table-wrap' }, table), empty, links);
+  return card('Enseignants', error, notice, el('div', { className: 'table-wrap' }, table), empty, links, deletedAccounts);
 }
 
 function inviteCard() {

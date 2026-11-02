@@ -5,15 +5,19 @@ import { S } from '../../store.js';
 import { render } from '../../render.js';
 import * as fichesTab from './fiches.js';
 import * as mapsTab from './maps.js';
-import * as projectTab from './project.js';
 import * as settingsTab from './settings.js';
 
 const TABS = {
   fiches: ['Fiches', fichesTab],
   cartes: ['Cartes', mapsTab],
-  projet: ['Projet', projectTab],
+  projet: ['Projet', { html: () => '', bind() {} }],
   reglages: ['Réglages', settingsTab]
 };
+
+/** Le troisième onglet dépend de la page : « Projet » hors ligne, « Cours » dans l'espace enseignant. */
+export function setProjectTab(label, tab) {
+  TABS.projet = [label, tab];
+}
 
 export function adminPanelHTML() {
   const current = TABS[S.ui.tab] ? S.ui.tab : 'fiches';

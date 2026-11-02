@@ -323,7 +323,19 @@ test('ADM-07 : la liste des enseignants ne montre que leur compte, jamais leur m
   assert.equal(r.headers['cache-control'], 'no-store');
   const list = r.json();
   assert.equal(list.length, 1, 'l’admin lui-même n’y figure pas');
-  assert.deepEqual(Object.keys(list[0]).sort(), ['createdAt', 'disabled', 'email', 'id', 'lastLoginAt']);
+  assert.deepEqual(Object.keys(list[0]).sort(), [
+    'bytes',
+    'courses',
+    'createdAt',
+    'deletedAt',
+    'disabled',
+    'email',
+    'eraseAt',
+    'fiches',
+    'id',
+    'lastLoginAt',
+    'launches'
+  ]);
   assert.equal(list[0].email, TEACHER);
   assert.equal(list[0].disabled, false);
   assert.equal(list[0].lastLoginAt, null);
@@ -592,14 +604,15 @@ test('ADM-06 : la réinitialisation ne rouvre pas un compte désactivé', async 
   );
 });
 
-/* --- ADM-10 : suppression --- */
+/* --- ADM-10 : suppression, restauration, effacement --- */
 
 const WORD = { word: 'SUPPRIMER' };
+const DAY = 24 * 60 * 60 * 1000;
 
 /** Tout ce qu'un compte peut posséder, du cours à l'élève. */
 function addEverything(db, accountId, key) {
   db.exec(`
-    INSERT INTO media VALUES ('hash-${key}', '${accountId}', 'jpg', 10);
+    INSERT INTO media (hash, account_id, ext, size, created_at) VALUES ('hash-${key}', '${accountId}', 'jpg', 10, '2099-01-01');
     INSERT INTO courses (id, account_id, title, draft, updated_at) VALUES ('c-${key}', '${accountId}', 'Cours', '{}', 'd');
     INSERT INTO course_versions VALUES ('v-${key}', 'c-${key}', 1, '{}', 'd');
     INSERT INTO launches (id, course_id, version_id, code, opened_at) VALUES ('l-${key}', 'c-${key}', 'v-${key}', 'CODE-${key}', 'd');
@@ -611,19 +624,71 @@ function addEverything(db, accountId, key) {
 
 const TABLES_OF_ACCOUNT = ['media', 'courses', 'course_versions', 'launches', 'participants', 'links'];
 
-test('ADM-10 : supprimer un compte désactivé emporte ses cours et leur historique, et rien d’autre', async (t) => {
+const deletedDaysAgo = (db, id, days) => db.prepare('UPDATE accounts SET deleted_at = ? WHERE id = ?').run(new Date(Date.now() - days * DAY).toISOString(), id);
+
+async function deleteAccount(admin, id) {
+  assert.equal((await admin.post(`/api/admin/teachers/${id}/disable`)).status, 200);
+  const r = await admin.post(`/api/admin/teachers/${id}/delete`, WORD);
+  assert.equal(r.status, 200);
+  return r;
+}
+
+test('ADM-10 : un compte supprimé garde tout pendant 14 jours, sans rouvrir aucun accès', async (t) => {
   const { base, db, teacherId } = await site(t);
+  addEverything(db, teacherId, 'A');
+  const admin = await loggedIn(base, ADMIN);
+  const before = Date.now();
+  const r = await deleteAccount(admin, teacherId);
+  assert.equal(r.headers['cache-control'], 'no-store');
+
+  const { deletedAt, eraseAt, disabled } = r.json();
+  assert.equal(disabled, true);
+  assert.ok(Date.parse(deletedAt) >= before);
+  assert.equal(Date.parse(eraseAt) - Date.parse(deletedAt), 14 * DAY);
+  assert.equal((await admin.get('/api/admin/teachers')).json()[0].deletedAt, deletedAt);
+
+  for (const table of TABLES_OF_ACCOUNT) assert.equal(count(db, table), 1, table);
+  const login = await client(base).post('/api/auth/login', { email: TEACHER, password: PASSWORD });
+  assert.equal(login.status, 403);
+  assert.equal(login.text, DISABLED);
+});
+
+test('ADM-10 : restaurer rend le compte désactivé avec tout son contenu, et il peut ensuite être réactivé', async (t) => {
+  const { base, db, teacherId } = await site(t);
+  addEverything(db, teacherId, 'A');
+  const admin = await loggedIn(base, ADMIN);
+  await deleteAccount(admin, teacherId);
+
+  const restored = await admin.post(`/api/admin/teachers/${teacherId}/restore`);
+  assert.equal(restored.status, 200);
+  assert.equal(restored.headers['cache-control'], 'no-store');
+  assert.deepEqual(
+    { deletedAt: restored.json().deletedAt, eraseAt: restored.json().eraseAt, disabled: restored.json().disabled },
+    { deletedAt: null, eraseAt: null, disabled: true }
+  );
+  for (const table of TABLES_OF_ACCOUNT) assert.equal(count(db, table), 1, table);
+  assert.equal((await client(base).post('/api/auth/login', { email: TEACHER, password: PASSWORD })).status, 403, 'toujours désactivé');
+
+  assert.equal((await admin.post(`/api/admin/teachers/${teacherId}/enable`)).status, 200);
+  assert.equal((await client(base).post('/api/auth/login', { email: TEACHER, password: PASSWORD })).status, 200);
+});
+
+test('ADM-10 : après 14 jours, le nettoyage efface le compte, ses cours et leur historique, et rien d’autre', async (t) => {
+  const { app, base, db, teacherId } = await site(t);
   const otherId = addAccount(db, { email: 'autre@example.org', hash: HASH });
   addEverything(db, teacherId, 'A');
   addEverything(db, otherId, 'B');
   db.exec("INSERT INTO links (token_hash, kind, expires_at, created_at) VALUES ('invitation', 'invite', '2099-01-01T00:00:00.000Z', 'd')");
   const admin = await loggedIn(base, ADMIN);
-  await admin.post(`/api/admin/teachers/${teacherId}/disable`);
+  await deleteAccount(admin, teacherId);
 
-  const r = await admin.post(`/api/admin/teachers/${teacherId}/delete`, WORD);
-  assert.equal(r.status, 200);
-  assert.equal(r.headers['cache-control'], 'no-store');
+  deletedDaysAgo(db, teacherId, 13.9);
+  app.purge();
+  assert.ok(accountOf(db, TEACHER), 'pas avant 14 jours');
+  assert.equal(count(db, 'courses'), 2);
 
+  deletedDaysAgo(db, teacherId, 14.1);
+  app.purge();
   assert.equal(accountOf(db, TEACHER), undefined);
   for (const table of TABLES_OF_ACCOUNT.filter((name) => name !== 'links')) assert.equal(count(db, table), 1, `${table} : il ne reste que l’autre enseignant`);
   assert.equal(db.prepare('SELECT account_id FROM courses').get().account_id, otherId);
@@ -639,18 +704,50 @@ test('ADM-10 : supprimer un compte désactivé emporte ses cours et leur histori
     (await admin.get('/api/admin/teachers')).json().map((teacher) => teacher.email),
     ['autre@example.org']
   );
+  assert.ok(accountOf(db, ADMIN));
   assert.equal((await admin.get('/api/auth/me')).status, 200, 'l’admin reste connecté');
+});
+
+test('ADM-10 : le nettoyage ne touche pas un compte désactivé ou restauré', async (t) => {
+  const { app, base, db, teacherId } = await site(t);
+  addAccount(db, { email: 'desactive@example.org', hash: HASH, disabledAt: '2020-01-01' });
+  const admin = await loggedIn(base, ADMIN);
+  await deleteAccount(admin, teacherId);
+  deletedDaysAgo(db, teacherId, 100);
+  await admin.post(`/api/admin/teachers/${teacherId}/restore`);
+  app.purge();
+  assert.ok(accountOf(db, TEACHER));
+  assert.ok(accountOf(db, 'desactive@example.org'));
+});
+
+test('ADM-10 : supprimer deux fois ne repousse pas l’effacement', async (t) => {
+  const { base, db, teacherId } = await site(t);
+  const admin = await loggedIn(base, ADMIN);
+  await deleteAccount(admin, teacherId);
+  db.exec("UPDATE accounts SET deleted_at = '2020-01-01T00:00:00.000Z' WHERE role = 'teacher'");
+  const again = await admin.post(`/api/admin/teachers/${teacherId}/delete`, WORD);
+  assert.equal(again.json().deletedAt, '2020-01-01T00:00:00.000Z');
+  assert.equal(again.json().eraseAt, '2020-01-15T00:00:00.000Z');
+});
+
+test('ADM-10 : un compte supprimé ne se réactive pas et ne reçoit aucun lien sans être restauré', async (t) => {
+  const { base, db, teacherId } = await site(t);
+  const admin = await loggedIn(base, ADMIN);
+  await deleteAccount(admin, teacherId);
+  const enable = await admin.post(`/api/admin/teachers/${teacherId}/enable`);
+  assert.equal(enable.status, 409);
+  assert.equal(enable.text, "Ce compte est supprimé : restaurez-le d'abord.");
+  assert.equal((await admin.post(`/api/admin/teachers/${teacherId}/reset`)).status, 409);
+  assert.ok(accountOf(db, TEACHER).disabled_at, 'il reste désactivé');
 });
 
 test('ADM-10 : un compte actif ne peut pas être supprimé, même avec le mot', async (t) => {
   const { base, db, teacherId } = await site(t);
-  addEverything(db, teacherId, 'A');
   const admin = await loggedIn(base, ADMIN);
   const r = await admin.post(`/api/admin/teachers/${teacherId}/delete`, WORD);
   assert.equal(r.status, 409);
   assert.equal(r.text, 'Désactivez ce compte avant de le supprimer.');
-  assert.ok(accountOf(db, TEACHER));
-  for (const table of TABLES_OF_ACCOUNT) assert.equal(count(db, table), 1, table);
+  assert.equal(accountOf(db, TEACHER).deleted_at, null);
 });
 
 test('ADM-10 : un compte réactivé redevient impossible à supprimer', async (t) => {
@@ -659,7 +756,7 @@ test('ADM-10 : un compte réactivé redevient impossible à supprimer', async (t
   await admin.post(`/api/admin/teachers/${teacherId}/disable`);
   await admin.post(`/api/admin/teachers/${teacherId}/enable`);
   assert.equal((await admin.post(`/api/admin/teachers/${teacherId}/delete`, WORD)).status, 409);
-  assert.ok(accountOf(db, TEACHER));
+  assert.equal(accountOf(db, TEACHER).deleted_at, null);
 });
 
 test('ADM-10 : sans le mot exact, le serveur ne supprime rien', async (t) => {
@@ -674,48 +771,59 @@ test('ADM-10 : sans le mot exact, le serveur ne supprime rien', async (t) => {
   }
   assert.equal((await admin.raw('POST', target)).status, 400, 'corps absent');
   assert.equal((await admin.post(target, ['SUPPRIMER'])).status, 400, 'corps qui n’est pas un objet');
-  assert.ok(accountOf(db, TEACHER));
+  assert.equal(accountOf(db, TEACHER).deleted_at, null);
 });
 
-test('ADM-10 : seul l’admin peut supprimer, et seulement un enseignant', async (t) => {
+test('ADM-10 : seul l’admin peut supprimer ou restaurer, et seulement un enseignant', async (t) => {
   const { base, db, adminId } = await site(t);
   const disabledId = addAccount(db, { email: 'desactive@example.org', hash: HASH, disabledAt: '2026-01-01' });
-  const target = `/api/admin/teachers/${disabledId}/delete`;
+  const deletedId = addAccount(db, { email: 'supprime@example.org', hash: HASH, disabledAt: '2026-01-01' });
+  deletedDaysAgo(db, deletedId, 1);
+  const remove = `/api/admin/teachers/${disabledId}/delete`;
+  const restore = `/api/admin/teachers/${deletedId}/restore`;
 
-  assert.equal((await client(base).post(target, WORD)).status, 401, 'sans session');
+  assert.equal((await client(base).post(remove, WORD)).status, 401, 'sans session');
+  assert.equal((await client(base).post(restore)).status, 401, 'sans session');
   const teacher = await loggedIn(base, TEACHER);
-  assert.equal((await teacher.post(target, WORD)).status, 403, 'un enseignant');
+  assert.equal((await teacher.post(remove, WORD)).status, 403, 'un enseignant');
+  assert.equal((await teacher.post(restore)).status, 403, 'un enseignant');
   const admin = await loggedIn(base, ADMIN);
-  assert.equal((await admin.post(target, WORD, { Origin: 'https://ailleurs.example.org' })).status, 403, 'depuis un autre site');
+  const elsewhere = { Origin: 'https://ailleurs.example.org' };
+  assert.equal((await admin.post(remove, WORD, elsewhere)).status, 403, 'depuis un autre site');
+  assert.equal((await admin.post(restore, {}, elsewhere)).status, 403, 'depuis un autre site');
   assert.equal((await admin.post(`/api/admin/teachers/${adminId}/delete`, WORD)).status, 404, 'pas son propre compte');
   assert.equal((await admin.post('/api/admin/teachers/absent/delete', WORD)).status, 404);
-  assert.notEqual((await admin.get(target)).status, 200, 'une simple visite ne supprime rien');
+  assert.equal((await admin.post('/api/admin/teachers/absent/restore')).status, 404);
+  assert.notEqual((await admin.get(remove)).status, 200, 'une simple visite ne supprime rien');
 
-  assert.ok(accountOf(db, 'desactive@example.org'), 'rien n’est supprimé par ces essais');
-  assert.ok(accountOf(db, ADMIN));
-  assert.ok(accountOf(db, TEACHER));
+  assert.equal(accountOf(db, 'desactive@example.org').deleted_at, null, 'rien n’est supprimé par ces essais');
+  assert.ok(accountOf(db, 'supprime@example.org').deleted_at, 'rien n’est restauré par ces essais');
+  assert.equal(accountOf(db, ADMIN).deleted_at, null);
 });
 
-test('ADM-10 : après la suppression, plus aucun accès, et l’adresse peut resservir', async (t) => {
-  const { base, db, teacherId } = await site(t);
+test('ADM-10 : l’adresse reste prise jusqu’à l’effacement, puis plus rien ne subsiste de l’ancien compte', async (t) => {
+  const { app, base, db, teacherId } = await site(t);
   addEverything(db, teacherId, 'A');
   const { link } = await resetLink(base, teacherId);
   const session = await loggedIn(base, TEACHER);
   const admin = await loggedIn(base, ADMIN);
-  await admin.post(`/api/admin/teachers/${teacherId}/disable`);
-  await admin.post(`/api/admin/teachers/${teacherId}/delete`, WORD);
-
+  await deleteAccount(admin, teacherId);
   assert.equal((await session.get('/api/auth/me')).status, 401);
+
+  const first = (await admin.post('/api/admin/invites')).json();
+  const taken = await client(base).post('/api/auth/invite', { token: tokenOf(first.link), email: TEACHER, password: OTHER_PASSWORD });
+  assert.equal(taken.status, 409, 'pendant les 14 jours');
+
+  deletedDaysAgo(db, teacherId, 15);
+  app.purge();
   const login = await client(base).post('/api/auth/login', { email: TEACHER, password: PASSWORD });
   assert.equal(login.status, 401, 'comme une adresse inconnue');
   assert.equal(login.text, BAD_LOGIN);
-  const reset = await client(base).post('/api/auth/reset', { token: tokenOf(link), password: OTHER_PASSWORD });
-  assert.equal(reset.status, 410);
-  assert.equal((await admin.post(`/api/admin/teachers/${teacherId}/delete`, WORD)).status, 404, 'déjà supprimé');
+  assert.equal((await client(base).post('/api/auth/reset', { token: tokenOf(link), password: OTHER_PASSWORD })).status, 410);
+  assert.equal((await admin.post(`/api/admin/teachers/${teacherId}/restore`)).status, 404, 'trop tard pour restaurer');
 
-  const invite = (await admin.post('/api/admin/invites')).json();
-  const newcomer = client(base);
-  assert.equal((await newcomer.post('/api/auth/invite', { token: tokenOf(invite.link), email: TEACHER, password: OTHER_PASSWORD })).status, 200);
+  const second = (await admin.post('/api/admin/invites')).json();
+  assert.equal((await client(base).post('/api/auth/invite', { token: tokenOf(second.link), email: TEACHER, password: OTHER_PASSWORD })).status, 200);
   assert.notEqual(accountOf(db, TEACHER).id, teacherId, 'c’est un nouveau compte');
   assert.equal(count(db, 'courses'), 0, 'qui ne retrouve rien de l’ancien');
 });

@@ -9,20 +9,30 @@ export class ApiError extends Error {
   }
 }
 
-export async function api(method, path, body) {
+async function call(path, options) {
   let response;
   try {
-    response = await fetch('/api' + path, {
-      method,
-      headers: body ? { 'Content-Type': 'application/json' } : {},
-      body: body ? JSON.stringify(body) : undefined
-    });
+    response = await fetch('/api' + path, options);
   } catch {
     throw new ApiError(0, 'Le serveur ne répond pas. Vérifiez la connexion.');
   }
   const text = await response.text();
-  if (!response.ok) throw new ApiError(response.status, text);
+  // Un proxy peut répondre sans aucun texte : le message reste lisible
+  if (!response.ok) throw new ApiError(response.status, text || `Le serveur a répondu ${response.status}.`);
   return JSON.parse(text);
+}
+
+export function api(method, path, body) {
+  return call(path, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined
+  });
+}
+
+/** Envoie un fichier. Renvoie `{ url, size }`. */
+export function uploadFile(blob) {
+  return call('/media', { method: 'POST', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
 }
 
 /** Le compte connecté, ou null. */

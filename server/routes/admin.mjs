@@ -1,28 +1,32 @@
 /**
- * Tableau de bord de l'admin, sous /api/admin. Ces routes ne donnent accès qu'aux comptes : jamais au
- * contenu des cours ni aux résultats des élèves (ADM-07).
+ * Tableau de bord de l'admin, sous /api/admin. Ces routes ne donnent accès qu'aux comptes et à des chiffres :
+ * jamais au contenu des cours ni aux résultats des élèves (ADM-04, ADM-07).
  *
  *   GET  /teachers                        liste des enseignants
  *   POST /invites                         lien de création de compte
  *   POST /teachers/:id/reset              lien de réinitialisation du mot de passe
  *   POST /teachers/:id/disable, /enable   désactiver ou réactiver un compte
- *   POST /teachers/:id/delete             supprimer un compte désactivé et ses cours, avec le mot à recopier
+ *   POST /teachers/:id/delete, /restore   supprimer un compte désactivé (avec le mot à recopier) ou le restaurer
  */
+import { eraseDate } from '../auth.mjs';
 import { HttpError, readJson, sendJson } from '../http.mjs';
 import { sameOriginOnly } from '../security.mjs';
 
 const PRIVATE = { cache: 'no-store' };
 const DELETE_WORD = 'SUPPRIMER';
 
-const summary = (account) => ({
-  id: account.id,
-  email: account.email,
-  createdAt: account.created_at,
-  lastLoginAt: account.last_login_at,
-  disabled: Boolean(account.disabled_at)
-});
+export function adminRoutes(router, auth, courses) {
+  const summary = (account) => ({
+    id: account.id,
+    email: account.email,
+    createdAt: account.created_at,
+    lastLoginAt: account.last_login_at,
+    disabled: Boolean(account.disabled_at),
+    deletedAt: account.deleted_at,
+    eraseAt: account.deleted_at && eraseDate(account.deleted_at),
+    ...courses.stats(account.id)
+  });
 
-export function adminRoutes(router, auth) {
   /** Route réservée à l'admin. Le rôle est vérifié ici, côté serveur, quelle que soit l'interface. */
   const adminOnly = (handler) => (req, res, context) => {
     auth.requireRole(req, 'admin');
@@ -68,6 +72,7 @@ export function adminRoutes(router, auth) {
       'POST',
       '/api/admin/teachers/:id/enable',
       adminWrite((req, res, { params }) => {
+        if (teacher(params.id).deleted_at) throw new HttpError(409, "Ce compte est supprimé : restaurez-le d'abord.");
         auth.enable(teacher(params.id).id);
         return sendJson(req, res, summary(teacher(params.id)), PRIVATE);
       })
@@ -79,10 +84,18 @@ export function adminRoutes(router, auth) {
         const { word } = await readJson(req);
         const account = teacher(params.id);
         if (!account.disabled_at) throw new HttpError(409, 'Désactivez ce compte avant de le supprimer.');
-        // L'écran vérifie déjà le mot : on ne se repose pas sur lui pour une action sans retour
+        // L'écran vérifie déjà le mot : on ne se repose pas sur lui pour une action aussi lourde
         if (word !== DELETE_WORD) throw new HttpError(400, `Recopiez le mot ${DELETE_WORD} pour confirmer.`);
-        auth.remove(account.id);
-        return sendJson(req, res, { ok: true }, PRIVATE);
+        auth.markDeleted(account.id);
+        return sendJson(req, res, summary(teacher(params.id)), PRIVATE);
+      })
+    )
+    .add(
+      'POST',
+      '/api/admin/teachers/:id/restore',
+      adminWrite((req, res, { params }) => {
+        auth.restore(teacher(params.id).id);
+        return sendJson(req, res, summary(teacher(params.id)), PRIVATE);
       })
     );
 }

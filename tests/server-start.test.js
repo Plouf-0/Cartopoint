@@ -14,12 +14,31 @@ import { freePort, request, tempDir } from './helpers.js';
 const START_TIMEOUT = 15000;
 const today = () => new Date().toISOString().slice(0, 10);
 
+/**
+ * Les serveurs de chaque test. Ils sont arrêtés avant l'effacement de leurs dossiers : un serveur encore en vie y
+ * écrirait pendant l'effacement, qui échouerait, et le serveur resterait orphelin en bloquant toute la suite.
+ */
+const servers = new Map();
+
+function trackServers(t) {
+  if (servers.has(t)) return servers.get(t);
+  const list = [];
+  servers.set(t, list);
+  t.after(async () => {
+    for (const { child, exited } of list) {
+      child.kill('SIGKILL');
+      await exited;
+    }
+  });
+  return list;
+}
+
 /** Lance le serveur et attend la fin de ses messages de démarrage (`ready`). */
 async function launch(t, { args = [], env = {}, ready = /base sauvegardée|impossible/ } = {}) {
   const child = spawn(process.execPath, ['server/index.mjs', ...args], { env: { ...process.env, ...env }, stdio: 'pipe' });
   const output = { stdout: '', stderr: '' };
   const exited = new Promise((resolve) => child.on('exit', (code, signal) => resolve({ code, signal })));
-  t.after(() => child.kill('SIGKILL'));
+  trackServers(t).push({ child, exited });
   await new Promise((resolve, reject) => {
     // Un serveur qui n'annonce jamais son démarrage doit faire échouer le test, pas le bloquer
     const timer = setTimeout(() => reject(new Error(`démarrage non constaté :\n${output.stdout}${output.stderr}`)), START_TIMEOUT);
@@ -33,6 +52,7 @@ async function launch(t, { args = [], env = {}, ready = /base sauvegardée|impos
 }
 
 async function dirs(t) {
+  trackServers(t);
   const root = await tempDir(t);
   await writeFile(path.join(root, 'index.html'), '<title>ok</title>');
   return { root, data: path.join(await tempDir(t), 'donnees') };

@@ -1,10 +1,9 @@
 /**
  * Onglet « Cartes » : plusieurs plans par projet, chacun avec ses fiches ; échelle.
  */
-import { $, esc, num, toast, prepareImage, pickFile } from '../../util.js';
-import { S, switchMap, changedMap, changedMeta, forgetFile } from '../../store.js';
+import { $, esc, num, toast, pickFile, errorText } from '../../util.js';
+import { S, switchMap, changedMap, changedMeta, forgetFile, forgetMap, storeMapImage } from '../../store.js';
 import { normalizeMap, hasRef, emptyProgress } from '../../model.js';
-import { Maps } from '../../db.js';
 import { render } from '../../render.js';
 
 export function html() {
@@ -63,7 +62,11 @@ export function bind(panel) {
           )
         )
           return;
-        m.image = await prepareImage(file);
+        try {
+          m.image = await storeMapImage(file);
+        } catch (e) {
+          return toast('⚠ Image impossible à enregistrer : ' + errorText(e));
+        }
         changedMap(m);
         render();
         toast('Image de la carte remplacée');
@@ -77,7 +80,7 @@ export function bind(panel) {
         for (const f of m.fiches) for (const md of f.media) await forgetFile(md.key);
         S.project.maps = S.project.maps.filter((x) => x !== m);
         delete S.progress[m.id];
-        await Maps.del(m.id);
+        await forgetMap(m.id);
         changedMeta();
         if (S.map === m) await switchMap(S.project.maps[0].id);
         render();
@@ -87,7 +90,13 @@ export function bind(panel) {
     const file = await pickFile('image/*');
     if (!file) return;
     const name = prompt('Nom de la carte :', file.name.replace(/\.[^.]+$/, '')) || 'Nouvelle carte';
-    const m = normalizeMap({ name, image: await prepareImage(file) });
+    let image;
+    try {
+      image = await storeMapImage(file);
+    } catch (e) {
+      return toast('⚠ Image impossible à enregistrer : ' + errorText(e));
+    }
+    const m = normalizeMap({ name, image });
     S.project.maps.push(m);
     S.progress[m.id] = emptyProgress();
     changedMap(m);

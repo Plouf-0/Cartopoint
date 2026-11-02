@@ -11,7 +11,7 @@
  * les tests se bloquent au lieu d'échouer. Ajouter ici chaque comportement sensible.
  */
 import { spawn } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -108,8 +108,53 @@ const MUTANTS = [
     'if (account.disabled_at) throw new HttpError(403, DISABLED);',
     'if (account.disabled_at) throw new HttpError(401, BAD_LOGIN);'
   ],
-  ['ADM-10 : suppression sans effet', 'server/auth.mjs', "db.prepare('DELETE FROM accounts WHERE id = ?').run(id);", ''],
-  ['ADM-10 : tous les comptes supprimés', 'server/auth.mjs', "'DELETE FROM accounts WHERE id = ?'", "'DELETE FROM accounts WHERE ? IS NOT NULL'"],
+  [
+    'ADM-10 : suppression sans effet',
+    'server/auth.mjs',
+    "db.prepare('UPDATE accounts SET deleted_at = COALESCE(deleted_at, ?) WHERE id = ?').run(iso(), id);",
+    ''
+  ],
+  [
+    'ADM-10 : effacement immédiat, sans délai',
+    'server/auth.mjs',
+    "db.prepare('UPDATE accounts SET deleted_at = COALESCE(deleted_at, ?) WHERE id = ?').run(iso(), id);",
+    "db.prepare('DELETE FROM accounts WHERE id = ?').run(id);"
+  ],
+  ['ADM-10 : une nouvelle suppression repousse l’effacement', 'server/auth.mjs', 'deleted_at = COALESCE(deleted_at, ?)', 'deleted_at = ?'],
+  ['ADM-10 : restauration sans effet', 'server/auth.mjs', "db.prepare('UPDATE accounts SET deleted_at = NULL WHERE id = ?').run(id);", ''],
+  [
+    'ADM-10 : restauration qui réactive le compte',
+    'server/auth.mjs',
+    'SET deleted_at = NULL WHERE id = ?',
+    'SET deleted_at = NULL, disabled_at = NULL WHERE id = ?'
+  ],
+  ['ADM-10 : jamais effacé', 'server/auth.mjs', "db.prepare('DELETE FROM accounts WHERE deleted_at <= ?').run(iso(Date.now() - DELETED_LIFETIME));", ''],
+  ['ADM-10 : effacé dès le nettoyage suivant', 'server/auth.mjs', 'iso(Date.now() - DELETED_LIFETIME)', 'iso()'],
+  [
+    'ADM-10 : le nettoyage efface tous les comptes',
+    'server/auth.mjs',
+    'DELETE FROM accounts WHERE deleted_at <= ?',
+    'DELETE FROM accounts WHERE ? IS NOT NULL'
+  ],
+  ['ADM-10 : délai de 14 jours changé', 'server/auth.mjs', 'const DELETED_LIFETIME = 14 * DAY;', 'const DELETED_LIFETIME = 13 * DAY;'],
+  [
+    'ADM-10 : compte supprimé réactivable sans restauration',
+    'server/routes/admin.mjs',
+    'if (teacher(params.id).deleted_at) throw new HttpError(409, "Ce compte est supprimé : restaurez-le d\'abord.");',
+    ''
+  ],
+  [
+    'ADM-10 : restauration ouverte aux enseignants',
+    'server/routes/admin.mjs',
+    "'/api/admin/teachers/:id/restore',\n      adminWrite(",
+    "'/api/admin/teachers/:id/restore',\n      sameOriginOnly("
+  ],
+  [
+    'ADM-10 : restauration sans contrôle d’origine',
+    'server/routes/admin.mjs',
+    "'/api/admin/teachers/:id/restore',\n      adminWrite(",
+    "'/api/admin/teachers/:id/restore',\n      adminOnly("
+  ],
   [
     'ADM-10 : compte actif supprimable',
     'server/routes/admin.mjs',
@@ -245,7 +290,7 @@ const MUTANTS = [
   [
     'écran : tableau trop large sur un téléphone',
     'src/css/app.css',
-    '@media (max-width: 700px) {\n  table.teachers',
+    '@media (max-width: 1000px) {\n  table.teachers',
     '@media (max-width: 1px) {\n  table.teachers'
   ],
   [
@@ -254,6 +299,34 @@ const MUTANTS = [
     "el('td', {}, el('div', { className: 'row-actions' }, reset, toggle, remove))",
     "el('td', { className: 'row-actions' }, reset, toggle, remove)"
   ],
+  [
+    'écran : compte supprimé laissé dans le tableau principal',
+    'src/js/admin/main.js',
+    'const current = teachers.filter((teacher) => !teacher.deletedAt);',
+    'const current = teachers;'
+  ],
+  ['écran : tableau des comptes supprimés jamais montré', 'src/js/admin/main.js', 'deletedAccounts.hidden = !deleted.length;', ''],
+  [
+    'écran : tableau des comptes supprimés toujours montré',
+    'src/js/admin/main.js',
+    'deletedAccounts.hidden = !deleted.length;',
+    'deletedAccounts.hidden = false;'
+  ],
+  ['écran : Restaurer n’appelle pas le serveur', 'src/js/admin/main.js', "await api('POST', `/admin/teachers/${teacher.id}/restore`, {});", ''],
+  [
+    'écran : liste non mise à jour après la restauration',
+    'src/js/admin/main.js',
+    '      notice.hidden = true;\n      await refresh();',
+    '      notice.hidden = true;'
+  ],
+  ['écran : message de suppression resté après la restauration', 'src/js/admin/main.js', '      notice.hidden = true;\n', ''],
+  [
+    'écran : adresse injectée dans le tableau des comptes supprimés',
+    'src/js/admin/main.js',
+    "cell('Adresse e-mail', teacher.email),\n    cell('Supprimé le',",
+    "el('td', { innerHTML: teacher.email }),\n    cell('Supprimé le',"
+  ],
+  ['écran : compte supprimé pas en rouge', 'src/css/app.css', '.deleted-accounts td { color: var(--far); }', ''],
   ['écran : suppression proposée pour un compte actif', 'src/js/admin/main.js', 'hidden: !teacher.disabled', 'hidden: false'],
   ['écran : bouton de suppression actif à l’ouverture', 'src/js/admin/main.js', "type: 'submit', disabled: true", "type: 'submit', disabled: false"],
   [
@@ -267,7 +340,12 @@ const MUTANTS = [
   ['écran : mot non transmis au serveur', 'src/js/admin/main.js', '{ word: typedWord() }', '{}'],
   ['écran : Annuler sans effet', 'src/js/admin/main.js', "cancel.addEventListener('click', () => dialog.close());", ''],
   ['écran : fenêtre laissée dans la page', 'src/js/admin/main.js', "dialog.addEventListener('close', () => dialog.remove());", ''],
-  ['écran : fenêtre ouverte après la suppression', 'src/js/admin/main.js', '      dialog.close();\n      await onDeleted();', '      await onDeleted();'],
+  [
+    'écran : fenêtre ouverte après la suppression',
+    'src/js/admin/main.js',
+    '      dialog.close();\n      await onDeleted(deleted);',
+    '      await onDeleted(deleted);'
+  ],
   ['écran : bouton resté bloqué après une erreur', 'src/js/admin/main.js', '        confirmButton.disabled = false;\n', ''],
   [
     'écran : erreur fermant la fenêtre',
@@ -304,6 +382,261 @@ const MUTANTS = [
     '.account-card p, .confirm-dialog p {'
   ],
   ['écran : session expirée non détectée', 'src/js/admin/main.js', 'if (e.status === 401) showLogin();', 'if (false) showLogin();'],
+  ['SRV-10 : vidéo sans plages d’octets', 'server/http.mjs', 'if (range) {', 'if (false) {'],
+  ['SRV-10 : plage impossible servie', 'server/http.mjs', 'return start <= end ? { start, end } : false;', 'return { start, end };'],
+  ['SRV-10 : fin de plage non bornée', 'server/http.mjs', 'Math.min(Number(match[2]), size - 1)', 'Number(match[2])'],
+  ['SRV-10 : suffixe plus long que le fichier', 'server/http.mjs', 'Math.max(0, size - Number(match[2]))', 'size - Number(match[2])'],
+  ['SRV-10 : plages sur un texte compressé', 'server/http.mjs', 'if (!compressible) {\n    headers', 'if (true) {\n    headers'],
+  [
+    'ENS-03 : cours d’un autre compte accessible',
+    'server/courses.mjs',
+    "'SELECT * FROM courses WHERE id = ? AND account_id = ?').get(id, accountId)",
+    "'SELECT * FROM courses WHERE id = ?').get(id)"
+  ],
+  ['ENS-03 : liste de tous les cours', 'server/courses.mjs', 'WHERE account_id = ? ORDER BY updated_at DESC', 'WHERE ? IS NOT NULL ORDER BY updated_at DESC'],
+  ['E-10 : révision non vérifiée à l’enregistrement', 'server/courses.mjs', 'WHERE id = ? AND revision = ?', 'WHERE id = ? AND ? IS NOT NULL'],
+  ['E-10 : révision non entière acceptée', 'server/courses.mjs', 'if (!Number.isInteger(revision)) throw new HttpError(409, CHANGED_ELSEWHERE);', ''],
+  ['E-10 : révision qui n’avance pas', 'server/courses.mjs', 'revision = revision + 1, ', ''],
+  ['COU-02 : publication sans contrôle de révision', 'server/courses.mjs', 'if (row.revision !== revision) throw new HttpError(409, CHANGED_ELSEWHERE);', ''],
+  ['COU-02 : nouvelle version à chaque publication', 'server/courses.mjs', 'if (last?.content !== row.draft) {', 'if (true) {'],
+  ['COU-11 : numéro de version toujours le même', 'server/courses.mjs', '(last?.number ?? 0) + 1', '1'],
+  ['COU-11 : dernière version mal choisie', 'server/courses.mjs', 'ORDER BY number DESC LIMIT 1', 'ORDER BY number ASC LIMIT 1'],
+  ['COU-02 : état « à jour » toujours annoncé', 'server/courses.mjs', 'modified: version?.content !== row.draft', 'modified: false'],
+  ['cours : contenu d’un autre format accepté', 'server/courses.mjs', 'draft.format !== FORMAT || ', ''],
+  ['cours : contenu sans carte accepté', 'server/courses.mjs', ' || !draft.maps.length', ''],
+  ['cours : nom sans limite', 'server/courses.mjs', '.slice(0, 200)', ''],
+  ['cours : nom vide accepté', 'server/courses.mjs', " || 'Cours sans nom'", ''],
+  ['ADM-04 : place occupée sans les fichiers', 'server/courses.mjs', "scalar('SELECT COALESCE(SUM(size), 0) AS n FROM media WHERE account_id = ?') +", '0 +'],
+  [
+    'ADM-04 : place occupée sans les versions',
+    'server/courses.mjs',
+    "'SELECT COALESCE(SUM(LENGTH(content)), 0) AS n FROM course_versions JOIN courses ON courses.id = course_versions.course_id WHERE courses.account_id = ?'",
+    "'SELECT ? * 0 AS n'"
+  ],
+  [
+    'ADM-04 : lancements de tout le site',
+    'server/courses.mjs',
+    'FROM launches JOIN courses ON courses.id = launches.course_id WHERE courses.account_id = ?',
+    'FROM launches WHERE ? IS NOT NULL'
+  ],
+  ['ADM-04 : chiffres absents', 'server/routes/admin.mjs', '...courses.stats(account.id)', ''],
+  ['ADM-08 : l’admin voit une liste de cours', 'server/routes/courses.mjs', 'courses.list(teacher(req).id)', 'courses.list(auth.requireAccount(req).id)'],
+  [
+    'ADM-08 : l’admin crée un cours',
+    'server/routes/courses.mjs',
+    'const account = teacher(req);\n        const { draft }',
+    'const account = auth.requireAccount(req);\n        const { draft }'
+  ],
+  [
+    'ADM-08 : l’admin envoie un fichier',
+    'server/routes/courses.mjs',
+    'const account = teacher(req);\n        const body',
+    'const account = auth.requireAccount(req);\n        const body'
+  ],
+  ['cours : origine non vérifiée à la création', 'server/routes/courses.mjs', "'/api/courses',\n      sameOriginOnly(", "'/api/courses',\n      ("],
+  [
+    'cours : origine non vérifiée à l’enregistrement',
+    'server/routes/courses.mjs',
+    "'PUT',\n      '/api/courses/:id',\n      sameOriginOnly(",
+    "'PUT',\n      '/api/courses/:id',\n      ("
+  ],
+  [
+    'cours : origine non vérifiée à la suppression',
+    'server/routes/courses.mjs',
+    "'DELETE',\n      '/api/courses/:id',\n      sameOriginOnly(",
+    "'DELETE',\n      '/api/courses/:id',\n      ("
+  ],
+  [
+    'cours : origine non vérifiée à la publication',
+    'server/routes/courses.mjs',
+    "'/api/courses/:id/publish',\n      sameOriginOnly(",
+    "'/api/courses/:id/publish',\n      ("
+  ],
+  ['fichiers : origine non vérifiée', 'server/routes/courses.mjs', "'/api/media',\n      sameOriginOnly(", "'/api/media',\n      ("],
+  ['cours : contenu sans limite de taille', 'server/routes/courses.mjs', 'const MAX_DRAFT = 8 * 1024 * 1024;', 'const MAX_DRAFT = 800 * 1024 * 1024;'],
+  ['fichiers : envoi sans limite de taille', 'server/routes/courses.mjs', 'readBody(req, maxBody)', 'readBody(req, 1e9)'],
+  ['fichiers : nom non vérifié à la lecture', 'server/routes/courses.mjs', "if (!MEDIA_NAME.test(params.file)) return send(res, 404, 'Introuvable');", ''],
+  ['fichiers : pas de cache durable', 'server/routes/courses.mjs', "const FOREVER = 'public, max-age=31536000, immutable';", "const FOREVER = 'no-cache';"],
+  ['fichiers : type non vérifié', 'server/media.mjs', 'if (!ext) throw new HttpError(415, REFUSED);', ''],
+  ['fichiers : HEIC accepté comme une vidéo', 'server/media.mjs', "IMAGE_BRANDS.test(ascii(buffer, 8, 12)) ? null : 'mp4'", "'mp4'"],
+  ['fichiers : WebP non contrôlé en entier', 'server/media.mjs', " && ascii(buffer, 8, 12) === 'WEBP'", ''],
+  ['fichiers : renvoyer ne protège pas du nettoyage', 'server/media.mjs', 'DO UPDATE SET created_at = excluded.created_at', 'DO NOTHING'],
+  ['nettoyage : fichier cité effacé', 'server/media.mjs', 'if (!used.has(hash)) db.prepare', 'db.prepare'],
+  [
+    'nettoyage : versions publiées ignorées',
+    'server/media.mjs',
+    'SELECT content FROM course_versions JOIN courses ON courses.id = course_versions.course_id WHERE courses.account_id = ?',
+    'SELECT draft FROM courses WHERE account_id = ? AND 0'
+  ],
+  [
+    'nettoyage : fichier retiré sans délai',
+    'server/media.mjs',
+    'const limit = new Date(now - DAY).toISOString();',
+    'const limit = new Date(now + DAY).toISOString();'
+  ],
+  ['nettoyage : ligne jamais retirée', 'server/media.mjs', "db.prepare('DELETE FROM media WHERE hash = ? AND account_id = ?').run(hash, accountId);", ';'],
+  [
+    'nettoyage : retire la ligne de tout le monde',
+    'server/media.mjs',
+    "db.prepare('DELETE FROM media WHERE hash = ? AND account_id = ?').run(hash, accountId);",
+    "db.prepare('DELETE FROM media WHERE hash = ? AND ? IS NOT NULL').run(hash, accountId);"
+  ],
+  [
+    'nettoyage : les cours d’un autre compte protègent',
+    'server/media.mjs',
+    'SELECT draft AS text FROM courses WHERE account_id = ?',
+    'SELECT draft AS text FROM courses WHERE ? IS NOT NULL'
+  ],
+  ['nettoyage : fichier partagé effacé', 'server/media.mjs', 'match ? !known.has(match[1]) :', 'match ? true :'],
+  ['nettoyage : fichier sans ligne conservé', 'server/media.mjs', 'match ? !known.has(match[1]) :', 'match ? false :'],
+  ['nettoyage : envoi interrompu jamais effacé', 'server/media.mjs', ': statSync(file).mtimeMs <= now - DAY', ': false'],
+  ['nettoyage : envoi en cours effacé', 'server/media.mjs', ': statSync(file).mtimeMs <= now - DAY', ': true'],
+  ['nettoyage : fichiers oubliés au démarrage', 'server/app.mjs', 'media.purge();', ''],
+  [
+    'page d’un cours introuvable',
+    'server/routes/pages.mjs',
+    "router.add('GET', '/prof/cours/:id', (req, res) => sendFile(req, res, path.join(root, 'prof-cours.html'), 'no-cache'));",
+    ''
+  ],
+  ['EV-04 : l’écran masque la vraie erreur', 'src/js/db.js', 't.onabort = () => reject(', 't.onerror = () => reject(t.error);\n    t.onabort = () => reject('],
+  [
+    'EV-04 : erreur sans texte',
+    'src/js/util.js',
+    "export const errorText = (e) => e?.message || e?.name || (typeof e === 'string' && e) || 'erreur inconnue';",
+    'export const errorText = (e) => e.message;'
+  ],
+  ['EV-04 : erreur vite effacée', 'src/js/util.js', "message.startsWith('⚠') ? 10000 : 2800", '2800'],
+  ['EV-04 : échec d’écriture silencieux', 'src/js/store.js', "if (!backend.reportsErrors) toast('⚠ Enregistrement impossible : ' + errorText(e));", ''],
+  [
+    'EV-04 : échec d’écriture qui bloque l’export',
+    'src/js/store.js',
+    "if (!backend.reportsErrors) toast('⚠ Enregistrement impossible : ' + errorText(e));",
+    'throw e;'
+  ],
+  ['EV-04 : carte oubliée après un échec', 'src/js/store.js', 'mapIds.forEach((id) => pendingMaps.add(id));', ''],
+  ['EV-04 : projet oublié après un échec', 'src/js/store.js', 'pendingMeta ||= meta;', ''],
+  [
+    'store : écritures simultanées',
+    'src/js/store.js',
+    'const writePending = () => (writing = writing.then(writeChanges));',
+    'const writePending = () => writeChanges();'
+  ],
+  ['store : « Enregistré » affiché trop tôt', 'src/js/store.js', 'backend.onChange?.();', ''],
+  ['store : fermeture pendant un envoi sans avertissement', 'src/js/store.js', 'hasUnsentChanges() || writesInProgress > 0', 'hasUnsentChanges()'],
+  ['photos : recompression qui alourdit gardée', 'src/js/util.js', 'return accepted && smaller.length >= src.length ? src : smaller;', 'return smaller;'],
+  ['photos : pas de réduction', 'src/js/prof/course-backend.js', 'max: 1280', 'max: 9000'],
+  ['photos : plan réduit comme une photo', 'src/js/prof/course-backend.js', 'const PLAN = { convert: true };', 'const PLAN = PHOTO;'],
+  [
+    'photos : vidéo traitée comme une photo',
+    'src/js/prof/course-backend.js',
+    "file.type.startsWith('video/') ? uploadVideo(file) : uploadPhoto(file)",
+    'uploadPhoto(file)'
+  ],
+  ['cours : envoi d’un brouillon identique', 'src/js/prof/course-backend.js', "if (text === lastSaved) return onState('saved');", ''],
+  ['cours : révision du serveur ignorée', 'src/js/prof/course-backend.js', 'Object.assign(course, await api(', 'await (async (_c, p) => p)(course, api('],
+  ['cours : erreur d’enregistrement muette', 'src/js/prof/course-backend.js', "onState('error', e);", ''],
+  [
+    'cours : « Enregistré » malgré une modification en attente',
+    'src/js/prof/course.js',
+    "reported === 'saved' && hasUnsentChanges() ? 'saving' : reported",
+    'reported'
+  ],
+  ['cours : bandeau d’erreur jamais montré', 'src/js/prof/course.js', "banner.hidden = state !== 'error';", 'banner.hidden = true;'],
+  ['cours : bandeau d’erreur jamais retiré', 'src/js/prof/course.js', "banner.hidden = state !== 'error';", "if (state === 'error') banner.hidden = false;"],
+  ['cours : conflit présenté comme une panne', 'src/js/prof/course.js', 'const reload = error.status === 409;', 'const reload = false;'],
+  ['cours : session expirée sans explication', 'src/js/prof/course.js', 'const expired = error.status === 401;', 'const expired = false;'],
+  ['cours : pas d’avertissement en quittant', 'src/js/prof/course.js', 'if (hasPendingChanges()) event.preventDefault();', ''],
+  ['cours : plan absent non signalé', 'src/js/prof/course.js', "$('#planEmpty').hidden = !!S.map.image;", "$('#planEmpty').hidden = true;"],
+  ['cours : pas de renvoi vers la connexion', 'src/js/prof/course.js', "if (e.status === 401) return location.replace('/prof');", ''],
+  ['cours : contenu hors de son format', 'src/js/model.js', 'return { format, version, title, theme, aiEndpoint, maps };', 'return project;'],
+  [
+    'publication : pas d’avertissement',
+    'src/js/prof/course-tab.js',
+    "if (warned.length && !confirm(`${warned.join('\\n')}\\n\\nPublier quand même ?`)) return;",
+    ''
+  ],
+  ['publication : positions manquantes non comptées', 'src/js/prof/course-tab.js', 'visible.filter((fiche) => !hasRef(fiche)).length', '0'],
+  ['publication : plan manquant non signalé', 'src/js/prof/course-tab.js', 'S.project.maps.filter((map) => !map.image).length', '0'],
+  ['publication : part avant l’enregistrement', 'src/js/prof/course-tab.js', '  await flush();\n', ''],
+  ['publication : part malgré un échec d’enregistrement', 'src/js/prof/course-tab.js', 'if (hasUnsentChanges()) {', 'if (false) {'],
+  ['publication : erreur muette', 'src/js/prof/course-tab.js', 'publishError = `Publication impossible : ${errorText(e)}`;', ''],
+  ['publication : erreur ancienne restée affichée', 'src/js/prof/course-tab.js', "publishError = '';\n", ''],
+  ['publication : bouton actif sans modification', 'src/js/prof/course-tab.js', 'button.disabled = !course.modified;', 'button.disabled = false;'],
+  ['import : travail des élèves repris', 'src/js/prof/course-io.js', '{ draft: draftOf(project) }', '{ draft: project }'],
+  ['import : photos laissées dans le contenu', 'src/js/prof/course-io.js', 'for (const media of photos) await send(', 'for (const media of []) await send('],
+  ['import : plan laissé dans le contenu', 'src/js/prof/course-io.js', 'for (const map of plans) await send(', 'for (const map of []) await send('],
+  ['import : vidéo réduite comme une photo', 'src/js/prof/course-io.js', "media.type === 'video' ? uploadVideo : uploadPhoto", 'uploadPhoto'],
+  [
+    'import : un fichier refusé fait tout échouer',
+    'src/js/prof/course-io.js',
+    "    } catch {\n      failed++;\n      store('');\n    }",
+    '    } catch (e) {\n      throw e;\n    }'
+  ],
+  ['import : média refusé gardé', 'src/js/prof/course-io.js', 'fiche.media = fiche.media.filter((media) => media.data);', ''],
+  ['export : photos non incluses', 'src/js/prof/course-io.js', 'media.data = await embedded(media.data);', ''],
+  ['export : plan non inclus', 'src/js/prof/course-io.js', 'map.image = await embedded(map.image);', ''],
+  [
+    'export : fichier manquant ignoré',
+    'src/js/prof/course-io.js',
+    'if (!response.ok) throw new Error(`fichier introuvable sur le serveur (${response.status})`);',
+    ''
+  ],
+  ['API : erreur sans texte', 'src/js/api.js', 'text || `Le serveur a répondu ${response.status}.`', 'text'],
+  [
+    'IA : photo du serveur envoyée comme une adresse',
+    'src/js/ai.js',
+    "if (m.data?.startsWith('/media/')) images.push(await blobToDataURL(await (await fetch(m.data)).blob()));\n      else if (m.data)",
+    'if (m.data)'
+  ],
+  ['EDI-10 : mesures dans la liste', 'src/js/views/admin/fiches.js', "${S.teacherSpace ? '' : measuresHTML(f)}", '${measuresHTML(f)}'],
+  ['EDI-10 : séance dans l’espace enseignant', 'src/js/views/admin/fiches.js', "${S.teacherSpace ? '' : sessionHTML()}", '${sessionHTML()}'],
+  [
+    'EDI-10 : mot de passe de gestion dans l’espace enseignant',
+    'src/js/views/admin/settings.js',
+    "${S.teacherSpace ? '' : passwordHTML()}",
+    '${passwordHTML()}'
+  ],
+  [
+    'EDI-10 : colonnes de mesures au tableur',
+    'src/js/spreadsheet.js',
+    '(S.teacherSpace ? COLUMNS.filter(([k]) => !MEASURE_KEYS.includes(k)) : COLUMNS)',
+    'COLUMNS'
+  ],
+  ['fiche : enregistrable pendant un envoi', 'src/js/views/editor.js', "$('#eSave').disabled = true;", ''],
+  ['fiche : enregistrement resté bloqué', 'src/js/views/editor.js', "$('#eSave').disabled = false;", ''],
+  [
+    'fiche : cause d’un refus non affichée',
+    'src/js/views/editor.js',
+    "toast(`⚠ Impossible d'enregistrer ${file.name} : ${errorText(error)}`);",
+    "toast(`⚠ Impossible d'enregistrer ${file.name}`);"
+  ],
+  [
+    'liste : suppression sans confirmation',
+    'src/js/prof/main.js',
+    "l'historique de ses lancements seront effacés définitivement.`)",
+    "l'historique de ses lancements seront effacés définitivement.`) && false"
+  ],
+  ['liste : nom vide accepté', 'src/js/prof/main.js', 'if (!title) return;', ''],
+  [
+    'liste : état de publication faux',
+    'src/js/prof/main.js',
+    'course.modified ? `Version ${course.published.number} publiée, modifications en attente` : `Version ${course.published.number} publiée`',
+    '`Version ${course.published.number} publiée`'
+  ],
+  ['liste : session expirée non détectée', 'src/js/prof/main.js', 'if (e.status === 401) showLogin();\n    else showError(error, e);', 'showError(error, e);'],
+  [
+    'écran : long titre hors du téléphone',
+    'src/css/app.css',
+    'margin: 0; letter-spacing: -.01em; overflow-wrap: anywhere; }',
+    'margin: 0; letter-spacing: -.01em; }'
+  ],
+  [
+    'écran : tableau coupé sur un petit ordinateur',
+    'src/css/app.css',
+    '@media (max-width: 1000px) {\n  table.teachers',
+    '@media (max-width: 500px) {\n  table.teachers'
+  ],
+  ['écran : longue adresse qui élargit le tableau', 'src/css/app.css', 'table.teachers td:first-child { overflow-wrap: anywhere; min-width: 120px; }', ''],
   [
     'démarrage : une sauvegarde impossible fait tomber le serveur',
     'server/index.mjs',
@@ -313,14 +646,12 @@ const MUTANTS = [
 ];
 
 /** Lance les tests. Tout le groupe de processus est tué à la fin : un serveur de test ne doit pas survivre. */
-function runTests(cwd, tests) {
+function runTests(cwd, tests, { stopAtFirstFailure = false } = {}) {
   return new Promise((resolve) => {
     let out = '';
     // Dossiers temporaires dans la copie : un test tué n'a pas le temps de ranger les siens
     const env = { ...process.env, TMPDIR: path.join(cwd, 'tmp') };
     const child = spawn(process.execPath, ['--test', ...tests], { cwd, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
-    child.stdout.on('data', (chunk) => (out += chunk));
-    child.stderr.on('data', (chunk) => (out += chunk));
     const killGroup = () => {
       try {
         process.kill(-child.pid, 'SIGKILL');
@@ -328,6 +659,12 @@ function runTests(cwd, tests) {
         /* déjà terminé */
       }
     };
+    child.stdout.on('data', (chunk) => {
+      out += chunk;
+      // Un mutant est attrapé dès le premier échec : inutile d'attendre la fin de la suite
+      if (stopAtFirstFailure && /^✖ .+ \(\d/m.test(out)) killGroup();
+    });
+    child.stderr.on('data', (chunk) => (out += chunk));
     const timer = setTimeout(() => {
       killGroup();
       resolve({ blocked: true, out });
@@ -347,24 +684,45 @@ const source = process.cwd();
 cpSync(source, copy, { recursive: true, filter: (p) => !/(^|\/)(node_modules|\.git|dist|\.dev-data|data)(\/|$)/.test(path.relative(source, p)) });
 mkdirSync(path.join(copy, 'tmp'));
 symlinkSync(path.join(source, 'node_modules'), path.join(copy, 'node_modules'));
-const testsIn = (dir) =>
-  readdirSync(path.join(copy, dir))
-    .filter((name) => name.endsWith('.test.js'))
-    .map((name) => `${dir}/${name}`);
 /** Les tests utiles à chaque fichier : assez pour attraper un bug, sans relancer toute la suite à chaque fois. */
 const TESTS_FOR = {
   'server/auth.mjs': ['accounts', 'password', 'server-start'],
   'server/routes/auth.mjs': ['accounts'],
-  'server/routes/admin.mjs': ['accounts'],
+  'server/routes/admin.mjs': ['accounts', 'courses'],
+  'server/routes/courses.mjs': ['courses'],
+  'server/routes/pages.mjs': ['accounts', 'courses'],
+  'server/courses.mjs': ['courses'],
+  'server/media.mjs': ['courses'],
   'server/security.mjs': ['security', 'accounts', 'routes-legacy'],
-  'server/http.mjs': ['http', 'routes-legacy'],
+  'server/http.mjs': ['http', 'routes-legacy', 'courses'],
   'server/db.mjs': ['db', 'server-start'],
   'server/migrations/001-initial.sql': ['db'],
   'server/routes/legacy.mjs': ['routes-legacy', 'server'],
   'server/index.mjs': ['server-start'],
-  'server/app.mjs': ['server-start']
+  'server/app.mjs': ['server-start', 'courses'],
+  'src/js/model.js': ['model', 'e2e/courses'],
+  'src/js/spreadsheet.js': ['spreadsheet', 'e2e/courses'],
+  'src/js/util.js': ['util', 'e2e/legacy', 'e2e/courses'],
+  'src/js/db.js': ['e2e/legacy'],
+  'src/js/store.js': ['e2e/legacy', 'e2e/courses'],
+  'src/js/project-io.js': ['e2e/legacy'],
+  'src/js/views/editor.js': ['e2e/courses'],
+  'src/js/views/admin/fiches.js': ['e2e/courses'],
+  'src/js/views/admin/settings.js': ['e2e/courses'],
+  'src/js/views/admin/maps.js': ['e2e/courses', 'e2e/legacy'],
+  'src/js/prof/course.js': ['e2e/courses'],
+  'src/js/prof/course-backend.js': ['e2e/courses'],
+  'src/js/prof/course-io.js': ['e2e/courses'],
+  'src/js/prof/course-tab.js': ['e2e/courses'],
+  'src/js/prof/main.js': ['e2e/courses'],
+  'src/js/api.js': ['e2e/courses'],
+  'src/js/ai.js': ['e2e/courses'],
+  'src/js/admin/main.js': ['e2e/accounts', 'e2e/courses'],
+  'src/js/compte/main.js': ['e2e/accounts'],
+  'src/js/compte/ui.js': ['e2e/accounts'],
+  'src/css/app.css': ['e2e/accounts', 'e2e/courses']
 };
-const testsFor = (file) => (file.startsWith('src/') ? testsIn('tests/e2e') : (TESTS_FOR[file] ?? []).map((name) => `tests/${name}.test.js`));
+const testsFor = (file) => (TESTS_FOR[file] ?? []).map((name) => `tests/${name}.test.js`);
 
 // Sur du code intact, tout doit passer : sinon chaque modification paraîtrait attrapée, à tort.
 for (const tests of new Set(selected.map(([, file]) => testsFor(file).join(' ')))) {
@@ -386,11 +744,11 @@ for (const [name, file, from, to, everywhere] of selected) {
     continue;
   }
   writeFileSync(target, everywhere ? original.replaceAll(from, to) : original.replace(from, () => to));
-  const { code, blocked, out } = await runTests(copy, testsFor(file));
+  const { code, blocked, out } = await runTests(copy, testsFor(file), { stopAtFirstFailure: true });
   writeFileSync(target, original);
   const failing = new Set([...out.matchAll(/^✖ (.+?) \(\d/gm)].map((match) => match[1])).size;
   if (blocked || !failing) problems.push(`${name} : ${blocked ? 'les tests se bloquent' : code === 0 ? 'aucun test n’échoue' : 'échec sans test identifié'}`);
-  console.log(`${failing && !blocked ? 'attrapé     ' : 'PROBLÈME    '} ${name} (${failing} test(s) en échec)`);
+  console.log(`${failing && !blocked ? 'attrapé     ' : 'PROBLÈME    '} ${name}`);
 }
 rmSync(copy, { recursive: true, force: true });
 

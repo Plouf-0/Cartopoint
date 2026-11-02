@@ -6,7 +6,8 @@
  * `render()` (voir render.js) pour rafraîchir l'écran.
  */
 import { Meta, Maps, Files, Progress } from './db.js';
-import { debounce, uid, blobToDataURL, dataURLToBlob, toast } from './util.js';
+import { localBackend } from './backends/local.js';
+import { debounce, uid, blobToDataURL, dataURLToBlob, toast, errorText } from './util.js';
 import { normalizeProject, normalizeProgress, emptyProgress, placedPos, VERSION, FORMAT } from './model.js';
 
 export const S = {
@@ -20,6 +21,8 @@ export const S = {
   local: { dirty: false, baseRevision: null, lastExport: null },
   /** Mode gestion (enseignant) actif. */
   admin: false,
+  /** Espace enseignant en ligne : ni séance, ni mesures, ni mot de passe de gestion. */
+  teacherSpace: false,
   /** État d'interface qui n'est pas enregistré. */
   ui: { filter: 'all', query: '', adminQuery: '', tab: 'fiches', placing: null },
   /** Rapport largeur / hauteur de l'image du plan affiché. */
@@ -55,6 +58,13 @@ export const posOf = (fiche) => placedPos(entryOf(fiche));
 const pendingMaps = new Set();
 const pendingProgress = new Set();
 let pendingMeta = false;
+let writesInProgress = 0;
+
+/** Où vont les données : ce navigateur par défaut, le serveur dans l'espace enseignant. */
+let backend = localBackend;
+export function useBackend(next) {
+  backend = next;
+}
 
 const progressKey = (mapId) => `${S.project.id}/${mapId}`;
 const metaRecord = () => {
@@ -62,24 +72,46 @@ const metaRecord = () => {
   return { ...meta, mapOrder: maps.map((m) => m.id), local: S.local };
 };
 
-async function writePending() {
+/**
+ * Écrit ce qui a changé. La liste est vidée avant l'écriture : une modification faite pendant celle-ci n'est pas
+ * perdue. Si l'écriture échoue, tout redevient à écrire. Ne rejette jamais : les données restent en mémoire,
+ * un export ou une publication peut donc encore aboutir.
+ */
+async function writeChanges() {
   if (!S.storageOk) return;
+  writesInProgress++;
+  const mapIds = [...pendingMaps];
+  const progressIds = [...pendingProgress];
+  const meta = pendingMeta;
+  pendingMaps.clear();
+  pendingProgress.clear();
+  pendingMeta = false;
   try {
-    for (const id of pendingMaps) {
-      const m = S.project.maps.find((x) => x.id === id);
-      if (m) await Maps.put(m);
-    }
-    for (const id of pendingProgress) await Progress.put(progressKey(id), S.progress[id] || emptyProgress());
-    if (pendingMeta) await Meta.put('project', metaRecord());
-    pendingMaps.clear();
-    pendingProgress.clear();
-    pendingMeta = false;
+    await backend.save({
+      maps: mapIds.map((id) => S.project.maps.find((m) => m.id === id)).filter(Boolean),
+      progress: progressIds.map((id) => [progressKey(id), S.progress[id] || emptyProgress()]),
+      meta: meta ? metaRecord() : null
+    });
   } catch (e) {
+    mapIds.forEach((id) => pendingMaps.add(id));
+    progressIds.forEach((id) => pendingProgress.add(id));
+    pendingMeta ||= meta;
     console.error(e);
-    toast('⚠ Enregistrement impossible : ' + e.message);
+    if (!backend.reportsErrors) toast('⚠ Enregistrement impossible : ' + errorText(e));
+  } finally {
+    writesInProgress--;
   }
 }
+
+/** Une écriture à la fois : le serveur attend la révision donnée par l'écriture précédente. */
+let writing = Promise.resolve();
+const writePending = () => (writing = writing.then(writeChanges));
 const scheduleWrite = debounce(writePending, 250);
+
+/** Une modification attend-elle encore de partir ? */
+export const hasUnsentChanges = () => pendingMaps.size > 0 || pendingMeta;
+/** Quitter la page maintenant ferait-il perdre quelque chose ? */
+export const hasPendingChanges = () => hasUnsentChanges() || writesInProgress > 0;
 
 /** À appeler après une modification du contenu d'une carte ou de ses fiches (enseignant). */
 export function changedMap(map = S.map) {
@@ -100,6 +132,7 @@ export function changedProgress(mapId = S.map.id) {
 function setDirty() {
   S.local.dirty = true;
   pendingMeta = true;
+  backend.onChange?.();
 }
 /** Force l'écriture immédiate (avant un export, un changement de projet…). */
 export const flush = () => scheduleWrite.flush();
@@ -127,12 +160,14 @@ export async function mediaURL(m) {
   }
 }
 
-/** Enregistre un fichier et renvoie sa clé. */
-export async function storeFile(blob) {
-  const key = 'file-' + uid();
-  await Files.put(key, blob);
-  return key;
-}
+/** Enregistre un fichier. Renvoie ce qu'il faut ajouter au média : `{ key }` ou `{ data }`. */
+export const storeFile = (file) => backend.storeFile(file);
+
+/** Enregistre l'image d'un plan et renvoie l'adresse à mettre dans la carte. */
+export const storeMapImage = (file) => backend.storeMapImage(file);
+
+/** Oublie une carte déjà retirée du projet. */
+export const forgetMap = (id) => backend.deleteMap(id);
 
 export async function forgetFile(key) {
   if (!key) return;
@@ -217,7 +252,7 @@ export async function installProject(project, { progress = 'seed', dirty = false
     for (const f of m.fiches) {
       for (const md of f.media) {
         if (md.data?.startsWith('data:')) {
-          md.key = await storeFile(dataURLToBlob(md.data));
+          ({ key: md.key } = await localBackend.storeFile(dataURLToBlob(md.data)));
           delete md.data;
         }
       }

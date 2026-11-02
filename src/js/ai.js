@@ -8,7 +8,7 @@
  *     "heat": "…", "care": "…", "description": "…", "notes": "…" }
  * Seuls les champs encore vides du formulaire sont remplis.
  */
-import { $, blobToDataURL } from './util.js';
+import { $, blobToDataURL, errorText } from './util.js';
 import { S } from './store.js';
 import { Files } from './db.js';
 
@@ -35,7 +35,8 @@ export async function identifyWithAI(draft, statusEl) {
   try {
     const images = [];
     for (const m of photos) {
-      if (m.data) images.push(m.data);
+      if (m.data?.startsWith('/media/')) images.push(await blobToDataURL(await (await fetch(m.data)).blob()));
+      else if (m.data) images.push(m.data);
       else if (m.key) {
         const blob = await Files.get(m.key);
         if (blob) images.push(await blobToDataURL(blob));
@@ -59,6 +60,6 @@ export async function identifyWithAI(draft, statusEl) {
     }
     statusEl.textContent = n ? `${n} champ(s) rempli(s). Vérifiez-les avant d'enregistrer.` : 'Aucun champ vide à compléter.';
   } catch (e) {
-    statusEl.textContent = "L'analyse a échoué : " + e.message + ". Vérifiez l'adresse dans Réglages.";
+    statusEl.textContent = "L'analyse a échoué : " + errorText(e) + ". Vérifiez l'adresse dans Réglages.";
   }
 }

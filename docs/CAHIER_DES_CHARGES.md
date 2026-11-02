@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.13** · 2 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.15** · 2 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -45,12 +45,12 @@ trace.
 | ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------- | -------------------------------------------------------------------------------------- |
 | Exemple | 01/11/2026 | Les élèves doivent pouvoir choisir leur carte, car une sortie peut couvrir plusieurs sites.                                                                                                  | E-01                                     | Haute    | Proposée                                                                               |
 | EV-01   | 01/11/2026 | De vrais espaces enseignants : chaque enseignant a son propre espace, séparé de ceux des autres. L'admin distribue des liens pour créer les comptes.                                         | ACC-01, SRV-05, Q-09, Q-11               | Haute    | En cours. Voir 12.1                                                                    |
-| EV-02   | 01/11/2026 | Préparer un cours, le publier quand il est prêt, le lancer et afficher un QR code que les élèves scannent pour le rejoindre, à la façon de Kahoot.                                           | PUB-01, DEM-01, MUL-01, Q-13, Q-14, Q-19 | Haute    | Validée. Voir 12.2                                                                     |
+| EV-02   | 01/11/2026 | Préparer un cours, le publier quand il est prêt, le lancer et afficher un QR code que les élèves scannent pour le rejoindre, à la façon de Kahoot.                                           | PUB-01, DEM-01, MUL-01, Q-13, Q-14, Q-19 | Haute    | En cours. Voir 12.2                                                                    |
 | EV-03   | 01/11/2026 | Pas de compte pour les élèves. Leur nom, leur prénom et leurs réponses restent dans l'historique du cours, pour l'enseignant.                                                                | PRI-04, Q-02, Q-17                       | Haute    | Validée, modifiée le 01/11/2026 (remplace « aucune trace en base »). Voir 12.3 et 12.4 |
-| EV-04   | 01/11/2026 | Revoir la publication des fiches, qui semble ne pas fonctionner.                                                                                                                             | PUB-01, DEM-02, E-02, E-16               | Moyenne  | Validée, à traiter après les autres. Voir 12.9                                         |
+| EV-04   | 01/11/2026 | Revoir la publication des fiches, qui semble ne pas fonctionner.                                                                                                                             | PUB-01, DEM-02, E-02, E-16               | Moyenne  | En cours. Voir 12.9                                                                    |
 | EV-05   | 01/11/2026 | Suivre le cours : voir les noms des élèves qui ont commencé, et s'ils ont fini ou non.                                                                                                       | Q-10                                     | Haute    | Validée. Voir 12.4                                                                     |
 | EV-06   | 01/11/2026 | Travailler hors ligne une fois la page récupérée, avec l'avancement gardé dans le navigateur. La connexion ne sert qu'à rendre.                                                              | Q-04, Q-05, Q-15, E-06                   | Haute    | Validée. Voir 12.5                                                                     |
-| EV-07   | 01/11/2026 | Alléger le cours, en particulier les photos, sans les rendre illisibles.                                                                                                                     | E-05                                     | Moyenne  | Validée. Voir 12.7                                                                     |
+| EV-07   | 01/11/2026 | Alléger le cours, en particulier les photos, sans les rendre illisibles.                                                                                                                     | E-05                                     | Moyenne  | En cours. Voir 12.7                                                                    |
 | EV-08   | 01/11/2026 | Donner à l'élève la correction complète sur son téléphone quand l'enseignant termine le cours, s'il a du réseau et que sa page est toujours ouverte. Elle n'y reste que le temps de la page. | Q-03, Q-16, Q-20, VER-01                 | Haute    | Validée. Voir 12.6                                                                     |
 | EV-09   | 01/11/2026 | Afficher sous le QR code un code court à taper, comme alternative.                                                                                                                           | COU-04                                   | Moyenne  | Validée. Voir 12.2                                                                     |
 | EV-10   | 01/11/2026 | Ne plus dépendre de Google pour les polices.                                                                                                                                                 | E-08                                     | Basse    | Validée. Voir 12.5                                                                     |
@@ -66,6 +66,7 @@ trace.
 | EV-28   | 01/11/2026 | Ne pas négliger les tests, et arriver à une bonne couverture à la fin de la mise à jour. (Numéro choisi après EV-27 : les lignes EV-20 à EV-27 restent réservées dans la copie Google Docs.) | E-09, QUA-01                             | Haute    | Validée. Voir 12.12                                                                    |
 | EV-29   | 02/11/2026 | Un enseignant dont le compte est désactivé doit l'apprendre en se connectant : « mot de passe incorrect » porte à confusion.                                                                 | ADM-06                                   | Moyenne  | En cours. Voir 12.1                                                                    |
 | EV-30   | 02/11/2026 | Un bouton supprime un compte désactivé et ses cours, après avoir recopié un mot, pour ne pas le faire par erreur.                                                                            | ADM-10                                   | Moyenne  | En cours. Voir 12.1                                                                    |
+| EV-31   | 02/11/2026 | Un compte supprimé reste restaurable un temps, dans un tableau à part, avec un bouton Restaurer. Souhait de confort, pas une priorité.                                                       | ADM-10                                   | Basse    | En cours. Voir 12.1                                                                    |
 
 - **Exigence concernée :** son identifiant (`PLA-03`, `E-01`…), ou rien pour un besoin nouveau.
 - **Priorité :** Haute (empêche une séance), Moyenne (gêne réelle), Basse (confort).
@@ -532,6 +533,11 @@ Code : [`server/`](../server/) · Tests : [`tests/`](../tests/) (`server`, `serv
   invalides. Les sauvegardes ne sont pas accessibles par une adresse.
 - **SRV-10** Les pages, les scripts, les styles et les projets sont envoyés sans mise en cache durable, pour que
   les mises à jour arrivent tout de suite. Les autres fichiers sont mis en cache une heure.
+- **SRV-15** Un fichier envoyé est contrôlé sur son contenu : JPEG, PNG, WebP, MP4 ou WebM. Le SVG et le HEIC sont
+  refusés. Un même contenu n'occupe qu'un fichier, partagé entre les comptes qui l'utilisent.
+- **SRV-16** Un fichier qu'aucun brouillon ni aucune version publiée de son compte ne cite est oublié après un jour.
+  Il est effacé quand plus aucun compte ne l'utilise.
+- **SRV-17** Les vidéos se lisent par plages d'octets : Safari ne les lit pas autrement.
 - **SRV-11** Les fichiers et les réponses JSON portent un ETag : un navigateur qui a déjà la bonne version ne la
   retélécharge pas (réponse 304). Le texte de 1 Ko ou plus part compressé en gzip si le navigateur l'accepte.
 - **SRV-12** Les données du serveur sont dans une base SQLite, `DATA_DIR/app.db`. Son schéma évolue par migrations
@@ -847,10 +853,10 @@ et remplacent celles qu'elles contredisent. Les questions encore ouvertes (Q-01,
 
 ### 12.1 Comptes et espaces enseignants — `ADM`, `ENS`
 
-Demandes : EV-01, EV-16, EV-29, EV-30
+Demandes : EV-01, EV-16, EV-29, EV-30, EV-31
 
-**État :** comptes, connexion et tableau de bord sont en place dans la branche `refonte-espaces-profs`, pas encore en
-production. Les chiffres de `ADM-04` arrivent avec les cours (étape 3 de la feuille de route).
+**État :** comptes, connexion, tableau de bord et cours sont en place dans la branche `refonte-espaces-profs`, pas encore
+en production.
 
 - **ADM-01** Au premier lancement de l'application, l'admin se connecte avec un accès prévu à l'installation :
   le premier visiteur venu ne peut pas prendre ce rôle.
@@ -871,9 +877,10 @@ production. Les chiffres de `ADM-04` arrivent avec les cours (étape 3 de la feu
 - **ADM-09** Si l'admin perd son mot de passe, la personne qui héberge le site obtient un lien de réinitialisation
   depuis le serveur.
 - **ADM-10** L'admin peut supprimer un compte, seulement après l'avoir désactivé. Il doit recopier le mot
-  `SUPPRIMER`, que le serveur vérifie aussi. La suppression est définitive et emporte les cours, leur historique et
-  les résultats des élèves. L'adresse peut ensuite resservir. Les copies quotidiennes de la base (`SRV-13`) gardent
-  ces données jusqu'à leur remplacement, 14 jours au plus.
+  `SUPPRIMER`, que le serveur vérifie aussi. Pendant 14 jours, le compte reste désactivé, garde tout son contenu et
+  apparaît en rouge dans un tableau à part, où l'admin peut le restaurer : il redevient alors désactivé. L'adresse reste
+  prise pendant ce temps. Passé ce délai, le compte est effacé définitivement, avec ses cours, leur historique et les
+  résultats des élèves. Les copies quotidiennes de la base (`SRV-13`) gardent ces données 14 jours de plus au maximum.
 - **ENS-01** Chaque enseignant a un compte personnel, qui lui donne accès à son propre espace.
 - **ENS-02** L'enseignant y prépare et y retrouve ses cours.
 - **ENS-03** Les espaces sont séparés : un enseignant ne peut ni voir ni modifier les cours d'un autre.
@@ -990,6 +997,8 @@ Demande : EV-07
   sur la photo examinée. À confirmer sur davantage de photos.
 - **LEG-02** Objectif : un cours comme le projet actuel passe de 4,15 Mo à environ 2 Mo. Ce calcul suppose des
   photos envoyées à part du fichier du cours, sans l'encodage qui les alourdit d'un tiers.
+  **Mesuré le 2 novembre :** 2,28 Mo, dont 23 Ko de contenu. Une photo de moins de 150 Ko et de moins de 1280 px reste
+  telle quelle.
 - **LEG-03** Les vidéos ne sont pas réduites pour l'instant.
 
 ### 12.8 Export de secours — `EXP`
@@ -1074,4 +1083,6 @@ Demande : EV-28
 | 0.10    | 1er novembre 2026 | Étape 0 de la feuille de route : Node 24, `data/` hors du dépôt et de l'image (E-17) |
 | 0.11    | 1er novembre 2026 | Étape 1 : base SQLite, ETag et gzip, E-04 et E-11 corrigés ; exigences sur les tests (EV-28) |
 | 0.12    | 2 novembre 2026   | Étape 2 : comptes, connexion, tableau de bord ; durées de la section 9 de la feuille de route |
-| 0.13    | 2 novembre 2026   | Message pour un compte désactivé, suppression d'un compte et de ses cours (EV-29, EV-30) ; symptôme de EV-04 |
+| 0.13    | 2 novembre 2026   | Message pour un compte désactivé, suppression d'un compte et de ses cours et restauration (EV-29 à EV-31) ; symptôme de EV-04 |
+| 0.14    | 2 novembre 2026   | Étape 3 : cours, publication, fichiers, import ; cause de EV-04 en partie trouvée ; SRV-15 à SRV-17 |
+| 0.15    | 2 novembre 2026   | EV-04 : fichiers du premier enseignant analysés et rejoués, erreur revenue sur deux navigateurs, correctif essayé sur une copie |

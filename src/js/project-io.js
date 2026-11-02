@@ -7,7 +7,7 @@
  *
  * Format d'un fichier de projet : voir docs/ARCHITECTURE.md.
  */
-import { $, esc, toast, download, safeFileName, blobToDataURL, prefs } from './util.js';
+import { $, esc, toast, download, safeFileName, blobToDataURL, prefs, errorText } from './util.js';
 import { S, installProject, activate, exportProject, markExported, loadLocal } from './store.js';
 import { normalizeProject, newProject, projectFromText, DEFAULT_TITLE } from './model.js';
 import { readLegacyProject } from './db.js';
@@ -170,7 +170,7 @@ export async function saveProject(kind = 'html', fixedName = null) {
     render();
     toast('✓ Projet enregistré');
   } catch (e) {
-    toast('⚠ Enregistrement impossible : ' + e.message);
+    toast('⚠ Enregistrement impossible : ' + errorText(e));
   }
 }
 
@@ -187,7 +187,7 @@ export async function exportStudentVersion({ clearPositions = true, clearMeasure
     else download(JSON.stringify(bundle), base + '.json', 'application/json');
     toast('✓ Version élèves téléchargée');
   } catch (e) {
-    toast('⚠ Export impossible : ' + e.message);
+    toast('⚠ Export impossible : ' + errorText(e));
   }
 }
 
@@ -199,7 +199,7 @@ export async function openProjectFile(file) {
   try {
     project = normalizeProject(projectFromText(await file.text()), await defaultMapImage());
   } catch (e) {
-    return toast('⚠ Ouverture impossible : ' + e.message);
+    return toast('⚠ Ouverture impossible : ' + errorText(e));
   }
   const nf = project.maps.reduce((s, m) => s + m.fiches.length, 0);
   if (!confirm(`Ouvrir le projet « ${project.title} » (${project.maps.length} carte(s), ${nf} fiche(s)) ?${unsavedWarning()}`)) return;
@@ -209,7 +209,7 @@ export async function openProjectFile(file) {
     render();
     toast('✓ Projet ouvert');
   } catch (e) {
-    toast('⚠ Ouverture impossible : ' + e.message);
+    toast('⚠ Ouverture impossible : ' + errorText(e));
   }
 }
 
@@ -283,7 +283,7 @@ export async function publish() {
     render();
     toast('✓ Publié : les élèves verront cette version en rechargeant la page');
   } catch (e) {
-    toast('⚠ Publication impossible : ' + e.message);
+    toast('⚠ Publication impossible : ' + errorText(e));
   }
 }
 

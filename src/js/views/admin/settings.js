@@ -36,18 +36,22 @@ export function html() {
       </div>
     </div>
 
-    <div class="section">
-      <h3>Mot de passe de gestion</h3>
-      <p>Il évite les modifications accidentelles par les élèves. Ce n'est pas une vraie protection : une personne avertie peut lire le contenu du fichier. Mot de passe par défaut : <b>admin</b>.</p>
-      <div class="field"><label for="pw1">Nouveau mot de passe</label><input id="pw1" type="password" autocomplete="new-password"></div>
-      <div class="field"><label for="pw2">Confirmer</label><input id="pw2" type="password" autocomplete="new-password"></div>
-      <button type="button" class="btn soft sm" id="savePw">Changer le mot de passe</button>
-    </div>
+    ${S.teacherSpace ? '' : passwordHTML()}
 
     <div class="section">
       <h3>Identification par IA</h3>
       <p>Adresse d'un serveur qui reçoit les photos d'une fiche et renvoie une proposition (nom commun, nom scientifique, famille, besoins…). Laissez vide pour masquer le bouton. Ne mettez jamais de clé d'API dans ce champ : elle serait visible par tous.</p>
       <div class="inline"><input id="aiUrl" class="text-input" type="url" value="${esc(S.project.aiEndpoint)}" placeholder="https://…"><button type="button" class="btn soft sm" id="saveAi">Enregistrer</button></div>
+    </div>`;
+}
+
+function passwordHTML() {
+  return `<div class="section">
+      <h3>Mot de passe de gestion</h3>
+      <p>Il évite les modifications accidentelles par les élèves. Ce n'est pas une vraie protection : une personne avertie peut lire le contenu du fichier. Mot de passe par défaut : <b>admin</b>.</p>
+      <div class="field"><label for="pw1">Nouveau mot de passe</label><input id="pw1" type="password" autocomplete="new-password"></div>
+      <div class="field"><label for="pw2">Confirmer</label><input id="pw2" type="password" autocomplete="new-password"></div>
+      <button type="button" class="btn soft sm" id="savePw">Changer le mot de passe</button>
     </div>`;
 }
 
@@ -69,7 +73,7 @@ export function bind(panel) {
   color.onchange = () => setTheme({ preset: 'custom', accent: color.value });
   panel.querySelectorAll('[data-icon]').forEach((b) => (b.onclick = () => setTheme({ icon: b.dataset.icon })));
 
-  $('#savePw').onclick = async () => {
+  $('#savePw')?.addEventListener('click', async () => {
     const a = $('#pw1').value;
     const b = $('#pw2').value;
     if (a.length < 4) return toast('Choisissez au moins 4 caractères');
@@ -78,7 +82,7 @@ export function bind(panel) {
     changedMeta();
     $('#pw1').value = $('#pw2').value = '';
     toast('Mot de passe changé');
-  };
+  });
   $('#saveAi').onclick = () => {
     S.project.aiEndpoint = $('#aiUrl').value.trim();
     changedMeta();

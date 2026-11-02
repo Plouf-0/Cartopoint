@@ -42,7 +42,7 @@ function run(store, mode, fn, database = db) {
     const t = database.transaction(store, mode);
     const r = fn(t.objectStore(store));
     t.oncomplete = () => resolve(r ? r.result : undefined);
-    t.onerror = () => reject(t.error);
+    // Quand une écriture échoue, t.error est encore vide : la transaction est annulée juste après, avec la vraie erreur.
     t.onabort = () => reject(t.error || new Error('transaction annulée (espace disque plein ?)'));
   });
 }

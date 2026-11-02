@@ -5,7 +5,7 @@
  * cliqué sur Enregistrer. Les photos ajoutées sont stockées tout de suite (pour pouvoir
  * les afficher) et supprimées si l'on annule.
  */
-import { $, $$, esc, toast, normKey, today } from '../util.js';
+import { $, $$, esc, toast, normKey, today, errorText } from '../util.js';
 import { S, fiches, byId, entryOf, mediaURL, storeFile, forgetFile, deleteFiches, changedMap, changedProgress } from '../store.js';
 import { normalizeFiche, normalizeMedia, numberOf, titleOf, thumbOf } from '../model.js';
 import { render } from '../render.js';
@@ -29,6 +29,7 @@ const FIELDS = {
 };
 /** Champ du formulaire → mesure (stockée dans la progression, pas dans la fiche). */
 const MEASURE_FIELDS = { eTemp: 'temperature', eHumidity: 'humidity', eLight: 'light' };
+const measureFields = () => (S.teacherSpace ? {} : MEASURE_FIELDS);
 
 const EMOJIS = ['☀️', '🌤️', '⛅', '☁️', '💧', '💦', '🚿', '🌱', '🪨', '🍂', '🌡️', '🔥', '❄️', '🌬️', '✂️', '🌸', '🌿', '🌳', '🐝', '⭐', '✅', '⚠️', '🚫', '❗'];
 
@@ -44,7 +45,7 @@ export function openEditor(id) {
   $('#editTitle').textContent = id ? `${numberOf(S.map, source)} · ${titleOf(source)}` : 'Nouvelle fiche';
   for (const [field, key] of Object.entries(FIELDS)) $('#' + field).value = d[key] || '';
   const e = (id && entryOf(source)) || {};
-  for (const [field, key] of Object.entries(MEASURE_FIELDS)) $('#' + field).value = e[key] || '';
+  for (const [field, key] of Object.entries(measureFields())) $('#' + field).value = e[key] || '';
   $('#eVisible').checked = d.visible;
   $('#eDelete').hidden = edit.isNew;
   $('#aiBtn').hidden = !S.project.aiEndpoint;
@@ -133,7 +134,7 @@ async function save() {
   else fiches()[fiches().findIndex((f) => f.id === edit.id)] = fiche;
   for (const key of edit.removed) await forgetFile(key);
 
-  const measures = Object.entries(MEASURE_FIELDS).map(([field, key]) => [key, $('#' + field).value.trim()]);
+  const measures = Object.entries(measureFields()).map(([field, key]) => [key, $('#' + field).value.trim()]);
   if (measures.some(([, v]) => v) || entryOf(fiche)) {
     Object.assign(entryOf(fiche, true), Object.fromEntries(measures));
     changedProgress();
@@ -187,15 +188,21 @@ export function bindEditor() {
   $('#eFiles').onchange = async (e) => {
     const files = [...e.target.files];
     e.target.value = '';
-    for (const file of files) {
+    // L'envoi peut prendre du temps : enregistrer la fiche entre-temps ferait perdre les photos encore en route.
+    $('#eSave').disabled = true;
+    for (const [i, file] of files.entries()) {
+      $('#aiStatus').textContent = `Envoi de ${file.name} (${i + 1} / ${files.length})…`;
       try {
-        const key = await storeFile(file);
-        edit.added.push(key);
-        edit.draft.media.push(normalizeMedia({ type: file.type.startsWith('video/') ? 'video' : 'image', name: file.name, key }));
-      } catch {
-        toast("⚠ Impossible d'enregistrer " + file.name);
+        const stored = await storeFile(file);
+        if (!edit) return;
+        if (stored.key) edit.added.push(stored.key);
+        edit.draft.media.push(normalizeMedia({ type: file.type.startsWith('video/') ? 'video' : 'image', name: file.name, ...stored }));
+      } catch (error) {
+        toast(`⚠ Impossible d'enregistrer ${file.name} : ${errorText(error)}`);
       }
     }
+    $('#aiStatus').textContent = '';
+    $('#eSave').disabled = false;
     renderGallery();
   };
   $('#eSave').onclick = save;

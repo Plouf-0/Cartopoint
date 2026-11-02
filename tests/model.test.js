@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeProject, numberOf, evaluate, sortByRef, projectFromText, newProject, VERSION } from '../src/js/model.js';
+import { draftOf, normalizeProject, numberOf, evaluate, sortByRef, projectFromText, newProject, VERSION } from '../src/js/model.js';
 
 /** Projet au format 2 (fichiers « Inventaire botanique N.html » de 2026). */
 const legacy = {
@@ -96,4 +96,25 @@ test('nouveau projet : une carte, aucune fiche', () => {
   assert.equal(p.maps.length, 1);
   assert.equal(p.maps[0].fiches.length, 0);
   assert.equal(p.maps[0].image, 'data:img');
+});
+
+test('COU-02 : le contenu d’un cours ne garde ni progression, ni carte affichée, ni mot de passe de gestion', () => {
+  const project = normalizeProject({
+    format: 'inventaire-botanique',
+    version: 3,
+    id: 'p',
+    revision: 'r',
+    title: 'Cours',
+    passwordHash: 'empreinte',
+    currentMapId: 'm2',
+    maps: [
+      { id: 'm1', name: 'A', fiches: [] },
+      { id: 'm2', name: 'B', fiches: [] }
+    ],
+    progress: { m1: { verified: true, entries: {} } }
+  });
+  const draft = draftOf(project);
+  assert.deepEqual(Object.keys(draft).sort(), ['aiEndpoint', 'format', 'maps', 'theme', 'title', 'version']);
+  assert.equal(draft.maps.length, 2);
+  assert.doesNotThrow(() => normalizeProject(draft), 'il se relit');
 });

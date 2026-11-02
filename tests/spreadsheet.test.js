@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseCSV, cellValue, mapHeaders, planImport, buildCsv, buildTeacherCsv } from '../src/js/spreadsheet.js';
+import { S } from '../src/js/store.js';
 import { normalizeFiche } from '../src/js/model.js';
 
 test('CSV français : séparateur ;, guillemets, retours à la ligne', () => {
@@ -73,4 +74,29 @@ test('rendu prof : mesures, écart et ligne de moyenne', () => {
   assert.equal(lines[2], 'Léa et Tom;2;2;"Chêne; vert";;22,5;;nuageux;À revoir;6');
   assert.equal(lines[3], 'Léa et Tom;3;3;Romarin;;;;;Pas de position réelle;');
   assert.equal(lines[4], 'Léa et Tom;;;Moyenne;;21,25;50,5;1000;1 / 2 bien placée(s);3,5');
+});
+
+test('EDI-10 : dans l’espace enseignant, le tableur n’a plus de colonnes de mesures', (t) => {
+  S.teacherSpace = true;
+  t.after(() => (S.teacherSpace = false));
+  const header = buildCsv([])
+    .replace(/^\uFEFF/, '')
+    .split('\r\n')[0];
+  assert.doesNotMatch(header, /Température|Hygrométrie|Éclairement/);
+  assert.match(header, /Nom commun/);
+  assert.deepEqual(mapHeaders(['Nom commun', 'Température (°C)', 'Hygrométrie']), ['common', null, null]);
+  const plan = planImport(
+    [
+      ['Nom commun', 'Température'],
+      ['Olivier', '21']
+    ],
+    []
+  );
+  assert.deepEqual(plan.ignored, ['Température']);
+  assert.deepEqual(plan.ops[0].data, { common: 'Olivier' });
+});
+
+test('EDI-10 : le mode hors ligne garde ses colonnes de mesures', () => {
+  assert.match(buildCsv([]), /Température/);
+  assert.deepEqual(mapHeaders(['Température (°C)']), ['temperature']);
 });

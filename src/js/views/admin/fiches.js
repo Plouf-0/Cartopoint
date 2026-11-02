@@ -39,7 +39,7 @@ export function html() {
           <button type="button" class="btn ghost sm" data-place-ref="${esc(f.id)}">${place}</button>
           <button type="button" class="btn danger sm" data-del="${esc(f.id)}" title="Supprimer la fiche" aria-label="Supprimer « ${esc(titleOf(f))} »">🗑</button>
         </div>
-        ${measuresHTML(f)}
+        ${S.teacherSpace ? '' : measuresHTML(f)}
       </div>`;
     })
     .join('');
@@ -66,7 +66,11 @@ export function html() {
       </div>
     </div>
 
-    <div class="section">
+    ${S.teacherSpace ? '' : sessionHTML()}`;
+}
+
+function sessionHTML() {
+  return `<div class="section">
       <h3>Séance en cours</h3>
       <p>${verified() ? "L'exercice a été vérifié : les placements des élèves sont figés." : 'Les élèves peuvent placer les fiches.'} Placements et mesures sont enregistrés dans ce navigateur.</p>
       <div class="inline">
@@ -156,6 +160,10 @@ export function bind(panel) {
   $('#sheetTemplate').onclick = () => download(templateCsv(), 'Modèle fiches botaniques.csv', 'text/csv;charset=utf-8');
   $('#sheetExport').onclick = () => download(buildCsv(fiches(), progress()), safeFileName(`Fiches - ${S.map.name}`) + '.csv', 'text/csv;charset=utf-8');
 
+  if (!S.teacherSpace) bindSession();
+}
+
+function bindSession() {
   $('#compare').onclick = showResults;
   $('#reopen')?.addEventListener('click', () => {
     if (!confirm("Rouvrir l'exercice ? Les élèves pourront de nouveau déplacer leurs points.")) return;

@@ -6,6 +6,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { crc32, deflateSync } from 'node:zlib';
 import { chromium } from 'playwright';
 import { summarize } from '../../scripts/browser-coverage.mjs';
 import { createApp } from '../../server/app.mjs';
@@ -16,11 +17,36 @@ export const ADMIN = { email: 'admin@example.org', password: 'mot-de-passe-admin
 
 export const launchBrowser = () => chromium.launch();
 
+/** Une vraie image PNG, que le navigateur sait décoder. */
+export function makePng(width, height, { pad = 0 } = {}) {
+  const chunk = (type, data) => {
+    const body = Buffer.concat([Buffer.from(type, 'latin1'), data]);
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([length, body, crc]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 2, 0, 0, 0], 8);
+  const row = Buffer.concat([Buffer.from([0]), Buffer.alloc(width * 3, 0x7f)]);
+  const pixels = Buffer.concat(Array.from({ length: height }, () => row));
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(pixels)),
+    ...(pad ? [chunk('tEXt', Buffer.alloc(pad, 0x61))] : []),
+    chunk('IEND', Buffer.alloc(0))
+  ]);
+}
+
 /** Démarre un site neuf, avec son admin. `root` pour servir autre chose que src/. */
-export async function startSite(t, { root = path.resolve('src') } = {}) {
+export async function startSite(t, { root = path.resolve('src'), password = '' } = {}) {
   const log = t.mock.method(console, 'log', () => {});
   const data = await tempDir(t);
-  const app = createApp({ root, data });
+  const app = createApp({ root, data, password });
   await ensureAdmin(app.db, ADMIN);
   await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
   t.after(() => app.close());

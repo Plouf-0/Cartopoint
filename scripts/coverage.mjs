@@ -8,8 +8,9 @@
  * chiffre : ici, un fichier qu'aucun test ne charge compte pour 0 % de ses lignes. Pour un tel
  * fichier, les branches et les fonctions restent inconnues : seul le chiffre des lignes le voit.
  *
- * Les lignes additionnent ce que voient Node et Chromium (tests de parcours, voir browser-coverage.mjs).
- * Les branches et les fonctions ne viennent que de Node.
+ * Les lignes additionnent ce que voient Node et Chromium (tests de parcours, voir browser-coverage.mjs). Pour les
+ * fonctions, on retient le meilleur des deux chiffres, sans les additionner : ils ne se comparent pas fonction par
+ * fonction, et ce choix ne peut pas embellir le résultat. Les branches ne viennent que de Node.
  *
  * Les seuils ne font que monter (voir docs/FEUILLE_DE_ROUTE.md, section 11).
  */
@@ -17,10 +18,11 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { mergeCalled, sourceLines } from './browser-coverage.mjs';
 
 const GROUPS = [
   { name: 'Serveur', dir: 'server', files: /\.mjs$/, min: { lines: 95, branches: 90, functions: 95 } },
-  { name: 'Navigateur', dir: 'src/js', files: /\.js$/, min: { lines: 30, branches: 81, functions: 49 } }
+  { name: 'Navigateur', dir: 'src/js', files: /\.js$/, min: { lines: 81, branches: 84, functions: 80 } }
 ];
 
 const listFiles = (dir, pattern) =>
@@ -45,18 +47,26 @@ function parseLcov(text) {
   return report;
 }
 
-/** Ajoute les lignes vues dans le navigateur à celles vues par Node. */
+const percent = ([hit, total]) => (total ? (100 * hit) / total : 100);
+
+/** Ajoute ce que voit le navigateur à ce que voit Node. */
 function addBrowserCoverage(report, dir) {
   if (!existsSync(dir)) return;
+  const called = {};
   for (const name of readdirSync(dir)) {
-    for (const [file, { total, covered }] of Object.entries(JSON.parse(readFileSync(path.join(dir, name), 'utf8')))) {
+    for (const [file, { total, covered, functions }] of Object.entries(JSON.parse(readFileSync(path.join(dir, name), 'utf8')))) {
       const entry = (report[file] ??= { lines: [0, total], branches: [0, 0], functions: [0, 0], hit: new Set() });
       for (const line of covered) entry.hit.add(line);
+      mergeCalled((called[file] ??= {}), functions);
     }
+  }
+  for (const [file, functions] of Object.entries(called)) {
+    const values = Object.values(functions);
+    const seen = [values.filter(Boolean).length, values.length];
+    if (percent(seen) > percent(report[file].functions) || !report[file].functions[1]) report[file].functions = seen;
   }
 }
 
-const percent = ([hit, total]) => (total ? (100 * hit) / total : 100);
 const show = (pair) => (pair[1] ? percent(pair).toFixed(1) : '—').padStart(6);
 
 const work = mkdtempSync(path.join(tmpdir(), 'ib-coverage-'));
@@ -86,7 +96,7 @@ for (const group of GROUPS) {
   const totals = { lines: [0, 0], branches: [0, 0], functions: [0, 0] };
   const rows = [];
   for (const file of listFiles(group.dir, group.files)) {
-    const entry = report[file] ?? { lines: [0, readFileSync(file, 'utf8').split('\n').length], branches: [0, 0], functions: [0, 0], never: true };
+    const entry = report[file] ?? { lines: [0, sourceLines(readFileSync(file, 'utf8')).length], branches: [0, 0], functions: [0, 0], never: true };
     for (const kind of Object.keys(totals)) {
       totals[kind][0] += entry[kind][0];
       totals[kind][1] += entry[kind][1];

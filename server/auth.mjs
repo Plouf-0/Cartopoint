@@ -20,6 +20,7 @@ const DAY = 24 * 60 * 60 * 1000;
 const SESSION_LIFETIME = 30 * DAY;
 const INVITE_LIFETIME = 7 * DAY;
 const RESET_LIFETIME = 3 * DAY;
+const DELETED_LIFETIME = 14 * DAY;
 
 const COOKIE = 'session';
 const EMAIL = /^[^\s@]+@[^\s@]+$/;
@@ -27,6 +28,9 @@ const DEAD_LINK = "Ce lien n'est plus valable. Demandez-en un nouveau.";
 
 const iso = (ms = Date.now()) => new Date(ms).toISOString();
 const hashToken = (token) => createHash('sha256').update(String(token)).digest('hex');
+
+/** Date à laquelle un compte supprimé sera effacé pour de bon. */
+export const eraseDate = (deletedAt) => iso(Date.parse(deletedAt) + DELETED_LIFETIME);
 
 export async function hashPassword(password) {
   const salt = randomBytes(16);
@@ -242,13 +246,22 @@ export function createAuth(db, { trustProxy = false } = {}) {
       db.prepare('UPDATE accounts SET disabled_at = NULL WHERE id = ?').run(id);
     },
 
-    /** Définitif : les clés étrangères emportent ses sessions, ses liens, ses cours et leur historique (ADM-10). */
-    remove(id) {
-      db.prepare('DELETE FROM accounts WHERE id = ?').run(id);
+    /** Un compte supprimé garde tout et reste désactivé. Le nettoyage l'efface au bout de 14 jours (ADM-10). */
+    markDeleted(id) {
+      db.prepare('UPDATE accounts SET deleted_at = COALESCE(deleted_at, ?) WHERE id = ?').run(iso(), id);
     },
 
-    /** Oublie les sessions expirées et les liens qui ne peuvent plus servir. */
+    /** Le compte revient désactivé : le réactiver reste un choix à part. */
+    restore(id) {
+      db.prepare('UPDATE accounts SET deleted_at = NULL WHERE id = ?').run(id);
+    },
+
+    /**
+     * Oublie les sessions expirées, les liens qui ne peuvent plus servir et les comptes supprimés depuis 14 jours.
+     * Pour ces comptes, les clés étrangères emportent les sessions, les liens, les cours et leur historique.
+     */
     purge() {
+      db.prepare('DELETE FROM accounts WHERE deleted_at <= ?').run(iso(Date.now() - DELETED_LIFETIME));
       db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(iso());
       db.prepare('DELETE FROM links WHERE expires_at <= ? OR used_at IS NOT NULL').run(iso());
     }

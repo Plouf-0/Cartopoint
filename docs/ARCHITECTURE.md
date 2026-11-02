@@ -219,7 +219,8 @@ Une adresse inconnue répond avec le même message et la même durée qu'un mauv
 annoncé qu'à la personne qui donne le bon mot de passe.
 
 **Suppression d'un compte.** Réservée à un compte déjà désactivé, avec le mot `SUPPRIMER`, que le serveur vérifie aussi.
-Les clés étrangères (`ON DELETE CASCADE`) emportent ses sessions, liens, médias, cours, versions, lancements et élèves.
+`deleted_at` le met de côté : il garde tout et reste restaurable 14 jours. Le nettoyage horaire l'efface ensuite, et les
+clés étrangères (`ON DELETE CASCADE`) emportent ses sessions, liens, médias, cours, versions, lancements et élèves.
 
 **Écrans.** Ils construisent leur contenu avec `el()` et des nœuds de texte, jamais avec `innerHTML` : une adresse e-mail
 ne peut pas injecter de code. Les pages construites sont d'un seul tenant (`scripts/build.mjs`).
@@ -238,3 +239,24 @@ compte pour 0 % de ses lignes.
 
 `npm run test:mutants` casse le code exprès, une modification à la fois, sur une copie du projet, et
 échoue si aucun test ne le remarque (`scripts/mutants.mjs`). Chaque comportement sensible y a sa ligne.
+
+## Cours
+
+| Page               | Fichier           | Contenu                                                     |
+| ------------------ | ----------------- | ----------------------------------------------------------- |
+| `/prof`            | `prof.html`       | Connexion, liste des cours, création, import                |
+| `/prof/cours/<id>` | `prof-cours.html` | Un cours : les vues de gestion, enregistrées sur le serveur |
+
+**Brouillon et versions.** Un cours a un brouillon, enregistré à chaque modification, et des versions figées à chaque
+publication. Un lancement garde la sienne : modifier le cours ensuite ne la change pas. Le serveur attribue les révisions et
+refuse un enregistrement parti d'une révision périmée (409) : un autre onglet n'est jamais écrasé.
+
+**Fichiers.** Les photos et les plans ne sont pas dans le contenu du cours, mais dans `data/media/<sha256>.<ext>`, servis sous
+`/media/` et cachés pour toujours, car leur nom dépend de leur contenu. Le navigateur réduit les photos avant l'envoi (1280 px,
+qualité 78) et les plans (2600 px, qualité 88). Le serveur lit le type dans le contenu du fichier. Le nettoyage horaire oublie
+ce qu'aucun brouillon ni version ne cite, après un jour de délai, car un fichier est envoyé avant le brouillon qui le cite.
+
+**`store.js` et ses backends.** Les vues appellent `changedMap()`, `storeFile()` et `storeMapImage()` sans savoir où vont les
+données. Le backend `local` écrit dans IndexedDB ; celui de `prof/course-backend.js` écrit sur le serveur. Une écriture à la
+fois : la suivante part de la révision donnée par la précédente. Si l'écriture échoue, rien n'est perdu : tout reste à écrire,
+et le reste de l'application continue de fonctionner à partir de ce qui est en mémoire.

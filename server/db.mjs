@@ -45,16 +45,28 @@ export function migrate(db, dir = MIGRATIONS) {
   const current = db.prepare('PRAGMA user_version').get().user_version;
   if (current > files.length) throw new Error(`la base est en version ${current}, plus récente que le code (${files.length})`);
   files.slice(current).forEach((name, i) => {
-    db.exec('BEGIN IMMEDIATE');
     try {
-      db.exec(readFileSync(path.join(dir, name), 'utf8'));
-      db.exec(`PRAGMA user_version = ${current + i + 1}`);
-      db.exec('COMMIT');
+      transaction(db, () => {
+        db.exec(readFileSync(path.join(dir, name), 'utf8'));
+        db.exec(`PRAGMA user_version = ${current + i + 1}`);
+      });
     } catch (e) {
-      db.exec('ROLLBACK');
       throw new Error(`migration ${name} : ${e.message}`);
     }
   });
+}
+
+/** Exécute `fn` (synchrone) en entier ou pas du tout. */
+export function transaction(db, fn) {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const result = fn();
+    db.exec('COMMIT');
+    return result;
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
 }
 
 /**

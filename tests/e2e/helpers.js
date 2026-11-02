@@ -1,0 +1,59 @@
+/**
+ * Parcours dans un vrai navigateur (Chromium, avec Playwright). L'application tourne dans le processus
+ * du test, avec ses propres données, et sert src/ : les fichiers restent séparés et la couverture du
+ * navigateur peut les désigner. Tout écran ouvert par openPage() y contribue.
+ */
+import { randomUUID } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { chromium } from 'playwright';
+import { summarize } from '../../scripts/browser-coverage.mjs';
+import { createApp } from '../../server/app.mjs';
+import { ensureAdmin } from '../../server/auth.mjs';
+import { tempDir } from '../helpers.js';
+
+export const ADMIN = { email: 'admin@example.org', password: 'mot-de-passe-admin' };
+
+export const launchBrowser = () => chromium.launch();
+
+/** Démarre un site neuf, avec son admin. `root` pour servir autre chose que src/. */
+export async function startSite(t, { root = path.resolve('src') } = {}) {
+  const log = t.mock.method(console, 'log', () => {});
+  const data = await tempDir(t);
+  const app = createApp({ root, data });
+  await ensureAdmin(app.db, ADMIN);
+  await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
+  t.after(() => app.close());
+  return { app, db: app.db, data, log, base: `http://127.0.0.1:${app.server.address().port}` };
+}
+
+/** Une page dans un navigateur vierge : sans cookie, comme une autre personne sur un autre appareil. */
+export async function openPage(t, browser, { base, permissions = [], viewport = { width: 1280, height: 800 } } = {}) {
+  const context = await browser.newContext({ baseURL: base, permissions, viewport, locale: 'fr-FR' });
+  context.setDefaultTimeout(5000);
+  const page = await context.newPage();
+  // Une erreur JavaScript fait toujours échouer le test, même si l'écran a l'air correct
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.coverage.startJSCoverage({ resetOnNavigation: false });
+  t.after(async () => {
+    const entries = await page.coverage.stopJSCoverage();
+    if (process.env.BROWSER_COVERAGE_DIR) {
+      await mkdir(process.env.BROWSER_COVERAGE_DIR, { recursive: true });
+      await writeFile(path.join(process.env.BROWSER_COVERAGE_DIR, randomUUID() + '.json'), JSON.stringify(summarize(entries)));
+    }
+    await context.close();
+    if (errors.length) throw new Error('Erreurs JavaScript dans la page : ' + errors.join(' | '));
+  });
+  return page;
+}
+
+export async function logIn(page, { email, password }, target) {
+  await page.goto(target);
+  await page.getByLabel('Adresse e-mail').fill(email);
+  await page.getByLabel('Mot de passe', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+}
+
+export const see = (page, text) => page.getByText(text, { exact: false }).first().waitFor();
+export const heading = (page, name) => page.getByRole('heading', { name }).waitFor();

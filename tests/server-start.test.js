@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { freePort, request, tempDir } from './helpers.js';
 
@@ -144,4 +145,59 @@ test('un dossier de données inutilisable empêche de démarrer, au lieu de tour
   await writeFile(file, 'pas un dossier');
   const { exited } = await launch(t, { args: ['--root', root, '--data', file, '--port', String(await freePort())] });
   assert.equal((await exited).code, 1);
+});
+
+test('ADM-01 : ADMIN_EMAIL et ADMIN_PASSWORD créent le compte, sans jamais apparaître dans les journaux', async (t) => {
+  const { root, data } = await dirs(t);
+  const port = await freePort();
+  const env = { ADMIN_EMAIL: 'secret-admin@example.org', ADMIN_PASSWORD: 'mot-de-passe-secret' };
+  const { output, child, exited } = await launch(t, { args: ['--root', root, '--data', data, '--port', String(port)], env });
+  assert.match(output.stdout, /admin {7}: compte créé/);
+  assert.doesNotMatch(output.stdout + output.stderr, /secret-admin|mot-de-passe-secret/);
+  const login = await request(`http://127.0.0.1:${port}`, '/api/auth/login', {
+    method: 'POST',
+    headers: { Origin: `http://127.0.0.1:${port}` },
+    body: JSON.stringify({ email: env.ADMIN_EMAIL, password: env.ADMIN_PASSWORD })
+  });
+  assert.equal(login.status, 200);
+  child.kill('SIGTERM');
+  await exited;
+
+  const again = await launch(t, { args: ['--root', root, '--data', data, '--port', String(await freePort())], env, ready: /admin {7}: / });
+  assert.match(again.output.stdout, /admin {7}: compte existant/);
+});
+
+test('ADM-01 : sans variables ou avec des variables invalides, le journal le signale et le site démarre', async (t) => {
+  const missing = await dirs(t);
+  const { output } = await launch(t, { args: ['--root', missing.root, '--data', missing.data, '--port', String(await freePort())], ready: /admin {7}: / });
+  assert.match(output.stdout, /admin {7}: AUCUN COMPTE : définir ADMIN_EMAIL et ADMIN_PASSWORD/);
+
+  const invalid = await dirs(t);
+  const env = { ADMIN_EMAIL: 'admin@example.org', ADMIN_PASSWORD: 'court' };
+  const second = await launch(t, { args: ['--root', invalid.root, '--data', invalid.data, '--port', String(await freePort())], env, ready: /admin {7}: / });
+  assert.match(second.output.stdout, /admin {7}: AUCUN COMPTE : ADMIN_EMAIL ou ADMIN_PASSWORD invalide/);
+  assert.doesNotMatch(second.output.stdout, /court/);
+});
+
+test('ADM-01 : un admin qui a perdu son mot de passe obtient un lien, sans mot de passe dans le terminal', async (t) => {
+  const { root, data } = await dirs(t);
+  const run = () => spawnSync(process.execPath, ['server/admin-reset.mjs', '--data', data], { encoding: 'utf8' });
+  await mkdir(data, { recursive: true });
+
+  const before = run();
+  assert.equal(before.status, 1, 'sans admin, il n’y a rien à réinitialiser');
+  assert.match(before.stderr, /Aucun compte admin/);
+
+  const port = await freePort();
+  const env = { ADMIN_EMAIL: 'admin@example.org', ADMIN_PASSWORD: 'mot-de-passe-perdu' };
+  await launch(t, { args: ['--root', root, '--data', data, '--port', String(port)], env });
+
+  const after = run();
+  assert.equal(after.status, 0, after.stderr);
+  const token = after.stdout.match(/\/reinitialisation#([\w-]{43})/)[1];
+  const base = `http://127.0.0.1:${port}`;
+  const post = (target, body) => request(base, target, { method: 'POST', headers: { Origin: base }, body: JSON.stringify(body) });
+  assert.equal((await post('/api/auth/reset', { token, password: 'nouveau-mot-de-passe' })).status, 200);
+  assert.equal((await post('/api/auth/login', { email: env.ADMIN_EMAIL, password: env.ADMIN_PASSWORD })).status, 401);
+  assert.equal((await post('/api/auth/login', { email: env.ADMIN_EMAIL, password: 'nouveau-mot-de-passe' })).status, 200);
 });

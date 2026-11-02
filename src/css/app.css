@@ -8,7 +8,7 @@
  * Sommaire : 1. Variables · 2. Base · 3. Boutons · 4. En-tête · 5. Mise en page
  * 6. Carte et repères · 7. Panneau · 8. Fiches (élèves) · 9. Gestion
  * 10. Fenêtres · 11. Fiche ouverte · 12. Édition · 13. Photos · 14. Résultats
- * 15. Notifications
+ * 15. Notifications · 16. Comptes
  */
 
 /* 1. Variables ------------------------------------------------------------ */
@@ -382,3 +382,25 @@ table.results { width: 100%; border-collapse: collapse; font-size: 14px; }
   background: var(--ink); color: #fff; border-radius: 10px; padding: 10px 16px; font-size: 14px; box-shadow: 0 8px 24px #0004;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* 16. Comptes -------------------------------------------------------------- */
+.account-page { max-width: 460px; margin: 5vh auto; padding: 0 16px; }
+.account-page.wide { max-width: 1040px; }
+.account-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+.account-card h2 { font: 500 22px/1.2 var(--serif); margin: 0 0 14px; }
+.account-bar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 14px; color: var(--ink-soft); flex-wrap: wrap; }
+.form-error { color: var(--far); font-size: 14px; margin: 0 0 10px; }
+.form-ok { color: var(--ok); font-size: 14px; margin: 0 0 10px; }
+.link-box { margin-top: 14px; }
+.row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.confirm-dialog { width: min(480px, 96vw); }
+.account-card p, .confirm-dialog p, .account-bar span { overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  table.teachers thead { display: none; }
+  table.teachers, table.teachers tbody, table.teachers tr, table.teachers td { display: block; }
+  table.teachers tr { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  table.teachers td { border: 0; padding: 2px 0; overflow-wrap: anywhere; }
+  table.teachers td:first-child { font-weight: 700; }
+  table.teachers td:not(:first-child)[data-label]::before { content: attr(data-label) " : "; color: var(--ink-soft); font-size: 13px; }
+  .row-actions { justify-content: flex-start; margin-top: 6px; }
+}

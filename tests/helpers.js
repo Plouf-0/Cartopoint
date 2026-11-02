@@ -1,3 +1,4 @@
+import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import net from 'node:net';
@@ -63,4 +64,55 @@ export function freePort() {
       probe.close(() => resolve(port));
     });
   });
+}
+
+/** Un client HTTP qui garde son cookie de session, comme un navigateur, et envoie Origin sur tout. */
+export function client(base) {
+  let cookie = null;
+  const call = async (method, target, body, headers = {}) => {
+    const all = { Origin: base, ...(cookie ? { Cookie: cookie } : {}), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...headers };
+    const r = await request(base, target, {
+      method,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: Object.fromEntries(Object.entries(all).filter(([, value]) => value !== undefined))
+    });
+    const setCookie = r.headers['set-cookie']?.[0];
+    if (setCookie) cookie = setCookie.split(';')[0];
+    const text = r.body.toString();
+    return { status: r.status, headers: r.headers, text, setCookie, json: () => JSON.parse(text) };
+  };
+  return {
+    get: (target, headers) => call('GET', target, undefined, headers),
+    post: (target, body = {}, headers) => call('POST', target, body, headers),
+    raw: call,
+    get cookie() {
+      return cookie;
+    },
+    set cookie(value) {
+      cookie = value;
+    }
+  };
+}
+
+/** Ajoute un compte directement en base : plus rapide que le parcours complet, et sans y dépendre. */
+export function addAccount(db, { id = randomUUID(), email, role = 'teacher', hash = null, disabledAt = null }) {
+  db.prepare('INSERT INTO accounts (id, email, password_hash, role, disabled_at, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
+    id,
+    email,
+    hash,
+    role,
+    disabledAt,
+    new Date().toISOString()
+  );
+  return id;
+}
+
+/**
+ * Empreinte bon marché : les réglages sont lus dans l'empreinte, donc le serveur s'y adapte. Sans cela,
+ * chaque connexion d'un test coûterait 136 ms, et une suite lente finit par ne plus être lancée.
+ */
+export function cheapHash(password) {
+  const salt = randomBytes(16);
+  const key = scryptSync(password, salt, 32, { N: 1024, r: 8, p: 1 });
+  return ['scrypt', 1024, 8, 1, salt.toString('base64'), key.toString('base64')].join('$');
 }

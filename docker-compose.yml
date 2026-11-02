@@ -13,6 +13,9 @@ services:
       PUBLISH_PASSWORD: ${PUBLISH_PASSWORD:-}
       # 1 derrière un proxy (Traefik) : l'IP du client est lue dans X-Forwarded-For.
       TRUST_PROXY: ${TRUST_PROXY:-}
+      # Créent le compte admin au premier démarrage, s'il n'existe pas.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     volumes:
       - ./data:/data
 

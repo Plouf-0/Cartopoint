@@ -160,6 +160,11 @@ sont fixes, pour garder le même sens d'un thème à l'autre.
 | `http.mjs`          | Routage, corps des requêtes, JSON, fichiers (ETag, 304, gzip), erreurs   |
 | `db.mjs`            | SQLite, migrations, copies de la base. Seul à importer `node:sqlite`     |
 | `security.mjs`      | IP du client (`TRUST_PROXY`), limites d'essais                           |
+| `auth.mjs`          | Mots de passe, sessions, liens à usage unique, rôles                     |
+| `admin-reset.mjs`   | Lien de réinitialisation pour l'admin, à lancer sur le serveur           |
+| `routes/auth.mjs`   | Connexion, déconnexion, mot de passe, utilisation d'un lien (`/api/auth`) |
+| `routes/admin.mjs`  | Tableau de bord de l'admin (`/api/admin`)                                |
+| `routes/pages.mjs`  | Pages des espaces, `robots.txt`                                          |
 | `routes/legacy.mjs` | Projet unique et publication, jusqu'aux espaces enseignants              |
 
 **Base de données.** `DATA_DIR/app.db`, SQLite, avec les clés étrangères actives, le mode WAL et
@@ -185,13 +190,49 @@ pour le texte à partir de 1 Ko, jamais pour les images, déjà compressées.
 **IP du client.** Derrière un proxy, seule la **dernière** valeur de `X-Forwarded-For` est sûre : c'est
 celle que le proxy a ajoutée, les précédentes viennent du client. Elle n'est lue qu'avec `TRUST_PROXY=1`.
 
+## Comptes
+
+| Page                               | Fichier       | Contenu                                     |
+| ---------------------------------- | ------------- | ------------------------------------------- |
+| `/prof`                            | `prof.html`   | Connexion, puis espace de l'enseignant      |
+| `/admin`                           | `admin.html`  | Connexion, puis tableau de bord de l'admin  |
+| `/invitation`, `/reinitialisation` | `compte.html` | Créer son compte, choisir un mot de passe   |
+
+**Mots de passe.** `crypto.scrypt`, avec un sel aléatoire. L'empreinte garde ses réglages (`scrypt$N$r$p$sel$clé`) : on
+peut les durcir sans invalider les anciennes.
+
+**Sessions.** Un jeton aléatoire dans un cookie `HttpOnly`, `SameSite=Lax`, `Path=/api`, et `Secure` si le proxy de
+confiance annonce HTTPS. La base n'en garde que l'empreinte SHA-256 : une copie de la base ne permet pas de se connecter.
+
+**Liens à usage unique.** Même principe. Le jeton voyage dans le fragment de l'adresse (`/invitation#jeton`), que ni le
+serveur ni le proxy ne voient, puis dans le corps de la requête. La page le retire aussitôt de la barre d'adresse. Le lien
+est utilisé dans une transaction : deux requêtes simultanées ne peuvent pas s'en servir toutes les deux.
+
+**Écritures.** Toute écriture faite avec le cookie exige un en-tête `Origin` identique à `Host`, sans quoi elle reçoit
+un 403 : un autre site ne peut pas agir à la place de la personne connectée.
+
+**Rôles.** `admin` et `teacher`. Le serveur les vérifie sur chaque route. L'admin ne voit que les comptes, jamais les cours.
+
+**Limites d'essais.** 10 échecs en 10 minutes par couple adresse IP et e-mail, 50 par adresse IP. L'échec est compté avant
+le calcul du mot de passe, qui prend du temps, pour que des essais simultanés ne passent pas tous avant le premier échec.
+Une adresse inconnue répond avec le même message et la même durée qu'un mauvais mot de passe. Un compte désactivé n'est
+annoncé qu'à la personne qui donne le bon mot de passe.
+
+**Suppression d'un compte.** Réservée à un compte déjà désactivé, avec le mot `SUPPRIMER`, que le serveur vérifie aussi.
+Les clés étrangères (`ON DELETE CASCADE`) emportent ses sessions, liens, médias, cours, versions, lancements et élèves.
+
+**Écrans.** Ils construisent leur contenu avec `el()` et des nœuds de texte, jamais avec `innerHTML` : une adresse e-mail
+ne peut pas injecter de code. Les pages construites sont d'un seul tenant (`scripts/build.mjs`).
+
 ## Tests
 
 `npm test` lance `node:test` sur le modèle (migration v2, numérotation, évaluation), le tableur
 (CSV, correspondance des colonnes, import avec réf. en double), le mot de passe (SHA-256 de
 secours) et le serveur (`http`, `security`, `db`, routes, démarrage réel du processus).
 
-`npm run test:coverage` les relance en mesurant la couverture par fichier (`scripts/coverage.mjs`). Il
+`npm run test:e2e` vérifie les écrans dans Chromium, avec Playwright (`tests/e2e/`).
+
+`npm run test:coverage` lance le tout en mesurant la couverture par fichier (`scripts/coverage.mjs`). Il
 échoue sous les seuils. Contrairement au résumé de `node --test`, un fichier qu'aucun test ne charge y
 compte pour 0 % de ses lignes.
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clientIp, createLimiter } from '../server/security.mjs';
+import { clientIp, createLimiter, isHttps, isSameOrigin } from '../server/security.mjs';
 
 const fakeRequest = (forwarded) => ({
   headers: forwarded === undefined ? {} : { 'x-forwarded-for': forwarded },
@@ -77,4 +77,57 @@ test('les essais expirés sont oubliés quand les clés deviennent trop nombreus
   limit.fail('recent');
   assert.equal(limit.size, 1);
   assert.equal(limit.blocked('recent'), false);
+});
+
+test('oublier les échecs d’une clé la débloque, sans toucher aux autres', () => {
+  const { limit } = limiter(1);
+  limit.fail('a');
+  limit.fail('b');
+  limit.clear('a');
+  assert.equal(limit.blocked('a'), false);
+  assert.equal(limit.blocked('b'), true);
+});
+
+test('retirer un échec ne fait jamais descendre le compte sous zéro', () => {
+  const { limit } = limiter(2);
+  limit.fail('a');
+  limit.fail('a');
+  assert.equal(limit.blocked('a'), true);
+  limit.forgive('a');
+  assert.equal(limit.blocked('a'), false);
+  limit.forgive('a');
+  limit.forgive('a');
+  limit.forgive('inconnue');
+  limit.fail('a');
+  assert.equal(limit.blocked('a'), false, 'un seul échec compté après être revenu à zéro');
+  limit.fail('a');
+  assert.equal(limit.blocked('a'), true);
+});
+
+test('seul le proxy peut dire que la requête est en HTTPS', () => {
+  const request = (proto) => ({ headers: proto ? { 'x-forwarded-proto': proto } : {} });
+  assert.equal(isHttps(request('https'), true), true);
+  assert.equal(isHttps(request('http, https'), true), true);
+  assert.equal(isHttps(request('https, http'), true), false);
+  assert.equal(isHttps(request('http'), true), false);
+  assert.equal(isHttps(request(undefined), true), false);
+  assert.equal(isHttps(request('https'), false), false, 'sans TRUST_PROXY, cet en-tête peut venir de n’importe qui');
+});
+
+test('une requête vient de la même origine seulement si l’hôte correspond exactement', () => {
+  const request = (origin, host = 'site.fr') => ({ headers: { host, ...(origin === undefined ? {} : { origin }) } });
+  assert.equal(isSameOrigin(request('https://site.fr')), true);
+  assert.equal(isSameOrigin(request('http://site.fr:8080', 'site.fr:8080')), true);
+  for (const origin of [
+    undefined,
+    '',
+    'null',
+    'pas une adresse',
+    'https://autre.fr',
+    'https://site.fr.autre.fr',
+    'https://site.fr:8443',
+    'https://sous.site.fr'
+  ]) {
+    assert.equal(isSameOrigin(request(origin)), false, String(origin));
+  }
 });

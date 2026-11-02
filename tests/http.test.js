@@ -4,7 +4,7 @@ import { mkdir, utimes, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
 import { gunzipSync } from 'node:zlib';
-import { createRouter, HttpError, readBody, send, sendJson, staticFiles } from '../server/http.mjs';
+import { createRouter, HttpError, readBody, readJson, send, sendJson, staticFiles } from '../server/http.mjs';
 import { request, serve, tempDir } from './helpers.js';
 
 const LARGE = 'contenu répétitif '.repeat(500);
@@ -115,15 +115,18 @@ test('HEAD donne les en-têtes, sans le contenu', async (t) => {
   assert.equal(fresh.status, 304);
 });
 
-test('SRV-10 : les pages sont revalidées, les autres fichiers gardés une heure', async (t) => {
+test('SRV-10 : les pages, scripts et styles sont revalidés, les autres fichiers gardés une heure', async (t) => {
   const { base } = await site(t);
   const page = await request(base, '/');
   assert.equal(page.headers['cache-control'], 'no-cache');
   assert.equal(page.headers['content-type'], 'text/html; charset=utf-8');
   assert.match(page.body.toString(), /accueil/);
   assert.equal((await request(base, '/index.html')).status, 200);
-  assert.equal((await request(base, '/petit.css')).headers['cache-control'], 'public, max-age=3600');
-  assert.equal((await request(base, '/photo.png')).headers['content-type'], 'image/png');
+  assert.equal((await request(base, '/petit.css')).headers['cache-control'], 'no-cache');
+  assert.equal((await request(base, '/app.js')).headers['cache-control'], 'no-cache');
+  const photo = await request(base, '/photo.png');
+  assert.equal(photo.headers['content-type'], 'image/png');
+  assert.equal(photo.headers['cache-control'], 'public, max-age=3600');
 });
 
 test('un type de fichier inconnu est servi comme binaire, jamais interprété', async (t) => {
@@ -370,4 +373,19 @@ test('un envoi interrompu ne fait pas tomber le serveur', async (t) => {
     req.write('début', () => req.destroy());
   });
   assert.equal((await request(base, '/echo', { method: 'PUT', body: 'ok' })).status, 200);
+});
+
+test('readJson rend un objet, et refuse tout le reste avec un 400', async (t) => {
+  const base = await serve(
+    t,
+    createRouter().add('POST', '/json', async (req, res) => sendJson(req, res, await readJson(req, 100)))
+  );
+  const ok = await request(base, '/json', { method: 'POST', body: '{"a":1}' });
+  assert.deepEqual(JSON.parse(ok.body), { a: 1 });
+  for (const body of ['', 'pas du json', 'null', '[1]', '12', '"texte"']) {
+    const r = await request(base, '/json', { method: 'POST', body });
+    assert.equal(r.status, 400, body);
+    assert.equal(r.body.toString(), 'Requête invalide', body);
+  }
+  assert.equal((await request(base, '/json', { method: 'POST', body: JSON.stringify({ a: 'x'.repeat(200) }) })).status, 413);
 });

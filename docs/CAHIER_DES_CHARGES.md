@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.11** · 1er novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.13** · 2 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -44,7 +44,7 @@ trace.
 | ID      | Date       | Demande : ce qui est souhaité, et pourquoi                                                                                                                                                   | Exigence concernée                       | Priorité | Statut et réponse                                                                      |
 | ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------- | -------------------------------------------------------------------------------------- |
 | Exemple | 01/11/2026 | Les élèves doivent pouvoir choisir leur carte, car une sortie peut couvrir plusieurs sites.                                                                                                  | E-01                                     | Haute    | Proposée                                                                               |
-| EV-01   | 01/11/2026 | De vrais espaces enseignants : chaque enseignant a son propre espace, séparé de ceux des autres. L'admin distribue des liens pour créer les comptes.                                         | ACC-01, SRV-05, Q-09, Q-11               | Haute    | Validée. Voir 12.1                                                                     |
+| EV-01   | 01/11/2026 | De vrais espaces enseignants : chaque enseignant a son propre espace, séparé de ceux des autres. L'admin distribue des liens pour créer les comptes.                                         | ACC-01, SRV-05, Q-09, Q-11               | Haute    | En cours. Voir 12.1                                                                    |
 | EV-02   | 01/11/2026 | Préparer un cours, le publier quand il est prêt, le lancer et afficher un QR code que les élèves scannent pour le rejoindre, à la façon de Kahoot.                                           | PUB-01, DEM-01, MUL-01, Q-13, Q-14, Q-19 | Haute    | Validée. Voir 12.2                                                                     |
 | EV-03   | 01/11/2026 | Pas de compte pour les élèves. Leur nom, leur prénom et leurs réponses restent dans l'historique du cours, pour l'enseignant.                                                                | PRI-04, Q-02, Q-17                       | Haute    | Validée, modifiée le 01/11/2026 (remplace « aucune trace en base »). Voir 12.3 et 12.4 |
 | EV-04   | 01/11/2026 | Revoir la publication des fiches, qui semble ne pas fonctionner.                                                                                                                             | PUB-01, DEM-02, E-02, E-16               | Moyenne  | Validée, à traiter après les autres. Voir 12.9                                         |
@@ -59,11 +59,13 @@ trace.
 | EV-13   | 01/11/2026 | Avancement des élèves en direct.                                                                                                                                                             | Q-10                                     | Basse    | Reportée                                                                               |
 | EV-14   | 01/11/2026 | Dupliquer un cours entre enseignants.                                                                                                                                                        |                                          | Basse    | Reportée, à revoir si le nombre d'utilisateurs le justifie                             |
 | EV-15   | 01/11/2026 | Garder un historique de chaque cours : une ligne par élève avec son nom et ses résultats, et le détail de ses réponses en cliquant dessus.                                                   | Q-02                                     | Haute    | Validée. Voir 12.4                                                                     |
-| EV-16   | 01/11/2026 | Tableau de bord de l'admin : voir les enseignants et des chiffres sur chacun, réinitialiser un mot de passe, désactiver un compte.                                                           | Q-18                                     | Moyenne  | Validée. Voir 12.1                                                                     |
+| EV-16   | 01/11/2026 | Tableau de bord de l'admin : voir les enseignants et des chiffres sur chacun, réinitialiser un mot de passe, désactiver un compte.                                                           | Q-18                                     | Moyenne  | En cours. Voir 12.1                                                                    |
 | EV-17   | 01/11/2026 | Côté élève, un bouton Terminer notifie l'enseignant et envoie les réponses s'il y a du réseau.                                                                                               | Q-05, Q-20                               | Haute    | Validée. Voir 12.5                                                                     |
 | EV-18   | 01/11/2026 | Sans réseau, permettre à l'élève de récupérer un fichier de réponses à donner à l'enseignant.                                                                                                | HOR-04                                   | Moyenne  | Validée. Voir 12.4 et 12.5                                                             |
 | EV-19   | 01/11/2026 | Exporter un lancement de l'historique dans un tableur.                                                                                                                                       | Q-21, REN-03                             | Moyenne  | Validée. Voir 12.4                                                                     |
 | EV-28   | 01/11/2026 | Ne pas négliger les tests, et arriver à une bonne couverture à la fin de la mise à jour. (Numéro choisi après EV-27 : les lignes EV-20 à EV-27 restent réservées dans la copie Google Docs.) | E-09, QUA-01                             | Haute    | Validée. Voir 12.12                                                                    |
+| EV-29   | 02/11/2026 | Un enseignant dont le compte est désactivé doit l'apprendre en se connectant : « mot de passe incorrect » porte à confusion.                                                                 | ADM-06                                   | Moyenne  | En cours. Voir 12.1                                                                    |
+| EV-30   | 02/11/2026 | Un bouton supprime un compte désactivé et ses cours, après avoir recopié un mot, pour ne pas le faire par erreur.                                                                            | ADM-10                                   | Moyenne  | En cours. Voir 12.1                                                                    |
 
 - **Exigence concernée :** son identifiant (`PLA-03`, `E-01`…), ou rien pour un besoin nouveau.
 - **Priorité :** Haute (empêche une séance), Moyenne (gêne réelle), Basse (confort).
@@ -162,7 +164,7 @@ Ce sont les choix de fond du projet. En revenir sur l'un d'eux est une décision
 noter ici.
 
 - **PRI-01 — Sans dépendance à l'exécution.** HTML, CSS et JavaScript (modules ES) écrits à la
-  main, sans framework. `esbuild` et `prettier` ne servent qu'au développement. ⚠️ E-08
+  main, sans framework. `esbuild`, `prettier` et `playwright` ne servent qu'au développement. ⚠️ E-08
 - **PRI-02 — Deux modes d'utilisation.** La même application fonctionne en fichier autonome (sans
   serveur ni connexion) et hébergée (par une adresse). Le fichier autonome deviendra un export de
   secours (`EXP-01`).
@@ -514,8 +516,9 @@ Code : [`server/`](../server/) · Tests : [`tests/`](../tests/) (`server`, `serv
 - **SRV-01** Node 24, sans dépendance. Il sert l'application, les projets et reçoit les
   publications.
 - **SRV-02** Routes : `GET /config.json`, `GET /project.json`, `GET /projets/<nom>.json`,
-  `PUT /api/project[?projet=nom]`, `GET /*` pour les fichiers de l'application.
-- **SRV-03** Réglages : `PORT`, `ROOT`, `DATA_DIR`, `PUBLISH_PASSWORD`, `MAX_BODY_MB`, `TRUST_PROXY` (détail dans le
+  `PUT /api/project[?projet=nom]`, `GET /*` pour les fichiers de l'application. Les comptes ont leurs routes sous
+  `/api/auth` et `/api/admin`, décrites dans [`ARCHITECTURE.md`](ARCHITECTURE.md).
+- **SRV-03** Réglages : `PORT`, `ROOT`, `DATA_DIR`, `PUBLISH_PASSWORD`, `MAX_BODY_MB`, `TRUST_PROXY`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` (détail dans le
   [README](../README.md)).
 - **SRV-04** Sans `PUBLISH_PASSWORD`, la publication est désactivée et l'application ne la propose pas.
 - **SRV-05** Une publication exige le mot de passe (`Authorization: Bearer`), comparé à temps constant.
@@ -527,8 +530,8 @@ Code : [`server/`](../server/) · Tests : [`tests/`](../tests/) (`server`, `serv
   chaque projet.
 - **SRV-09** Le serveur refuse tout chemin sortant de `ROOT` et de `DATA_DIR`, et les noms de projet
   invalides. Les sauvegardes ne sont pas accessibles par une adresse.
-- **SRV-10** Les pages et les projets sont envoyés sans mise en cache durable, pour que les mises à jour
-  arrivent tout de suite. Les autres fichiers sont mis en cache une heure.
+- **SRV-10** Les pages, les scripts, les styles et les projets sont envoyés sans mise en cache durable, pour que
+  les mises à jour arrivent tout de suite. Les autres fichiers sont mis en cache une heure.
 - **SRV-11** Les fichiers et les réponses JSON portent un ETag : un navigateur qui a déjà la bonne version ne la
   retélécharge pas (réponse 304). Le texte de 1 Ko ou plus part compressé en gzip si le navigateur l'accepte.
 - **SRV-12** Les données du serveur sont dans une base SQLite, `DATA_DIR/app.db`. Son schéma évolue par migrations
@@ -543,7 +546,8 @@ Code : [`scripts/`](../scripts/), [`Dockerfile`](../Dockerfile),
 [`docker-compose.yml`](../docker-compose.yml)
 
 - **DEP-01** `npm run build` produit `dist/index.html` : un seul fichier contenant le CSS, le JavaScript et
-  le plan d'exemple.
+  le plan d'exemple. Il produit aussi les pages des espaces (`prof.html`, `admin.html`, `compte.html`), chacune d'un
+  seul tenant et avec son seul code.
 - **DEP-02** `scripts/build.mjs --embed <projet> --out <fichier>` produit un fichier autonome contenant un
   projet.
 - **DEP-03** `npm run convert` convertit un ancien `.html` ou `.json` au format actuel.
@@ -613,7 +617,8 @@ Code : [`model.js`](../src/js/model.js), [`db.js`](../src/js/db.js) · Tests :
 
 ### 8.5 Qualité — `QUA`
 
-- **QUA-01** `npm test` couvre le modèle, le tableur, le mot de passe, le serveur et la base. `npm run test:coverage`
+- **QUA-01** `npm test` couvre le modèle, le tableur, les mots de passe, le serveur, la base et les comptes.
+  `npm run test:e2e` vérifie les écrans de compte dans un vrai navigateur. `npm run test:coverage` lance le tout et
   mesure la couverture par fichier. Les chiffres à jour sont dans la
   [feuille de route](FEUILLE_DE_ROUTE.md#11-tests-et-couverture). ⚠️ E-09
 - **QUA-02** Le code est formaté avec `prettier` (`npm run format`).
@@ -654,6 +659,11 @@ réelle, placées ou non. Les fiches « Proche » sont indiquées à part et ne 
 | Copies de la base conservées            | 14, une par jour            | `server/db.mjs`             |
 | Blocage de la publication               | 10 échecs, 10 minutes       | `server/routes/legacy.mjs`  |
 | Compression (gzip)                      | texte de 1 Ko ou plus       | `server/http.mjs`           |
+| Mot de passe d'un compte                | 8 à 200 caractères          | `server/auth.mjs`           |
+| Lien d'invitation                       | 7 jours, une seule fois     | `server/auth.mjs`           |
+| Lien de réinitialisation                | 72 heures, une seule fois   | `server/auth.mjs`           |
+| Session                                 | 30 jours                    | `server/auth.mjs`           |
+| Blocage de la connexion                 | 10 échecs par compte et adresse IP, 50 par adresse IP, 10 minutes | `server/routes/auth.mjs` |
 
 ---
 
@@ -788,8 +798,8 @@ Toutes le 1er novembre 2026.
 - **Q-17 — Combien de temps garde-t-on les noms des élèves ?** Jusqu'à ce que l'enseignant supprime le lancement,
   et un an au plus (`HIS-05`).
 - **Q-18 — Que fait l'admin, au-delà des liens ?** L'admin voit les enseignants et des chiffres sur chacun, peut
-  provoquer une réinitialisation de mot de passe et désactiver un compte, sans accéder au contenu des cours
-  (`ADM-04` à `ADM-07`).
+  provoquer une réinitialisation de mot de passe, désactiver un compte puis le supprimer, sans accéder au contenu
+  des cours (`ADM-04` à `ADM-07`, `ADM-10`).
 - **Q-19 — Peut-on modifier un cours pendant un lancement ?** Oui, mais un lancement garde la version publiée à
   son ouverture : les modifications valent pour le suivant (`COU-11`).
 - **Q-20 — La correction arrive-t-elle dès le rendu, ou à la fin du cours ?** À la fin du cours. L'élève clique
@@ -837,7 +847,10 @@ et remplacent celles qu'elles contredisent. Les questions encore ouvertes (Q-01,
 
 ### 12.1 Comptes et espaces enseignants — `ADM`, `ENS`
 
-Demandes : EV-01, EV-16
+Demandes : EV-01, EV-16, EV-29, EV-30
+
+**État :** comptes, connexion et tableau de bord sont en place dans la branche `refonte-espaces-profs`, pas encore en
+production. Les chiffres de `ADM-04` arrivent avec les cours (étape 3 de la feuille de route).
 
 - **ADM-01** Au premier lancement de l'application, l'admin se connecte avec un accès prévu à l'installation :
   le premier visiteur venu ne peut pas prendre ce rôle.
@@ -848,13 +861,24 @@ Demandes : EV-01, EV-16
 - **ADM-04** L'admin voit la liste des enseignants, avec pour chacun la place occupée, le nombre de cours, le
   nombre de fiches et d'autres chiffres d'usage (lancements, dernière connexion).
 - **ADM-05** L'admin peut provoquer la réinitialisation d'un mot de passe, en générant un lien à transmettre.
-- **ADM-06** L'admin peut désactiver un compte : l'enseignant ne peut plus se connecter, ses cours sont
-  conservés.
+- **ADM-06** L'admin peut désactiver un compte : l'enseignant ne peut plus se connecter, ses sessions sont fermées
+  et ses cours conservés. Un lancement déjà ouvert reste joignable par les élèves déjà entrés. Avec le bon mot de
+  passe, l'enseignant lit que son compte est désactivé. Avec un mauvais, il lit le message habituel : un inconnu
+  ne peut donc pas savoir si un compte existe ni s'il est désactivé.
 - **ADM-07** L'admin n'accède ni au contenu des cours ni aux résultats des élèves.
+- **ADM-08** L'admin est un compte à part, sans cours : une personne qui administre et enseigne a aussi un compte
+  enseignant.
+- **ADM-09** Si l'admin perd son mot de passe, la personne qui héberge le site obtient un lien de réinitialisation
+  depuis le serveur.
+- **ADM-10** L'admin peut supprimer un compte, seulement après l'avoir désactivé. Il doit recopier le mot
+  `SUPPRIMER`, que le serveur vérifie aussi. La suppression est définitive et emporte les cours, leur historique et
+  les résultats des élèves. L'adresse peut ensuite resservir. Les copies quotidiennes de la base (`SRV-13`) gardent
+  ces données jusqu'à leur remplacement, 14 jours au plus.
 - **ENS-01** Chaque enseignant a un compte personnel, qui lui donne accès à son propre espace.
 - **ENS-02** L'enseignant y prépare et y retrouve ses cours.
 - **ENS-03** Les espaces sont séparés : un enseignant ne peut ni voir ni modifier les cours d'un autre.
 - **ENS-04** Cette séparation est vérifiée par le serveur, pas seulement par l'interface.
+- **ENS-05** L'enseignant peut changer son mot de passe. Ses autres sessions sont alors fermées.
 
 ### 12.2 Publication et lancement d'un cours — `COU`
 
@@ -1049,3 +1073,5 @@ Demande : EV-28
 | 0.9     | 1er novembre 2026 | Données en service supprimables : fiches exportées, pas de reprise automatique |
 | 0.10    | 1er novembre 2026 | Étape 0 de la feuille de route : Node 24, `data/` hors du dépôt et de l'image (E-17) |
 | 0.11    | 1er novembre 2026 | Étape 1 : base SQLite, ETag et gzip, E-04 et E-11 corrigés ; exigences sur les tests (EV-28) |
+| 0.12    | 2 novembre 2026   | Étape 2 : comptes, connexion, tableau de bord ; durées de la section 9 de la feuille de route |
+| 0.13    | 2 novembre 2026   | Message pour un compte désactivé, suppression d'un compte et de ses cours (EV-29, EV-30) ; symptôme de EV-04 |

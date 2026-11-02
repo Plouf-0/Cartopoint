@@ -14,4 +14,5 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - run: npx playwright install --with-deps chromium-headless-shell
       - run: npm run test:coverage

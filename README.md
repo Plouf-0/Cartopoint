@@ -32,8 +32,9 @@ Prérequis : Node.js 24 (`nvm use` lit le fichier `.nvmrc`).
 ```bash
 npm install          # outils de développement (esbuild, prettier)
 npm run dev          # http://localhost:8080 — sert src/ sans construction, données dans .dev-data/
-npm test             # tests (modèle, tableur, mot de passe, serveur, base de données)
-npm run test:coverage  # les mêmes, avec la couverture par fichier et ses seuils
+npm test             # tests (modèle, tableur, mots de passe, serveur, base de données, comptes)
+npm run test:e2e       # parcours dans un vrai navigateur (une fois : npx playwright install chromium-headless-shell)
+npm run test:coverage  # les deux, avec la couverture par fichier et ses seuils
 npm run test:mutants   # casse le code exprès et vérifie que les tests le voient (plusieurs minutes)
 npm run build        # dist/index.html : application complète en un seul fichier
 npm start            # sert dist/ et data/ comme en production
@@ -61,6 +62,7 @@ PUBLISH_PASSWORD='un-mot-de-passe-solide' node server/index.mjs --root dist --da
 | `DATA_DIR`         | dossier des données (`app.db`, `project.json`, `projets/<nom>.json`, `backups/`) | `data`  |
 | `PUBLISH_PASSWORD` | mot de passe de publication ; absent = publication désactivée         | —       |
 | `MAX_BODY_MB`      | taille maximale d'un projet publié (photos comprises)                 | `100`   |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | créent le compte admin au premier démarrage, s'il n'existe pas ; sans elles, il n'y a pas d'admin | — |
 | `TRUST_PROXY`      | `1` si un proxy est placé devant : l'IP du client est lue dans `X-Forwarded-For`. Sans proxy, ne pas le définir : n'importe qui pourrait choisir son IP | — |
 
 Avec Docker :
@@ -82,6 +84,18 @@ inventaire.example.fr {
   reverse_proxy localhost:8080
   request_body { max_size 100MB }
 }
+```
+
+### Comptes
+
+L'espace enseignant est à l'adresse `/prof`, le tableau de bord de l'admin à `/admin`. L'admin crée un lien de création
+de compte et le transmet lui-même : l'application n'envoie pas d'e-mail. Derrière un proxy HTTPS, `TRUST_PROXY=1` est
+nécessaire pour que le cookie de session porte `Secure`.
+
+Mot de passe de l'admin perdu : lancez cette commande sur le serveur, puis ouvrez le lien affiché après l'adresse du site.
+
+```bash
+docker compose exec inventaire node server/admin-reset.mjs
 ```
 
 ### Sur un hébergement statique (nginx, Apache, GitHub Pages…)
@@ -139,7 +153,8 @@ src/
     themes.js           thèmes de couleurs et icônes
     report.js           plan et compte rendu en JPG
     spreadsheet.js      import / export tableur (CSV, .xlsx via xlsx.js)
-    auth.js  ai.js  util.js
+    auth.js  ai.js  util.js  api.js
+    prof/  admin/  compte/   espace enseignant, tableau de bord, liens à usage unique
     views/              en-tête, plan, panneaux, fenêtres (fiche, édition, résultats…)
       admin/            onglets du mode gestion
 server/
@@ -148,9 +163,12 @@ server/
   http.mjs              routage, corps des requêtes, JSON, fichiers (ETag, gzip)
   db.mjs                SQLite, migrations (migrations/*.sql), copies de la base
   security.mjs          IP du client, limites d'essais
+  auth.mjs              mots de passe, sessions, liens à usage unique, rôles
+  admin-reset.mjs       lien de réinitialisation pour l'admin, à lancer sur le serveur
+  routes/auth.mjs, admin.mjs, pages.mjs   connexion, tableau de bord, pages des espaces
   routes/legacy.mjs     projet unique et publication, jusqu'aux espaces enseignants
 scripts/                construction, conversion, couverture des tests
-tests/                  tests node:test
+tests/                  tests node:test ; e2e/ pour les parcours dans le navigateur
 ```
 
 Détails dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

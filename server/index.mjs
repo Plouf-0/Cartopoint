@@ -13,12 +13,14 @@
  *   MAX_BODY_MB        taille maximale d'un projet publié (100)
  *   TRUST_PROXY        1 si un proxy est placé devant : l'IP du client est lue dans X-Forwarded-For.
  *                      À ne pas définir sans proxy, car n'importe qui pourrait alors choisir son IP.
+ *   ADMIN_EMAIL, ADMIN_PASSWORD   créent le compte admin au premier démarrage, s'il n'existe pas.
  *
  * En production, placez ce serveur derrière un proxy HTTPS (nginx, Caddy, Traefik…).
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createApp } from './app.mjs';
+import { ensureAdmin } from './auth.mjs';
 
 /** Options de la ligne de commande : --root dist --data data --port 8080 */
 const args = {};
@@ -40,9 +42,18 @@ const app = createApp({
   trustProxy: process.env.TRUST_PROXY === '1'
 });
 
-/** Vérifié toutes les heures : la copie du jour est faite au premier passage, puis plus rien jusqu'au lendemain. */
-function dailyBackup() {
+const ADMIN_STATES = {
+  created: 'compte créé',
+  exists: 'compte existant',
+  missing: 'AUCUN COMPTE : définir ADMIN_EMAIL et ADMIN_PASSWORD',
+  invalid: 'AUCUN COMPTE : ADMIN_EMAIL ou ADMIN_PASSWORD invalide (8 caractères au moins, adresse libre)'
+};
+const adminState = await ensureAdmin(app.db, { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD });
+
+/** Toutes les heures : la copie du jour est faite au premier passage, puis plus rien jusqu'au lendemain. */
+function periodicTasks() {
   try {
+    app.purge();
     const file = app.backup();
     if (file) console.log(`[${new Date().toISOString()}] base sauvegardée : ${path.relative(DATA, file)}`);
   } catch (e) {
@@ -55,8 +66,9 @@ app.server.listen(PORT, () => {
   console.log(`  application : ${ROOT}`);
   console.log(`  données     : ${DATA}`);
   console.log(`  publication : ${PASSWORD ? 'activée' : 'désactivée (définir PUBLISH_PASSWORD)'}`);
-  dailyBackup();
-  setInterval(dailyBackup, ONE_HOUR).unref();
+  console.log(`  admin       : ${ADMIN_STATES[adminState]}`);
+  periodicTasks();
+  setInterval(periodicTasks, ONE_HOUR).unref();
 });
 
 /** docker stop envoie SIGTERM : on ferme la base proprement au lieu d'attendre d'être tué. */

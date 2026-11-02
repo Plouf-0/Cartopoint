@@ -133,12 +133,15 @@ function inside(base, urlPath) {
 }
 
 /** Sert les fichiers de `root`. Les pages sont revalidées à chaque fois, le reste gardé une heure. */
+/** Le code de la page : ses noms ne changent pas d'une version à l'autre, et un 304 ne coûte presque rien. */
+const ALWAYS_REVALIDATED = new Set(['.html', '.js', '.css']);
+
 export function staticFiles(root) {
   return (req, res, { url }) => {
     const p = url.pathname;
     const file = inside(root, p.endsWith('/') ? p + 'index.html' : p);
     if (!file) return send(res, 400, 'Chemin invalide');
-    return sendFile(req, res, file, path.extname(file) === '.html' ? 'no-cache' : 'public, max-age=3600');
+    return sendFile(req, res, file, ALWAYS_REVALIDATED.has(path.extname(file)) ? 'no-cache' : 'public, max-age=3600');
   };
 }
 
@@ -156,6 +159,19 @@ export function readBody(req, maxBytes) {
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
+}
+
+/** Lit un objet JSON dans le corps de la requête. */
+export async function readJson(req, maxBytes = 64 * 1024) {
+  const body = await readBody(req, maxBytes);
+  let value;
+  try {
+    value = JSON.parse(body.toString('utf8'));
+  } catch {
+    throw new HttpError(400, 'Requête invalide');
+  }
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new HttpError(400, 'Requête invalide');
+  return value;
 }
 
 /** Routes de la forme « /courses/:id » ou « /projets/:name.json ». HEAD suit les routes GET. */

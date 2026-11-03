@@ -1001,6 +1001,17 @@ test('EV-34 : l’espace enseignant s’appelle Cartopoint, garde le vert par d�
   assert.equal((await download).suggestedFilename(), 'Modèle de fiches.csv');
 });
 
+test('cliquer sur un repère du plan ouvre sa fiche pour la modifier', async (t) => {
+  const { page } = await setup(t);
+  await createCourse(page);
+  await choosePlan(page);
+  await addFiche(page, 'Olivier');
+  await placeOnPlan(page, 'Olivier');
+  await page.locator('.pin.ref').click();
+  await page.locator('#dlgEdit').waitFor();
+  assert.equal(await page.locator('#eCommon').inputValue(), 'Olivier');
+});
+
 test('la visionneuse montre les photos du serveur, et passe de l’une à l’autre', async (t) => {
   const { page } = await setup(t);
   await createCourse(page);

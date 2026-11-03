@@ -33,6 +33,44 @@ export function renderPublishState() {
     error.textContent = publishError;
     error.hidden = !publishError;
   }
+  const launch = $('#launchBtn');
+  if (launch) {
+    launch.disabled = !course.published;
+    $('#launchHint').textContent = launchHintText();
+  }
+}
+
+function launchHintText() {
+  if (!course.published) return "Publiez d'abord le cours : les élèves n'ont accès qu'à une version publiée.";
+  const version = `Les élèves verront la version ${course.published.number}.`;
+  return course.modified ? `${version} Vos dernières modifications n'y seront pas : publiez-les avant de lancer.` : version;
+}
+
+async function launchCourse() {
+  const error = $('#launchError');
+  error.hidden = true;
+  try {
+    const launch = await api('POST', `/courses/${course.id}/launches`);
+    location.href = `/prof/lancements/${launch.id}`;
+  } catch (e) {
+    error.textContent = `Lancement impossible : ${errorText(e)}`;
+    error.hidden = false;
+  }
+}
+
+function launchRow(launch) {
+  const date = new Date(launch.endedAt ?? launch.openedAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
+  const state = launch.endedAt ? `Terminé le ${date}` : `En cours depuis le ${date}, code ${launch.code}`;
+  return `<li><a href="/prof/lancements/${esc(launch.id)}">${esc(state)}</a> <span class="hint">· ${launch.participantCount} élève(s) ou groupe(s)</span></li>`;
+}
+
+async function showLaunches() {
+  const list = $('#launchList');
+  try {
+    list.innerHTML = (await api('GET', `/courses/${course.id}/launches`)).map(launchRow).join('');
+  } catch {
+    list.innerHTML = '<li class="hint">Liste des lancements indisponible pour le moment.</li>';
+  }
 }
 
 /** Ce qui mérite d'être signalé avant de publier, sans l'empêcher. */
@@ -83,6 +121,15 @@ export function html() {
     </div>
 
     <div class="section">
+      <h3>Lancer le cours</h3>
+      <p>Chaque lancement a son QR code et sa propre liste d'élèves. Un cours peut être relancé, pour une autre classe par exemple.</p>
+      <p id="launchHint"></p>
+      <p class="form-error" id="launchError" role="alert" hidden></p>
+      <button type="button" class="btn block" id="launchBtn">Lancer le cours</button>
+      <ul class="launch-list" id="launchList"></ul>
+    </div>
+
+    <div class="section">
       <h3>Télécharger</h3>
       <p>Un fichier .json avec les fiches, les photos et les positions, pour garder une copie ou importer ce cours ailleurs.</p>
       <button type="button" class="btn ghost" id="exportJson">Télécharger le cours (.json)</button>
@@ -98,6 +145,8 @@ export function bind() {
     toast('Cours renommé');
   };
   $('#publishBtn').onclick = publishCourse;
+  $('#launchBtn').onclick = launchCourse;
+  showLaunches();
   $('#exportJson').onclick = async () => {
     toast('Préparation du fichier…');
     try {

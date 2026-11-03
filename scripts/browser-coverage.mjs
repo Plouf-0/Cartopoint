@@ -54,7 +54,7 @@ export function summarize(entries) {
   const files = {};
   for (const { url, source, functions } of entries) {
     const { pathname } = new URL(url);
-    if (!pathname.startsWith('/js/') || !source) continue;
+    if (!pathname.startsWith('/js/') || pathname.startsWith('/js/vendor/') || !source) continue;
     const { total, covered } = coveredLines(source, functions);
     const file = (files['src' + pathname] ??= { total, covered: [], functions: {} });
     file.covered = [...new Set([...file.covered, ...covered])];

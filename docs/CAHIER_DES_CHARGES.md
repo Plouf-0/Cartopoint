@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.16** · 2 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.17** · 2 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -45,14 +45,14 @@ trace.
 | ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------- | -------------------------------------------------------------------------------------- |
 | Exemple | 01/11/2026 | Les élèves doivent pouvoir choisir leur carte, car une sortie peut couvrir plusieurs sites.                                                                                                  | E-01                                     | Haute    | Proposée                                                                               |
 | EV-01   | 01/11/2026 | De vrais espaces enseignants : chaque enseignant a son propre espace, séparé de ceux des autres. L'admin distribue des liens pour créer les comptes.                                         | ACC-01, SRV-05, Q-09, Q-11               | Haute    | En cours. Voir 12.1                                                                    |
-| EV-02   | 01/11/2026 | Préparer un cours, le publier quand il est prêt, le lancer et afficher un QR code que les élèves scannent pour le rejoindre, à la façon de Kahoot.                                           | PUB-01, DEM-01, MUL-01, Q-13, Q-14, Q-19 | Haute    | En cours. Voir 12.2                                                                    |
-| EV-03   | 01/11/2026 | Pas de compte pour les élèves. Leur nom, leur prénom et leurs réponses restent dans l'historique du cours, pour l'enseignant.                                                                | PRI-04, Q-02, Q-17                       | Haute    | Validée, modifiée le 01/11/2026 (remplace « aucune trace en base »). Voir 12.3 et 12.4 |
+| EV-02   | 01/11/2026 | Préparer un cours, le publier quand il est prêt, le lancer et afficher un QR code que les élèves scannent pour le rejoindre, à la façon de Kahoot.                                           | PUB-01, DEM-01, MUL-01, Q-13, Q-14, Q-19 | Haute    | En cours : publier, lancer et le QR code sont faits. Voir 12.2 |
+| EV-03   | 01/11/2026 | Pas de compte pour les élèves. Leur nom, leur prénom et leurs réponses restent dans l'historique du cours, pour l'enseignant.                                                                | PRI-04, Q-02, Q-17                       | Haute    | En cours : entrer sans compte, avec ses noms, est fait ; les réponses arrivent à l'étape 5. Voir 12.3 |
 | EV-04   | 01/11/2026 | Revoir la publication des fiches, qui semble ne pas fonctionner.                                                                                                                             | PUB-01, DEM-02, E-02, E-16               | Moyenne  | En cours. Voir 12.9                                                                    |
-| EV-05   | 01/11/2026 | Suivre le cours : voir les noms des élèves qui ont commencé, et s'ils ont fini ou non.                                                                                                       | Q-10                                     | Haute    | Validée. Voir 12.4                                                                     |
+| EV-05   | 01/11/2026 | Suivre le cours : voir les noms des élèves qui ont commencé, et s'ils ont fini ou non.                                                                                                       | Q-10                                     | Haute    | En cours : la liste de qui a commencé se met à jour ; « a fini » arrive avec le rendu, à l'étape 5. Voir 12.4 |
 | EV-06   | 01/11/2026 | Travailler hors ligne une fois la page récupérée, avec l'avancement gardé dans le navigateur. La connexion ne sert qu'à rendre.                                                              | Q-04, Q-05, Q-15, E-06                   | Haute    | Validée. Voir 12.5                                                                     |
 | EV-07   | 01/11/2026 | Alléger le cours, en particulier les photos, sans les rendre illisibles.                                                                                                                     | E-05                                     | Moyenne  | En cours. Voir 12.7                                                                    |
 | EV-08   | 01/11/2026 | Donner à l'élève la correction complète sur son téléphone quand l'enseignant termine le cours, s'il a du réseau et que sa page est toujours ouverte. Elle n'y reste que le temps de la page. | Q-03, Q-16, Q-20, VER-01                 | Haute    | Validée. Voir 12.6                                                                     |
-| EV-09   | 01/11/2026 | Afficher sous le QR code un code court à taper, comme alternative.                                                                                                                           | COU-04                                   | Moyenne  | Validée. Voir 12.2                                                                     |
+| EV-09   | 01/11/2026 | Afficher sous le QR code un code court à taper, comme alternative.                                                                                                                           | COU-04                                   | Moyenne  | Fait. Voir 12.2 |
 | EV-10   | 01/11/2026 | Ne plus dépendre de Google pour les polices.                                                                                                                                                 | E-08                                     | Basse    | Validée. Voir 12.5                                                                     |
 | EV-11   | 01/11/2026 | Garder le fichier autonome comme export de secours.                                                                                                                                          | PRI-02, Q-12                             | Moyenne  | Validée. Voir 12.8                                                                     |
 | EV-12   | 01/11/2026 | Carte collective anonyme : tous les placements, sans nom, sur l'écran de l'enseignant pour le débrief.                                                                                       |                                          | Basse    | Reportée                                                                               |
@@ -170,6 +170,7 @@ noter ici.
 
 - **PRI-01 — Sans dépendance à l'exécution.** HTML, CSS et JavaScript (modules ES) écrits à la
   main, sans framework. `esbuild`, `prettier` et `playwright` ne servent qu'au développement. ⚠️ E-08
+  _Exception : la bibliothèque de QR code de Project Nayuki (licence MIT), copiée dans `src/js/vendor/` avec sa licence._
 - **PRI-02 — Deux modes d'utilisation.** La même application fonctionne en fichier autonome (sans
   serveur ni connexion) et hébergée (par une adresse). Le fichier autonome deviendra un export de
   secours (`EXP-01`).
@@ -880,7 +881,8 @@ en production.
   nombre de fiches et d'autres chiffres d'usage (lancements, dernière connexion).
 - **ADM-05** L'admin peut provoquer la réinitialisation d'un mot de passe, en générant un lien à transmettre.
 - **ADM-06** L'admin peut désactiver un compte : l'enseignant ne peut plus se connecter, ses sessions sont fermées
-  et ses cours conservés. Un lancement déjà ouvert reste joignable par les élèves déjà entrés. Avec le bon mot de
+  et ses cours conservés. Un lancement déjà ouvert reste joignable par les élèves déjà entrés, et aucun nouvel élève n'y
+  entre. Avec le bon mot de
   passe, l'enseignant lit que son compte est désactivé. Avec un mauvais, il lit le message habituel : un inconnu
   ne peut donc pas savoir si un compte existe ni s'il est désactivé.
 - **ADM-07** L'admin n'accède ni au contenu des cours ni aux résultats des élèves.
@@ -917,6 +919,10 @@ Demandes : EV-02, EV-09
 - **COU-10** S'il reste des élèves non finis, l'enseignant en est prévenu avant de terminer le cours.
 - **COU-11** Un lancement garde la version publiée à son ouverture : les modifications du cours valent pour le
   lancement suivant.
+- **COU-12** Un lancement accepte 200 élèves ou groupes. Seuls les essais avec un code inconnu sont limités, par adresse : une
+  classe entière partage souvent la même.
+- **COU-13** Revenir sur le même QR code reprend le même élève et son travail. Sur un appareil partagé, « Ce n'est pas vous ? »
+  laisse entrer quelqu'un d'autre, sans le travail du précédent.
 
 ### 12.3 Élèves sans compte — `ANO`
 
@@ -1099,3 +1105,4 @@ Demande : EV-28
 | 0.14    | 2 novembre 2026   | Étape 3 : cours, publication, fichiers, import ; cause de EV-04 en partie trouvée ; SRV-15 à SRV-17 |
 | 0.15    | 2 novembre 2026   | EV-04 : fichiers du premier enseignant analysés et rejoués, erreur revenue sur deux navigateurs, correctif essayé sur une copie |
 | 0.16    | 2 novembre 2026   | EV-32 à EV-35 : panneau plus haut, IA retirée des cours, site générique sous le nom de Cartopoint (Q-01), plus de données d'utilisateur sur GitHub |
+| 0.17    | 2 novembre 2026   | Étape 4 : lancement, QR code, entrée des élèves et suivi ; COU-12, COU-13 ; exception à PRI-01 pour la bibliothèque de QR code |

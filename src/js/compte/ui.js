@@ -39,7 +39,7 @@ export function showError(line, error) {
 }
 
 /** Branche un formulaire : le bouton est bloqué pendant l'envoi et une erreur s'affiche au-dessus de lui. */
-function onSubmit(form, action) {
+export function onSubmit(form, action) {
   const error = errorLine();
   const button = form.querySelector('[type=submit]');
   button.before(error);

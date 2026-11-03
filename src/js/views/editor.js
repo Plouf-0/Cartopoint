@@ -11,6 +11,7 @@ import { normalizeFiche, normalizeMedia, numberOf, titleOf, thumbOf } from '../m
 import { render } from '../render.js';
 import { openPhoto } from './viewer.js';
 import { identifyWithAI } from '../ai.js';
+import { useEditor } from './fiche.js';
 
 /** Champ du formulaire → propriété de la fiche. */
 const FIELDS = {
@@ -181,6 +182,7 @@ function bindEmojiBar() {
 }
 
 export function bindEditor() {
+  useEditor(openEditor);
   const dlg = $('#dlgEdit');
   bindEmojiBar();
   dlg.addEventListener('input', (e) => e.target.matches('textarea') && autosize(e.target));

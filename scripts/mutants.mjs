@@ -15,7 +15,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writ
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-const RUN_TIMEOUT = 180000;
+const RUN_TIMEOUT = 420000;
 
 // [nom, fichier, texte à remplacer, remplacement, 'partout' pour toutes les occurrences]
 const MUTANTS = [
@@ -582,6 +582,174 @@ const MUTANTS = [
     ''
   ],
   ['API : erreur sans texte', 'src/js/api.js', 'text || `Le serveur a répondu ${response.status}.`', 'text'],
+  // CRG-01 : ce qu'un élève reçoit
+  ['CRG-01 : positions réelles envoyées', 'server/student-view.mjs', "'thumbnailId',", "'thumbnailId', 'refX', 'refY',"],
+  ['CRG-01 : fiches masquées envoyées', 'server/student-view.mjs', '.filter(isVisible)', ''],
+  ['CRG-01 : ancienne fiche masquée envoyée', 'server/student-view.mjs', 'fiche.visible ?? fiche.studentEnabled !== false', 'fiche.visible !== false'],
+  ['CRG-01 : carte copiée telle quelle', 'server/student-view.mjs', '...pick(map, MAP_FIELDS)', '...map'],
+  ['CRG-01 : fiche copiée telle quelle', 'server/student-view.mjs', '...pick(fiche, FICHE_FIELDS)', '...fiche'],
+  ['CRG-01 : média copié tel quel', 'server/student-view.mjs', 'pick(media, MEDIA_FIELDS)', 'media'],
+  ['CRG-01 : thème copié tel quel', 'server/student-view.mjs', 'pick(content.theme ?? {}, THEME_FIELDS)', 'content.theme ?? {}'],
+  [
+    'CRG-01 : la route envoie le cours complet',
+    'server/routes/student.mjs',
+    'studentCourse(JSON.parse(participantOf(req).content))',
+    'JSON.parse(participantOf(req).content)'
+  ],
+  // Lancer
+  ['lancement : code avec des lettres ambiguës', 'server/launches.mjs', "'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'", "'ABCDEFGHIJKLMNOPQRSTUVWXYZ012345'"],
+  ['lancement : code trop court', 'server/launches.mjs', 'const CODE_LENGTH = 6;', 'const CODE_LENGTH = 4;'],
+  ['lancement : code pris sans nouvel essai', 'server/launches.mjs', 'attempt >= CODE_ATTEMPTS ||', 'true ||'],
+  ['lancement : trop d’essais sur un code pris', 'server/launches.mjs', 'attempt >= CODE_ATTEMPTS ||', 'attempt >= 50 ||'],
+  ['lancement : code en minuscules refusé', 'server/launches.mjs', '.toUpperCase()', ''],
+  ['lancement : code avec espaces refusé', 'server/launches.mjs', ".replace(/[\\s-]/g, '')", ''],
+  [
+    'lancement : brouillon sans publication',
+    'server/launches.mjs',
+    "if (!version) throw new HttpError(409, \"Publiez d'abord ce cours : les élèves n'ont accès qu'à une version publiée.\");",
+    ''
+  ],
+  ['lancement : COU-11, plus ancienne version', 'server/launches.mjs', 'ORDER BY number DESC', 'ORDER BY number ASC'],
+  ['lancement : ANO-06, sans contrôle du propriétaire', 'server/launches.mjs', 'AND courses.account_id = ?', "AND ? != ''"],
+  ['lancement : terminer change la date', 'server/launches.mjs', 'COALESCE(ended_at, ?)', '?'],
+  ['lancement : un élève de trop', 'server/launches.mjs', 'participantCount(launch.id) >= MAX_PARTICIPANTS', 'participantCount(launch.id) > MAX_PARTICIPANTS'],
+  ['lancement : noms trop longs', 'server/launches.mjs', 'names.length > MAX_NAMES', 'false'],
+  ['lancement : noms vides', 'server/launches.mjs', "if (!names) throw new HttpError(400, 'Indiquez votre prénom et votre nom.');", ''],
+  ['lancement : noms sur plusieurs lignes', 'server/launches.mjs', ".replace(/\\s+/g, ' ')", ''],
+  ['lancement : caractères de contrôle gardés', 'server/launches.mjs', ".replace(/\\p{C}+/gu, ' ')", ''],
+  [
+    'lancement : jeton gardé en clair',
+    'server/launches.mjs',
+    'participants.token_hash = ?`\n        )\n        .get(hashToken(token))',
+    'participants.token_hash = ?`\n        )\n        .get(token)'
+  ],
+  ['lancement : jeton du suivi envoyé', 'server/launches.mjs', 'late: Boolean(p.late)', 'late: Boolean(p.late), tokenHash: p.token_hash'],
+  [
+    'lancement : relance sans la route',
+    'server/routes/launches.mjs',
+    "'/api/courses/:id/launches',\n      sameOriginOnly((req, res, { params }) => sendJson(req, res, launches.open(",
+    "'/api/courses/:id/launches',\n      ((req, res, { params }) => sendJson(req, res, launches.open("
+  ],
+  [
+    'lancement : terminer sans contrôle d’origine',
+    'server/routes/launches.mjs',
+    "'/api/launches/:id/end',\n      sameOriginOnly(",
+    "'/api/launches/:id/end',\n      ("
+  ],
+  ['lancement : en cours compté à tort', 'server/courses.mjs', 'courses.account_id = ? AND launches.ended_at IS NULL', 'courses.account_id = ?'],
+  ['lancement : terminé encore à suivre', 'server/courses.mjs', 'course_id = ? AND ended_at IS NULL', 'course_id = ?'],
+  // Rejoindre
+  ['élève : COU-08, code encore valable', 'server/routes/student.mjs', 'if (launch.ended_at) throw new HttpError(410, COURSE_ENDED);', ''],
+  ['élève : ADM-06, entrée sur un compte désactivé', 'server/routes/student.mjs', 'if (launch.disabled_at) throw new HttpError(410, COURSE_CLOSED);', ''],
+  ['élève : échecs non comptés', 'server/routes/student.mjs', 'failures.fail(ip);', ''],
+  ['élève : limite non appliquée', 'server/routes/student.mjs', 'if (failures.blocked(ip)) throw new HttpError(429, TOO_MANY);', ''],
+  [
+    'élève : un cours terminé compte comme un échec',
+    'server/routes/student.mjs',
+    'if (launch.ended_at) throw',
+    'if (launch.ended_at) failures.fail(ip);\n    if (launch.ended_at) throw'
+  ],
+  ['élève : limite pour toute la classe', 'server/routes/student.mjs', 'const ip = clientIp(req, trustProxy);', "const ip = 'tous';"],
+  [
+    'élève : entrée sans contrôle d’origine',
+    'server/routes/student.mjs',
+    'sameOriginOnly(async (req, res, { params }) => {',
+    '(async (req, res, { params }) => {'
+  ],
+  [
+    'élève : cours terminé pendant l’entrée',
+    'server/routes/student.mjs',
+    'launches.join(openLaunch(req, params), names)',
+    'launches.join(launches.byCode(params.code), names)'
+  ],
+  ['élève : le code remplace le jeton', 'server/routes/student.mjs', 'if (!participant) throw new HttpError(401, NO_COURSE);', ''],
+  ['élève : cours mis en cache pour tous', 'server/routes/student.mjs', "'private, no-cache'", "'no-cache'"],
+  ['élève : cours jamais terminé', 'server/routes/student.mjs', 'ended: Boolean(endedAt)', 'ended: false'],
+  ['page : élève sans page', 'server/routes/pages.mjs', "'/c/:code': 'eleve.html'", "'/c/:code': 'prof.html'"],
+  // Écran du lancement
+  ['lancement : QR code sans marge', 'src/js/prof/qr.js', 'const QUIET_ZONE = 4;', 'const QUIET_ZONE = 0;'],
+  ['lancement : QR code vers une mauvaise adresse', 'src/js/prof/launch.js', '`${location.origin}/c/${code}`', '`${location.origin}/${code}`'],
+  ['lancement : liste jamais actualisée', 'src/js/prof/launch.js', 'const REFRESH_EVERY = 5000;', 'const REFRESH_EVERY = 500000;'],
+  ['lancement : code encore affiché après la fin', 'src/js/prof/launch.js', 'joinCard.hidden = ended;', ''],
+  ['lancement : bouton Terminer après la fin', 'src/js/prof/launch.js', 'endCard.hidden = ended;', ''],
+  ['lancement : QR code resté ouvert après la fin', 'src/js/prof/launch.js', 'if (ended && qr.open) qr.close();', ''],
+  [
+    'lancement : terminer sans confirmation',
+    'src/js/prof/launch.js',
+    "if (!confirm('Terminer le cours ?\\n\\nLe QR code et le code cesseront de fonctionner.')) return;",
+    ''
+  ],
+  ['lancement : bouton Terminer bloqué après un échec', 'src/js/prof/launch.js', 'end.disabled = false;', ''],
+  [
+    'lancement : liste vidée quand une mise à jour échoue',
+    'src/js/prof/launch.js',
+    "apply(await api('GET', `/launches/${launchId}`));\n      listError.hidden = true;",
+    "list.replaceChildren();\n      apply(await api('GET', `/launches/${launchId}`));"
+  ],
+  ['lancement : état « a fini » jamais affiché', 'src/js/prof/launch.js', 'participant.submittedAt ? (participant.late', 'false ? (participant.late'],
+  ['lancement : rendu tardif non signalé', 'src/js/prof/launch.js', 'participant.late ? ', 'false ? '],
+  ['lancement : bouton actif sans publication', 'src/js/prof/course-tab.js', 'launch.disabled = !course.published;', 'launch.disabled = false;'],
+  [
+    'lancement : modifications non signalées',
+    'src/js/prof/course-tab.js',
+    'return course.modified ? `${version} Vos dernières',
+    'return false ? `${version} Vos dernières'
+  ],
+  ['lancement : erreur muette', 'src/js/prof/course-tab.js', 'error.textContent = `Lancement impossible : ${errorText(e)}`;\n    error.hidden = false;', ''],
+  [
+    'lancement : liste bloquante si elle échoue',
+    'src/js/prof/course-tab.js',
+    'list.innerHTML = \'<li class="hint">Liste des lancements indisponible pour le moment.</li>\';',
+    ''
+  ],
+  ['lancement : cours en cours introuvable', 'src/js/prof/main.js', '...(course.runningLaunch\n', '...(false\n'],
+  ['lancement : admin non prévenu', 'src/js/admin/main.js', '...(teacher.running\n', '...(false\n'],
+  // Page de l'élève
+  ['élève : accueil sans nettoyage du code', 'src/js/accueil.js', "encodeURIComponent(clean(data.get('code')))", "encodeURIComponent(data.get('code'))"],
+  ['élève : accueil sans vérification du code', 'src/js/accueil.js', "await api('GET', `/join/${code}`);", ''],
+  ['élève : adresse en minuscules, autre élève', 'src/js/eleve/main.js', '.toUpperCase()', ''],
+  ['élève : COU-09, même jeton pour tous les lancements', 'src/js/eleve/main.js', '`cartopoint.eleve.${code}`', "'cartopoint.eleve'"],
+  ['élève : COU-09, même travail pour tous', 'src/js/eleve/main.js', '{ ...course, id: me.id }', 'course'],
+  ['élève : jeton oublié', 'src/js/eleve/main.js', 'prefs.set(STORAGE_KEY, JSON.stringify(me));', ''],
+  ['élève : « pas vous » sans confirmation', 'src/js/eleve/main.js', "if (!confirm(`Ce n'est pas vous ?", "if (false && !confirm(`Ce n'est pas vous ?"],
+  ['élève : « pas vous » sans effet', 'src/js/eleve/main.js', 'prefs.del(STORAGE_KEY);\n    location.reload();', 'location.reload();'],
+  [
+    'élève : choix de carte toujours caché',
+    'src/js/eleve/main.js',
+    "$('#mapChoiceBox').hidden = S.project.maps.length < 2;",
+    "$('#mapChoiceBox').hidden = true;"
+  ],
+  [
+    'élève : choix de carte même sans choix',
+    'src/js/eleve/main.js',
+    "$('#mapChoiceBox').hidden = S.project.maps.length < 2;",
+    "$('#mapChoiceBox').hidden = false;"
+  ],
+  ['élève : changer de carte sans effet', 'src/js/eleve/main.js', 'await switchMap(event.target.value);', ''],
+  ['élève : image cassée sans plan', 'src/js/eleve/main.js', "$('#plan').hidden = !S.map.image;", ''],
+  ['élève : pas de message sans plan', 'src/js/eleve/main.js', "$('#planEmpty').hidden = !!S.map.image;", "$('#planEmpty').hidden = true;"],
+  ['élève : fin du cours non annoncée', 'src/js/eleve/main.js', 'if (ended) showBanner(', 'if (false) showBanner('],
+  ['élève : cours disparu non annoncé', 'src/js/eleve/main.js', 'if (e.status === 401) showBanner(', 'if (false) showBanner('],
+  ['élève : jeton mort gardé', 'src/js/eleve/main.js', 'prefs.del(STORAGE_KEY);\n    return show(', 'return show('],
+  [
+    'élève : stockage absent non signalé',
+    'src/js/eleve/main.js',
+    "fatal('Ce navigateur ne peut pas garder votre travail (navigation privée ?). Ne fermez pas cette page.');",
+    ''
+  ],
+  ['élève : travail perdu si la page se ferme', 'src/js/eleve/main.js', "window.addEventListener('pagehide', () => flush());", ''],
+  ['élève : travail non relu', 'src/js/eleve/main.js', 'if (saved) work[map.id] = normalizeProgress(saved);', ''],
+  ['élève : travail non écrit', 'src/js/backends/student.js', 'for (const [key, value] of progress) await Progress.put(key, value);', ''],
+  [
+    'élève : éditeur chargé avec la page',
+    'src/js/views/fiche.js',
+    'let openInEditor = () => {};',
+    "import { openEditor } from './editor.js';\nlet openInEditor = openEditor;"
+  ],
+  ['écran : QR code plus large que le téléphone', 'src/css/app.css', 'width: min(66dvh, 84vw, 640px);', 'width: 640px;'],
+  ['écran : code plus large que le téléphone', 'src/css/app.css', 'clamp(32px, 9vw, 56px)', '120px'],
+  ['écran : long nom hors du téléphone', 'src/css/app.css', 'margin-left: auto; overflow-wrap: anywhere; }', 'margin-left: auto; white-space: nowrap; }'],
+  ['écran : éditeur non branché', 'src/js/views/editor.js', '  useEditor(openEditor);\n', ''],
   ['EV-32 : panneau de droite trop court', 'src/css/app.css', 'max-height: max(420px, calc(100dvh - 150px));', 'max-height: 420px;'],
   ['EV-32 : panneau plus haut que l’écran', 'src/css/app.css', 'max-height: max(420px, calc(100dvh - 150px));', 'max-height: 100dvh;'],
   ['EV-33 : IA dans les réglages d’un cours', 'src/js/views/admin/settings.js', "${S.teacherSpace ? '' : aiHTML()}", '${aiHTML()}'],
@@ -692,7 +860,8 @@ function runTests(cwd, tests, { stopAtFirstFailure = false } = {}) {
 }
 
 const filter = process.argv[2] ?? '';
-const selected = MUTANTS.filter(([name]) => name.includes(filter));
+// Plusieurs filtres séparés par « | » : pour ne rejouer que les mutants d'une étape
+const selected = MUTANTS.filter(([name]) => filter.split('|').some((part) => name.includes(part)));
 const copy = mkdtempSync(path.join(tmpdir(), 'ib-mutants-'));
 const source = process.cwd();
 cpSync(source, copy, { recursive: true, filter: (p) => !/(^|\/)(node_modules|\.git|dist|\.dev-data|data)(\/|$)/.test(path.relative(source, p)) });
@@ -704,8 +873,18 @@ const TESTS_FOR = {
   'server/routes/auth.mjs': ['accounts'],
   'server/routes/admin.mjs': ['accounts', 'courses'],
   'server/routes/courses.mjs': ['courses'],
-  'server/routes/pages.mjs': ['accounts', 'courses'],
-  'server/courses.mjs': ['courses'],
+  'server/routes/pages.mjs': ['accounts', 'courses', 'launches'],
+  'server/courses.mjs': ['courses', 'launches'],
+  'server/student-view.mjs': ['student-view', 'launches'],
+  'server/launches.mjs': ['launches'],
+  'server/routes/launches.mjs': ['launches'],
+  'server/routes/student.mjs': ['launches'],
+  'src/js/prof/qr.js': ['e2e/launches'],
+  'src/js/prof/launch.js': ['e2e/launches'],
+  'src/js/accueil.js': ['e2e/launches'],
+  'src/js/eleve/main.js': ['e2e/launches'],
+  'src/js/backends/student.js': ['e2e/launches'],
+  'src/js/views/fiche.js': ['build', 'e2e/launches'],
   'server/media.mjs': ['courses'],
   'server/security.mjs': ['security', 'accounts', 'routes-legacy'],
   'server/http.mjs': ['http', 'routes-legacy', 'courses'],
@@ -730,14 +909,14 @@ const TESTS_FOR = {
   'src/js/prof/course.js': ['e2e/courses'],
   'src/js/prof/course-backend.js': ['e2e/courses'],
   'src/js/prof/course-io.js': ['e2e/courses'],
-  'src/js/prof/course-tab.js': ['e2e/courses'],
-  'src/js/prof/main.js': ['e2e/courses'],
+  'src/js/prof/course-tab.js': ['e2e/courses', 'e2e/launches'],
+  'src/js/prof/main.js': ['e2e/courses', 'e2e/launches'],
   'src/js/api.js': ['e2e/courses'],
   'src/js/ai.js': ['e2e/legacy'],
-  'src/js/admin/main.js': ['e2e/accounts', 'e2e/courses'],
+  'src/js/admin/main.js': ['e2e/accounts', 'e2e/courses', 'e2e/launches'],
   'src/js/compte/main.js': ['e2e/accounts'],
   'src/js/compte/ui.js': ['e2e/accounts'],
-  'src/css/app.css': ['e2e/accounts', 'e2e/courses']
+  'src/css/app.css': ['e2e/accounts', 'e2e/courses', 'e2e/launches']
 };
 const testsFor = (file) => (TESTS_FOR[file] ?? []).map((name) => `tests/${name}.test.js`);
 

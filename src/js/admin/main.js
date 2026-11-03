@@ -59,7 +59,16 @@ function askToDelete(teacher, onDeleted) {
     el(
       'div',
       { className: 'dlg-body' },
-      el('p', {}, 'Compte : ', el('strong', {}, teacher.email)),
+      el('p', {}, 'Compte : ', el('strong', {}, teacher.email), ` · ${teacher.courses} cours`),
+      ...(teacher.running
+        ? [
+            el(
+              'p',
+              { className: 'form-error' },
+              `${teacher.running} lancement(s) en cours : personne ne pourra plus les terminer. Les élèves déjà entrés y gardent accès jusqu'à l'effacement du compte.`
+            )
+          ]
+        : []),
       el(
         'p',
         {},

@@ -35,7 +35,8 @@ export function createCourses(db) {
       updatedAt: row.updated_at,
       fiches: countFiches(row.draft),
       published: version ? { number: version.number, publishedAt: version.published_at } : null,
-      modified: version?.content !== row.draft
+      modified: version?.content !== row.draft,
+      runningLaunch: db.prepare('SELECT id FROM launches WHERE course_id = ? AND ended_at IS NULL ORDER BY opened_at DESC').get(row.id)?.id ?? null
     };
   }
 
@@ -103,6 +104,9 @@ export function createCourses(db) {
         courses: drafts.length,
         fiches: drafts.reduce((total, { draft }) => total + countFiches(draft), 0),
         launches: scalar('SELECT COUNT(*) AS n FROM launches JOIN courses ON courses.id = launches.course_id WHERE courses.account_id = ?'),
+        running: scalar(
+          'SELECT COUNT(*) AS n FROM launches JOIN courses ON courses.id = launches.course_id WHERE courses.account_id = ? AND launches.ended_at IS NULL'
+        ),
         bytes:
           scalar('SELECT COALESCE(SUM(size), 0) AS n FROM media WHERE account_id = ?') +
           scalar('SELECT COALESCE(SUM(LENGTH(draft)), 0) AS n FROM courses WHERE account_id = ?') +

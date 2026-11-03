@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2e6e45">
+<meta name="robots" content="noindex">
+<title>Cartopoint</title>
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div id="fatal" class="banner" role="alert" hidden></div>
+
+<main id="app" class="account-page"></main>
+
+<div id="course" hidden>
+  <header class="top">
+    <div class="brand">
+      <div class="brand-mark" data-brand-icon></div>
+      <div>
+        <h1 id="pageTitle"></h1>
+        <p id="mapName"></p>
+      </div>
+    </div>
+    <label class="map-choice" id="mapChoiceBox" hidden>Carte <select id="mapChoice"></select></label>
+    <div class="student-who">
+      <span id="studentName"></span>
+      <button class="link-btn" id="notMe" type="button">Ce n'est pas vous ?</button>
+    </div>
+  </header>
+
+  <div id="courseBanner" class="draft-banner" role="status" hidden></div>
+
+  <div class="layout">
+    <main class="stage"><div class="stage-inner" id="stageInner">
+      <div class="stage-bar">
+        <div class="progress" id="progress"></div>
+        <div class="legend">
+          <span><i class="lg-student"></i>Votre placement</span>
+        </div>
+      </div>
+      <div class="map-frame" id="mapFrame">
+        <img id="plan" alt="Plan du site">
+        <div class="plan-empty" id="planEmpty" hidden><p>Cette carte n'a pas d'image du plan.</p></div>
+        <svg class="map-lines" id="mapLines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+        <div class="place-hint" id="placeHint" hidden><span id="placeHintText"></span><button type="button" id="placeCancel">Annuler</button></div>
+      </div>
+    </div></main>
+
+    <aside class="panel" id="panel" aria-label="Fiches"></aside>
+  </div>
+</div>
+
+<!-- Lecture d'une fiche -->
+<dialog id="dlgRead"><div class="dlg" id="readBox"></div></dialog>
+
+<!-- Visionneuse photo plein écran -->
+<dialog id="dlgPhoto" class="photo-dlg" aria-label="Photo">
+  <div id="photoStage" class="photo-stage">
+    <img id="photoImg" alt="">
+    <button type="button" class="pv prev" id="photoPrev" aria-label="Photo précédente">‹</button>
+    <button type="button" class="pv next" id="photoNext" aria-label="Photo suivante">›</button>
+    <button type="button" class="x photo-x" id="photoClose" aria-label="Fermer">×</button>
+    <span class="photo-count" id="photoCount"></span>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<noscript><p class="banner">Cette page a besoin de JavaScript.</p></noscript>
+<script type="module" src="/js/eleve/main.js"></script>
+</body>
+</html>

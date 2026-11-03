@@ -27,7 +27,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+$/;
 const DEAD_LINK = "Ce lien n'est plus valable. Demandez-en un nouveau.";
 
 const iso = (ms = Date.now()) => new Date(ms).toISOString();
-const hashToken = (token) => createHash('sha256').update(String(token)).digest('hex');
+export const hashToken = (token) => createHash('sha256').update(String(token)).digest('hex');
 
 /** Date à laquelle un compte supprimé sera effacé pour de bon. */
 export const eraseDate = (deletedAt) => iso(Date.parse(deletedAt) + DELETED_LIFETIME);

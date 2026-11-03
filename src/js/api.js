@@ -22,10 +22,11 @@ async function call(path, options) {
   return JSON.parse(text);
 }
 
-export function api(method, path, body) {
+/** `token` : le jeton d'un élève, dans un en-tête pour qu'il n'apparaisse dans aucun journal. */
+export function api(method, path, body, token) {
   return call(path, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : {},
+    headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: body ? JSON.stringify(body) : undefined
   });
 }

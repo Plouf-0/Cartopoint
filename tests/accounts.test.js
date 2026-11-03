@@ -334,7 +334,8 @@ test('ADM-07 : la liste des enseignants ne montre que leur compte, jamais leur m
     'fiches',
     'id',
     'lastLoginAt',
-    'launches'
+    'launches',
+    'running'
   ]);
   assert.equal(list[0].email, TEACHER);
   assert.equal(list[0].disabled, false);

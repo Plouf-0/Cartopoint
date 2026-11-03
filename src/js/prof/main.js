@@ -67,7 +67,16 @@ function courseRow(course, { error, refresh }) {
       el('a', { className: 'course-title', href: courseUrl(course) }, course.title),
       el('p', { className: 'hint' }, `${course.fiches} fiche(s) · ${publicationText(course)} · modifié le ${dateAndTime(course.updatedAt)}`)
     ),
-    el('div', { className: 'row-actions' }, el('a', { className: 'btn soft sm', href: courseUrl(course) }, 'Ouvrir'), rename, remove)
+    el(
+      'div',
+      { className: 'row-actions' },
+      ...(course.runningLaunch
+        ? [el('a', { className: 'btn sm', href: `/prof/lancements/${encodeURIComponent(course.runningLaunch)}` }, 'Suivre le cours')]
+        : []),
+      el('a', { className: 'btn soft sm', href: courseUrl(course) }, 'Ouvrir'),
+      rename,
+      remove
+    )
   );
 }
 

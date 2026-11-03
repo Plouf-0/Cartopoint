@@ -22,7 +22,7 @@ const args = {};
 for (let i = 2; i < process.argv.length; i++) if (process.argv[i].startsWith('--')) args[process.argv[i].slice(2)] = process.argv[++i];
 const outDir = path.resolve(root, args.outdir || 'dist');
 const out = args.out ? path.resolve(root, args.out) : path.join(outDir, 'index.html');
-const SPACE_PAGES = ['prof.html', 'prof-cours.html', 'admin.html', 'compte.html'];
+const SPACE_PAGES = ['prof.html', 'prof-cours.html', 'prof-lancement.html', 'admin.html', 'compte.html', 'accueil.html', 'eleve.html'];
 
 async function bundle(entry) {
   const { outputFiles } = await build({

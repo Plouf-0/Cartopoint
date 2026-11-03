@@ -260,3 +260,23 @@ ce qu'aucun brouillon ni version ne cite, après un jour de délai, car un fichi
 données. Le backend `local` écrit dans IndexedDB ; celui de `prof/course-backend.js` écrit sur le serveur. Une écriture à la
 fois : la suivante part de la révision donnée par la précédente. Si l'écriture échoue, rien n'est perdu : tout reste à écrire,
 et le reste de l'application continue de fonctionner à partir de ce qui est en mémoire.
+
+## Lancements et élèves
+
+| Page                     | Fichier               | Contenu                                                  |
+| ------------------------ | --------------------- | -------------------------------------------------------- |
+| `/prof/lancements/<id>`  | `prof-lancement.html` | QR code, code à taper, liste des élèves, fin du cours    |
+| `/accueil`               | `accueil.html`        | Taper un code ; deviendra la racine du site à l'étape 10 |
+| `/c/<CODE>`              | `eleve.html`          | Entrer avec ses noms, lire les fiches, les placer        |
+
+- **Un lancement** (`server/launches.mjs`) fige la dernière version publiée et reçoit un code de 6 caractères, sans O, 0, I ni 1. Le QR
+  code contient l'adresse `/c/<CODE>` : il n'y a qu'un seul mécanisme, par QR code ou au clavier.
+- **Ce qu'un élève reçoit** passe toujours par `studentCourse()` (`server/student-view.mjs`), qui garde une liste de champs : ni position
+  réelle, ni fiche masquée, ni réglage de l'enseignant.
+- **Un élève n'a pas de compte.** `POST /api/join/:code` lui donne un jeton, gardé par son navigateur sous `cartopoint.eleve.<CODE>`, et envoyé
+  dans un en-tête pour ne figurer dans aucun journal. La base ne garde que son empreinte.
+- **Son travail** reste dans IndexedDB, sous `<identifiant du participant>/<carte>` : il repart donc à zéro à chaque lancement.
+- **Fin du cours :** le code cesse de fonctionner (410) et le jeton continue. Un élève déjà entré garde son accès, jusqu'à ce que le
+  lancement soit supprimé. Son navigateur lui annonce la fin, en interrogeant `GET /api/student/state` toutes les 20 secondes si l'onglet
+  est visible. La page de l'enseignant interroge `GET /api/launches/:id` toutes les 5 secondes.
+- **Limites :** 200 élèves par lancement. 30 essais de code inconnu par adresse en 15 minutes : une réussite ne compte pas.

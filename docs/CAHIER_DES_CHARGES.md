@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.18** · 3 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.19** · 3 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -1109,3 +1109,4 @@ Demande : EV-28
 | 0.16    | 2 novembre 2026   | EV-32 à EV-35 : panneau plus haut, IA retirée des cours, site générique sous le nom de Cartopoint (Q-01), plus de données d'utilisateur sur GitHub |
 | 0.17    | 2 novembre 2026   | Étape 4 : lancement, QR code, entrée des élèves et suivi ; COU-12, COU-13 ; exception à PRI-01 pour la bibliothèque de QR code |
 | 0.18    | 3 novembre 2026   | Étape 5 : terminer, envoi et renvoi des réponses, résultat calculé par le serveur ; COU-10 fait en avance ; proportions du plan mesurées à la publication |
+| 0.19    | 3 novembre 2026   | EV-04 : constats sur le poste du premier enseignant |

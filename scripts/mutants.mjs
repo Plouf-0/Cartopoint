@@ -6,6 +6,7 @@
  *   npm run test:mutants            toutes les modifications (plusieurs minutes)
  *   npm run test:mutants -- E-04    seulement celles dont le nom contient « E-04 »
  *   npm run test:mutants -- --jobs=4 E-04   quatre à la fois, chacune dans sa propre copie
+ *   npm run test:mutants -- -v              annonce aussi ce qui démarre : utile quand les essais durent
  *
  * Plusieurs à la fois : une seule série occupe déjà environ 2 cœurs. Viser la moitié des cœurs de la machine : un test qui dépasse
  * son délai sous la charge ferait passer un mutant pour attrapé. Le contrôle sur le code intact tourne avec le même nombre d'essais
@@ -892,6 +893,7 @@ const MUTANTS = [
 ];
 
 /** Lance les tests. Tout le groupe de processus est tué à la fin : un serveur de test ne doit pas survivre. */
+const running = new Set();
 function runTests(cwd, tests, { stopAtFirstFailure = false } = {}) {
   return new Promise((resolve) => {
     let out = '';
@@ -905,6 +907,7 @@ function runTests(cwd, tests, { stopAtFirstFailure = false } = {}) {
         /* déjà terminé */
       }
     };
+    running.add(killGroup);
     child.stdout.on('data', (chunk) => {
       out += chunk;
       // Un mutant est attrapé dès le premier échec : inutile d'attendre la fin de la suite
@@ -917,6 +920,7 @@ function runTests(cwd, tests, { stopAtFirstFailure = false } = {}) {
     }, RUN_TIMEOUT);
     child.on('exit', (code) => {
       clearTimeout(timer);
+      running.delete(killGroup);
       killGroup();
       resolve({ code, out });
     });
@@ -924,10 +928,16 @@ function runTests(cwd, tests, { stopAtFirstFailure = false } = {}) {
 }
 
 const args = process.argv.slice(2);
-const filter = args.find((arg) => !arg.startsWith('--')) ?? '';
+const filter = args.find((arg) => !arg.startsWith('-')) ?? '';
 const jobs = Number(args.find((arg) => arg.startsWith('--jobs='))?.slice('--jobs='.length)) || 1;
+const verbose = args.includes('-v') || args.includes('--verbose');
 // Plusieurs filtres séparés par « | » : pour ne rejouer que les mutants d'une étape
 const selected = MUTANTS.filter(([name]) => filter.split('|').some((part) => name.includes(part)));
+if (!selected.length) {
+  // Sinon, une faute de frappe dans le filtre donnerait « 0/0 attrapés », un succès sans rien de vérifié
+  console.error(`Aucun mutant ne correspond à « ${filter} ».`);
+  process.exit(1);
+}
 const source = process.cwd();
 
 function makeCopy() {
@@ -939,6 +949,21 @@ function makeCopy() {
 }
 const copies = Array.from({ length: jobs }, makeCopy);
 const removeCopies = () => copies.forEach((copy) => rmSync(copy, { recursive: true, force: true }));
+
+// Les tests tournent dans leur propre groupe de processus : Ctrl+C ne les atteindrait pas, et ils survivraient à la série
+for (const signal of ['SIGINT', 'SIGTERM'])
+  process.on(signal, () => {
+    running.forEach((kill) => kill());
+    removeCopies();
+    process.exit(130);
+  });
+
+const duration = (ms) => {
+  const minutes = Math.round(ms / 60000);
+  if (minutes >= 60) return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`;
+  return minutes ? `${minutes} min` : `${Math.round(ms / 1000)} s`;
+};
+const announce = (copy, what) => verbose && console.log(`  ▶ copie ${copies.indexOf(copy) + 1} : ${what}`);
 
 /** Traite la liste avec une copie du projet par essai simultané. */
 async function forEachInCopies(items, work) {
@@ -1007,30 +1032,46 @@ const TESTS_FOR = {
 const testsFor = (file) => (TESTS_FOR[file] ?? []).map((name) => `tests/${name}.test.js`);
 
 // Sur du code intact, tout doit passer : sinon chaque modification paraîtrait attrapée, à tort.
-let intactFailure = null;
-await forEachInCopies([...new Set(selected.map(([, file]) => testsFor(file).join(' ')))], async (tests, copy) => {
-  if (intactFailure) return;
+const intactFailures = [];
+const groups = [...new Set(selected.map(([, file]) => testsFor(file).join(' ')))];
+let checked = 0;
+console.log(`Contrôle du code intact : ${groups.length} groupe(s) de tests, ${jobs} à la fois`);
+await forEachInCopies(groups, async (tests, copy) => {
+  announce(copy, tests);
+  const start = Date.now();
   const { code, blocked, out } = await runTests(copy, tests.split(' '));
-  if (code === 0 && !blocked) return;
-  const failing = new Set([...out.matchAll(/^✖ (.+?) \(\d/gm)].map((match) => match[1]));
-  const cause = blocked ? `délai de ${RUN_TIMEOUT / 60000} min dépassé` : [...failing].join('\n') || out.slice(-2000);
-  intactFailure = `Les tests échouent déjà sur le code intact : ${tests}\n${cause}\nRien n'a été vérifié.`;
+  const passed = code === 0 && !blocked;
+  console.log(`  contrôle ${++checked}/${groups.length} ${passed ? 'ok' : 'ÉCHEC'} (${duration(Date.now() - start)}) ${tests}`);
+  if (passed) return;
+  // Le bilan du lanceur de tests donne la raison de chaque échec, pas seulement son nom
+  const details = out.indexOf('✖ failing tests:');
+  const cause = blocked ? `délai de ${RUN_TIMEOUT / 60000} min dépassé` : details >= 0 ? out.slice(details, details + 4000) : out.slice(-2000);
+  intactFailures.push(`${tests}\n${cause}`);
 });
-if (intactFailure) {
-  console.error(intactFailure);
+if (intactFailures.length) {
+  console.error(`\nLes tests échouent déjà sur le code intact :\n\n${intactFailures.join('\n\n')}\n\nRien n'a été vérifié.`);
   removeCopies();
   process.exit(1);
 }
 
 const problems = [];
+const seriesStart = Date.now();
+let done = 0;
+/** Le rang du mutant et, une fois le premier fini, le temps qu'il reste à ce rythme. */
+function progress() {
+  done++;
+  const left = done < selected.length ? ` encore ≈ ${duration(((Date.now() - seriesStart) / done) * (selected.length - done))}` : '';
+  return `[${done}/${selected.length}${left}]`;
+}
 await forEachInCopies(selected, async ([name, file, from, to, everywhere], copy) => {
   const target = path.join(copy, file);
   const original = readFileSync(target, 'utf8');
   if (!original.includes(from)) {
-    console.log(`INTROUVABLE  ${name}`);
+    console.log(`${progress()} INTROUVABLE  ${name}`);
     problems.push(`${name} : texte introuvable dans ${file}`);
     return;
   }
+  announce(copy, name);
   writeFileSync(target, everywhere ? original.replaceAll(from, to) : original.replace(from, () => to));
   const { code, blocked, out } = await runTests(copy, testsFor(file), { stopAtFirstFailure: true });
   writeFileSync(target, original);
@@ -1038,7 +1079,7 @@ await forEachInCopies(selected, async ([name, file, from, to, everywhere], copy)
   if (blocked || !failing.length)
     problems.push(`${name} : ${blocked ? 'les tests se bloquent' : code === 0 ? 'aucun test n’échoue' : 'échec sans test identifié'}`);
   // Le nom du test permet de relire un résultat douteux : un mutant doit être attrapé par un test qui le concerne
-  console.log(`${failing.length && !blocked ? 'attrapé     ' : 'PROBLÈME    '} ${name}${failing.length ? ` ← ${failing[0]}` : ''}`);
+  console.log(`${progress()} ${failing.length && !blocked ? 'attrapé ' : 'PROBLÈME'} ${name}${failing.length ? ` ← ${failing[0]}` : ''}`);
 });
 removeCopies();
 

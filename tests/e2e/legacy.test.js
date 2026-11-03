@@ -204,9 +204,8 @@ test('EV-04 : une publication reste possible quand le navigateur refuse d’écr
   await page.locator('#publishBtn').click();
   await page.locator('#pubPw').fill(PUBLISH_PASSWORD);
   await page.locator('dialog[open] button[type=submit]').click();
-  await page.waitForFunction(
-    () => document.querySelector('#toast').textContent.includes('Publié') || document.querySelector('#toast').textContent.includes('⚠')
-  );
+  // Le « ⚠ » du refus reste affiché : seul ce message dit que le serveur a répondu
+  await toast(page, '✓ Publié');
   const published = JSON.parse(await readFile(path.join(site.data, 'project.json'), 'utf8'));
   assert.equal(published.maps[0].fiches[0].common, 'Olivier');
 });

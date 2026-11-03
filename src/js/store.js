@@ -23,6 +23,8 @@ export const S = {
   admin: false,
   /** Espace enseignant en ligne : ni séance, ni mesures, ni mot de passe de gestion. */
   teacherSpace: false,
+  /** Page d'un élève : il a cliqué sur Terminer, son travail est figé (HOR-06). */
+  finished: false,
   /** État d'interface qui n'est pas enregistré. */
   ui: { filter: 'all', query: '', adminQuery: '', tab: 'fiches', placing: null },
   /** Rapport largeur / hauteur de l'image du plan affiché. */
@@ -43,6 +45,8 @@ export const listed = () => (S.admin ? fiches() : fiches().filter((f) => f.visib
 export const byId = (id) => fiches().find((f) => f.id === id);
 export const progress = () => (S.progress[S.map.id] ??= emptyProgress());
 export const verified = () => !!S.map && progress().verified;
+/** L'élève ne peut plus rien placer : exercice vérifié (application d'origine) ou travail rendu. */
+export const locked = () => !S.admin && (verified() || S.finished);
 /** Entrée de progression d'une fiche (créée à la demande si `create`). */
 export function entryOf(fiche, create = false) {
   const p = progress();

@@ -368,7 +368,7 @@ test('SUI-01, SUI-02 : un élève qui entre apparaît chez l’enseignant sans r
   await row.waitFor({ timeout: 8000 });
   assert.match(await row.textContent(), /A commencé/);
   assert.equal(await teacher.getByText('Aucun élève pour le moment.').isVisible(), false);
-  await teacher.getByText('1 élève(s) ou groupe(s) entré(s).').waitFor();
+  await teacher.getByText("1 élève(s) ou groupe(s) entré(s), aucun n'a fini.").waitFor();
 });
 
 test('SUI-01 : l’état « a fini » s’affiche, avec le rendu tardif signalé', async (t) => {
@@ -649,6 +649,407 @@ test('sur un téléphone, le QR code et le code tiennent à l’écran', async (
   const code = await teacher.locator('dialog[open] .launch-code').boundingBox();
   assert.ok(code.x + code.width <= 390);
   assert.equal(await teacher.locator('dialog[open] .launch-code').evaluate((node) => node.scrollWidth <= node.clientWidth), true);
+});
+
+/* --- HOR-06, HOR-08, CRG-05 : terminer --- */
+
+const clickFinish = (page) => page.getByRole('button', { name: 'Terminer', exact: true }).click();
+
+/** Terminer, en acceptant la confirmation. Renvoie son texte. */
+async function finish(page) {
+  const asked = new Promise((resolve) => {
+    page.once('dialog', async (dialog) => {
+      resolve(dialog.message());
+      await dialog.accept();
+    });
+  });
+  await clickFinish(page);
+  return asked;
+}
+
+const received = (page) => page.locator('.panel-foot').getByText('Vos réponses sont bien arrivées').waitFor();
+const participantRow = (site, names = NAMES) => site.db.prepare('SELECT * FROM participants WHERE names = ?').get(names);
+const wakeUp = (page) => page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+
+test('HOR-08 : terminer demande confirmation, envoie les réponses, et l’enseignant voit « A fini » sans recharger', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await publishedCourse(teacher));
+  const page = await student(t, site);
+  await enter(page, code);
+  await placeFirstFiche(page);
+  await page.locator('[data-measure="temperature"]').first().fill('21');
+  await teacher.locator('.participants li', { hasText: NAMES }).getByText('A commencé').waitFor({ timeout: 8000 });
+
+  // Annuler ne change rien
+  page.once('dialog', (dialog) => dialog.dismiss());
+  await clickFinish(page);
+  await page.locator('[data-place]').first().waitFor();
+  assert.equal(participantRow(site).submitted_at, null);
+
+  // La confirmation compte les fiches non placées de toutes les cartes : 1 sur « Parc », 1 sur « Bord de mer »
+  const question = await finish(page);
+  assert.match(question, /^2 fiche\(s\) ne sont pas placée\(s\)/);
+  assert.match(question, /figés, puis envoyés à l'enseignant/);
+  await received(page);
+
+  const row = participantRow(site);
+  assert.ok(row.submitted_at);
+  const answers = JSON.parse(row.answers);
+  assert.equal(answers.m1.f1.temperature, '21');
+  assert.equal(typeof answers.m1.f1.x, 'number');
+  assert.ok(JSON.parse(row.results).maps.m1, 'le serveur a calculé le résultat');
+
+  await teacher.locator('.participants li', { hasText: NAMES }).getByText('A fini', { exact: true }).waitFor({ timeout: 8000 });
+  await teacher.getByText('1 élève(s) ou groupe(s) entré(s), 1 a fini.').waitFor();
+});
+
+test('tout placer ne déclenche pas d’avertissement inutile', async (t) => {
+  const { site, teacher } = await setup(t);
+  const single = { ...twoMaps, maps: [{ ...twoMaps.maps[0], fiches: [fiche('f1', 'Olivier')] }] };
+  const code = await launch(teacher, await publishedCourse(teacher, single));
+  const page = await student(t, site);
+  await enter(page, code);
+  await placeFirstFiche(page);
+  assert.doesNotMatch(await finish(page), /non placée|pas placée/);
+  await received(page);
+});
+
+test('HOR-06 : une fois terminé, plus rien ne bouge : ni placement, ni mesure, ni glisser-déposer, même après un rechargement', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await publishedCourse(teacher));
+  const page = await student(t, site);
+  await enter(page, code);
+  await placeFirstFiche(page);
+  await page.locator('[data-measure="temperature"]').first().fill('21');
+  await finish(page);
+  await received(page);
+
+  const checkFrozen = async () => {
+    assert.equal(await page.locator('[data-place]').count(), 0, 'plus de bouton pour placer');
+    await page.locator('.label', { hasText: 'Laurier' }).getByText('Non placée').waitFor();
+    assert.equal(await page.locator('.label', { hasText: 'Laurier' }).getAttribute('draggable'), 'false');
+    assert.equal(await page.locator('[data-measure="temperature"]').first().isDisabled(), true);
+    assert.equal(await page.locator('[data-measure="temperature"]').first().inputValue(), '21', 'on peut encore relire ses mesures');
+    assert.equal(await page.getByRole('button', { name: 'Terminer', exact: true }).count(), 0);
+
+    const pin = page.locator('.pin').first();
+    const before = await pin.boundingBox();
+    await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(before.x + 80, before.y + 60, { steps: 4 });
+    await page.mouse.up();
+    assert.deepEqual(await page.locator('.pin').first().boundingBox(), before, 'le repère ne bouge pas');
+    await page.locator('.pin').first().click();
+    await page.locator('#dlgRead').waitFor();
+
+    // La fiche ouverte n'offre rien de plus
+    const dialog = page.locator('#dlgRead');
+    assert.equal(await dialog.locator('#m-temperature').isDisabled(), true);
+    assert.equal(await dialog.locator('#readPlace').count(), 0);
+    await dialog.locator('[data-close]').last().click();
+    await page.locator('.label', { hasText: 'Laurier' }).click();
+    await page.locator('#dlgRead').waitFor();
+    assert.equal(await dialog.locator('#readPlace').count(), 0, 'une fiche non placée non plus');
+    await dialog.locator('[data-close]').last().click();
+  };
+  await checkFrozen();
+
+  await page.reload();
+  await received(page);
+  await checkFrozen();
+  assert.equal(JSON.parse(participantRow(site).answers).m1.f1.temperature, '21');
+});
+
+test('COU-09 : terminer un lancement ne fige pas le suivant, sur le même appareil', async (t) => {
+  const { site, teacher } = await setup(t);
+  const course = await publishedCourse(teacher);
+  const first = await launch(teacher, course);
+  const page = await student(t, site);
+  await enter(page, first);
+  await finish(page);
+  await received(page);
+
+  const second = await launch(teacher, course);
+  await enter(page, second, 'Tom Martin');
+  await page.getByRole('button', { name: 'Terminer', exact: true }).waitFor();
+  assert.ok((await page.locator('[data-place]').count()) > 0);
+});
+
+test('HOR-04 : sans réseau au moment de terminer, le travail est figé, et les réponses partent dès que le réseau revient', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await publishedCourse(teacher));
+  const page = await student(t, site);
+  await enter(page, code);
+  await placeFirstFiche(page);
+
+  await page.context().setOffline(true);
+  await finish(page);
+  await page.locator('.panel-foot').getByText('Vos réponses partiront dès que le réseau reviendra').waitFor();
+  assert.equal(await page.locator('[data-place]').count(), 0, 'figé quand même');
+  assert.equal(participantRow(site).submitted_at, null);
+
+  await page.context().setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await received(page);
+  assert.ok(participantRow(site).submitted_at);
+});
+
+test('« Réessayer » renvoie les réponses à la demande', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await publishedCourse(teacher));
+  const page = await student(t, site);
+  await enter(page, code);
+  await page.route('**/api/student/answers', (route) => route.abort());
+  await finish(page);
+  await page.getByRole('button', { name: 'Réessayer' }).waitFor();
+  await page.unroute('**/api/student/answers');
+  await page.getByRole('button', { name: 'Réessayer' }).click();
+  await received(page);
+  assert.ok(participantRow(site).submitted_at);
+});
+
+test('fermer la page avant que l’envoi aboutisse ne perd rien : les réponses partent à la réouverture', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await publishedCourse(teacher));
+  const page = await student(t, site);
+  await enter(page, code);
+  await placeFirstFiche(page);
+  await page.route('**/api/student/answers', (route) => route.abort());
+  await finish(page);
+  await page.getByRole('button', { name: 'Réessayer' }).waitFor();
+  await page.unroute('**/api/student/answers');
+
+  await page.reload();
+  await received(page);
+  assert.equal(typeof JSON.parse(participantRow(site).answers).m1.f1.x, 'number');
+});
+
+test('une page rouverte hors ligne dit que l’envoi attend, au lieu de prétendre envoyer', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await publishedCourse(teacher));
+  const page = await student(t, site);
+  await enter(page, code);
+  await finish(page);
+  await received(page);
+  await page.addInitScript(() => Object.defineProperty(navigator, 'onLine', { get: () => false }));
+  await page.reload();
+  await page.locator('.panel-foot').getByText('Vos réponses partiront dès que le réseau reviendra').waitFor();
+});
+
+test('section 4 : si le serveur a perdu un rendu déjà confirmé, la page le renvoie d’elle-même', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await publishedCourse(teacher));
+  const page = await student(t, site);
+  await enter(page, code);
+  await placeFirstFiche(page);
+  await finish(page);
+  await received(page);
+  const first = JSON.parse(participantRow(site).answers);
+
+  site.db.exec('UPDATE participants SET submitted_at = NULL, answers = NULL, results = NULL');
+  await wakeUp(page);
+  await page.waitForFunction(() => document.querySelector('.panel-foot').textContent.includes('bien arrivées'));
+  for (let i = 0; i < 50 && !participantRow(site).submitted_at; i++) await page.waitForTimeout(100);
+  assert.deepEqual(JSON.parse(participantRow(site).answers), first);
+});
+
+test('si l’envoi a abouti sans que la page ait reçu la réponse, elle le découvre au contrôle suivant', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await publishedCourse(teacher));
+  const page = await student(t, site);
+  await enter(page, code);
+  // Le serveur reçoit bien l'envoi, mais la réponse se perd en route
+  await page.route('**/api/student/answers', async (route) => {
+    await route.fetch();
+    await route.abort();
+  });
+  await finish(page);
+  await page.getByRole('button', { name: 'Réessayer' }).waitFor();
+  assert.ok(participantRow(site).submitted_at);
+  await page.unroute('**/api/student/answers');
+  const puts = [];
+  page.on('request', (request) => request.method() === 'PUT' && puts.push(request.url()));
+  await wakeUp(page);
+  await received(page);
+  assert.deepEqual(puts, [], 'rien à renvoyer');
+});
+
+test('un refus du serveur s’affiche et n’est pas réessayé sans fin', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await publishedCourse(teacher));
+  const page = await student(t, site);
+  await enter(page, code);
+  let sent = 0;
+  await page.route('**/api/student/answers', (route) => {
+    sent++;
+    return route.fulfill({ status: 400, body: 'Ces réponses ne correspondent pas à ce cours.' });
+  });
+  await finish(page);
+  await page.locator('.panel-foot').getByText('Le serveur a refusé vos réponses').waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Réessayer' }).count(), 0);
+  await wakeUp(page);
+  await page.waitForTimeout(300);
+  assert.equal(sent, 1);
+});
+
+test('une écriture refusée par le navigateur au moment de terminer s’affiche, et l’envoi part quand même', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await publishedCourse(teacher));
+  const page = await student(t, site);
+  await enter(page, code);
+  await placeFirstFiche(page);
+  await page.evaluate(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (value, key) {
+      const request = put.call(this, value, key);
+      this.transaction.abort();
+      return request;
+    };
+  });
+  page.once('dialog', (dialog) => dialog.accept());
+  await clickFinish(page);
+  await page.locator('#toast', { hasText: '⚠ Enregistrement impossible' }).waitFor();
+  await received(page);
+  assert.ok(participantRow(site).submitted_at);
+});
+
+test('sans stockage, l’élève peut terminer quand même', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await publishedCourse(teacher));
+  const page = await student(t, site);
+  await page.addInitScript(() => {
+    IDBFactory.prototype.open = () => {
+      throw new Error('stockage indisponible');
+    };
+  });
+  await enter(page, code);
+  await placeFirstFiche(page);
+  await finish(page);
+  await received(page);
+  assert.equal(typeof JSON.parse(participantRow(site).answers).m1.f1.x, 'number');
+});
+
+test('HOR-07 : le cours terminé, l’élève est invité à rendre, et son rendu est signalé comme tardif', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await publishedCourse(teacher));
+  const page = await student(t, site);
+  await enter(page, code);
+  await teacher.locator('.participants li', { hasText: NAMES }).waitFor({ timeout: 8000 });
+
+  teacher.once('dialog', (dialog) => dialog.accept());
+  await teacher.getByRole('button', { name: 'Terminer le cours' }).click();
+  await teacher.getByText(/^Terminé le /).waitFor();
+
+  await wakeUp(page);
+  await page.locator('#courseBanner').getByText('Cliquez sur Terminer pour lui envoyer votre travail').waitFor();
+  await finish(page);
+  await received(page);
+  await page.waitForFunction(() => !document.querySelector('#courseBanner').textContent.includes('Cliquez'));
+  assert.equal(participantRow(site).late, 1);
+  await teacher.locator('.participants li', { hasText: NAMES }).getByText('A fini, après la fin du cours').waitFor({ timeout: 8000 });
+});
+
+test('COU-10 : terminer le cours prévient s’il reste des élèves non finis, et pas sinon', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await publishedCourse(teacher));
+  const lea = await student(t, site);
+  await enter(lea, code);
+  await enter(await student(t, site), code, 'Tom Martin');
+  await finish(lea);
+  await received(lea);
+  await teacher.getByText('2 élève(s) ou groupe(s) entré(s), 1 a fini.').waitFor({ timeout: 8000 });
+
+  const asked = [];
+  teacher.on('dialog', async (dialog) => {
+    asked.push(dialog.message());
+    await dialog.dismiss();
+  });
+  await teacher.getByRole('button', { name: 'Terminer le cours' }).click();
+  await teacher.getByRole('button', { name: 'Terminer le cours' }).waitFor();
+  assert.match(asked[0], /1 élève\(s\) ou groupe\(s\) n'ont pas encore fini/);
+
+  site.db.exec("UPDATE participants SET submitted_at = '2026-01-01T00:00:00.000Z'");
+  await wakeUp(teacher);
+  await teacher.getByText('2 élève(s) ou groupe(s) entré(s), 2 ont fini.').waitFor();
+  await teacher.getByRole('button', { name: 'Terminer le cours' }).click();
+  assert.doesNotMatch(asked[1], /pas encore fini/);
+});
+
+test('CRG-09 : publier mesure le plan, et le serveur calcule l’écart avec ses vraies proportions', async (t) => {
+  const { site, teacher } = await setup(t);
+  // Un plan quatre fois plus large que haut, et une position réelle au centre
+  await teacher.getByLabel('Nom du nouveau cours').fill('Plan large');
+  await teacher.getByRole('button', { name: 'Créer le cours' }).click();
+  const chooser = teacher.waitForEvent('filechooser');
+  await teacher.locator('#planChoose').click();
+  await (await chooser).setFiles({ name: 'plan.png', mimeType: 'image/png', buffer: makePng(400, 100) });
+  await teacher.locator('#plan[src^="/media/"]').waitFor();
+  await teacher.locator('#newFiche').click();
+  await teacher.locator('#eCommon').fill('Olivier');
+  await teacher.locator('#eSave').click();
+  await teacher.locator('#dlgEdit').waitFor({ state: 'hidden' });
+  await teacher.locator('.row', { hasText: 'Olivier' }).locator('[data-place-ref]').click();
+  const frame = await teacher.locator('#plan').boundingBox();
+  await teacher.mouse.click(frame.x + frame.width / 2, frame.y + frame.height / 2);
+  await teacher.locator('.pin.ref').waitFor();
+
+  await teacher.getByRole('tab', { name: 'Cours' }).click();
+  await teacher.locator('#saveState', { hasText: 'Enregistré' }).waitFor();
+  await teacher.locator('#publishBtn').click();
+  await teacher.locator('#publishState', { hasText: 'Version 1' }).waitFor();
+  const version = JSON.parse(site.db.prepare('SELECT content FROM course_versions').get().content);
+  assert.equal(version.maps[0].ratio, 4);
+  const draft = JSON.parse(site.db.prepare('SELECT draft FROM courses').get().draft);
+  assert.deepEqual(draft, version, 'la mesure n’a pas laissé de modification à publier');
+  assert.equal(await teacher.locator('#publishBtn').isDisabled(), true);
+
+  await teacher.getByRole('button', { name: 'Lancer le cours' }).click();
+  await teacher.getByRole('heading', { name: 'Pour rejoindre le cours' }).waitFor();
+  const code = (await teacher.locator('.launch-code').first().textContent()).trim();
+
+  // L'élève place la fiche 20 % plus haut que le centre : sur ce plan, 5 % de la largeur seulement
+  const page = await student(t, site);
+  await enter(page, code);
+  await page.locator('[data-place]').first().click();
+  const plan = await page.locator('#plan').boundingBox();
+  await page.mouse.click(plan.x + plan.width / 2, plan.y + plan.height * 0.3);
+  await page.locator('.pin').first().waitFor();
+  await finish(page);
+  await received(page);
+  const result = JSON.parse(participantRow(site).results).maps[version.maps[0].id];
+  const { state, d } = Object.values(result.fiches)[0];
+  assert.equal(state, 'near');
+  assert.ok(Math.abs(d - 5) < 0.5, `écart de ${d}`);
+});
+
+test('un plan qui ne se charge plus bloque la publication et le dit', async (t) => {
+  const { teacher } = await setup(t);
+  await teacher.getByLabel('Nom du nouveau cours').fill('Plan cassé');
+  await teacher.getByRole('button', { name: 'Créer le cours' }).click();
+  const chooser = teacher.waitForEvent('filechooser');
+  await teacher.locator('#planChoose').click();
+  await (await chooser).setFiles({ name: 'plan.png', mimeType: 'image/png', buffer: PNG });
+  await teacher.locator('#plan[src^="/media/"]').waitFor();
+  await teacher.getByRole('tab', { name: 'Cours' }).click();
+  await teacher.locator('#saveState', { hasText: 'Enregistré' }).waitFor();
+  await teacher.route('**/media/**', (route) => route.abort());
+  await teacher.evaluate(() => caches?.keys());
+  await teacher.locator('#publishBtn').click();
+  await teacher.locator('#publishError').getByText('ne se charge pas').waitFor();
+  await teacher.locator('#publishState').getByText("n'a pas encore été publié").waitFor();
+});
+
+test('sur un téléphone, le bouton Terminer et le message reçu restent à l’écran, sans défilement sur le côté', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await publishedCourse(teacher));
+  const page = await student(t, site, { viewport: { width: 390, height: 780 } });
+  await enter(page, code);
+  await page.getByRole('button', { name: 'Terminer', exact: true }).scrollIntoViewIfNeeded();
+  const button = await page.getByRole('button', { name: 'Terminer', exact: true }).boundingBox();
+  assert.ok(button.x >= 0 && button.x + button.width <= 390);
+  await finish(page);
+  await received(page);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
 });
 
 /* --- EV-34 --- */

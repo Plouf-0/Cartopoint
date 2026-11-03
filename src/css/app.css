@@ -447,4 +447,8 @@ table.teachers .row-actions .btn { white-space: normal; }
 .map-choice { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; color: var(--ink-soft); }
 .map-choice select { max-width: 50vw; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--surface); color: var(--ink); font: inherit; font-weight: 400; }
 .account-card > .btn { margin-top: 10px; }
+.launch-head > .btn { margin-top: 0; }
 .home-link a { color: var(--accent-dark); }
+/* Figé après Terminer : on doit encore pouvoir relire ses mesures */
+.card-measures input:disabled, .measure input:disabled { color: var(--ink); -webkit-text-fill-color: var(--ink); opacity: 1; }
+.panel-foot .hint { margin: 0; }

@@ -1,17 +1,17 @@
 /**
- * Page d'un élève, à l'adresse /c/<code> : entrer avec ses noms, puis lire les fiches et les placer. Le jeton reste dans ce
- * navigateur : revenir sur le même QR code reprend le même élève. Le travail est rangé sous l'identifiant de l'élève, donc
- * propre à chaque lancement, y compris sur un appareil partagé (COU-09).
+ * Page d'un élève, à l'adresse /c/<code> : entrer avec ses noms, lire les fiches, les placer, puis terminer. Le jeton reste
+ * dans ce navigateur : revenir sur le même QR code reprend le même élève. Le travail est rangé sous l'identifiant de l'élève,
+ * donc propre à chaque lancement, y compris sur un appareil partagé (COU-09).
  */
 import { api } from '../api.js';
 import { studentBackend } from '../backends/student.js';
 import { card, el, field, onSubmit, show } from '../compte/ui.js';
 import { Progress, openDb } from '../db.js';
-import { normalizeProgress, normalizeProject } from '../model.js';
+import { normalizeProgress, normalizeProject, placedPos } from '../model.js';
 import { onRender, render } from '../render.js';
 import { S, activate, flush, listed, posOf, switchMap, useBackend } from '../store.js';
 import { applyTheme } from '../themes.js';
-import { $, fatal, prefs } from '../util.js';
+import { $, errorText, fatal, prefs, toast } from '../util.js';
 import { bindMap, renderMap } from '../views/map.js';
 import { fillPanel } from '../views/panel-frame.js';
 import { bindReader } from '../views/reader.js';
@@ -23,7 +23,26 @@ const codePath = encodeURIComponent(code);
 const STORAGE_KEY = `cartopoint.eleve.${code}`;
 const STATE_EVERY = 20000;
 
+const COURSE_GONE = "Ce cours n'existe plus. Votre travail reste dans ce navigateur.";
+const SEND_STATES = {
+  sending: 'Envoi de vos réponses…',
+  waiting: "Envoi impossible pour l'instant. Vos réponses partiront dès que le réseau reviendra : gardez cette page.",
+  refused: 'Le serveur a refusé vos réponses. Montrez cet écran à votre enseignant.',
+  received: '✓ Vos réponses sont bien arrivées.'
+};
+
 const remembered = () => JSON.parse(prefs.get(STORAGE_KEY, 'null'));
+const submissionKey = (id) => `rendu/${id}`;
+
+let token = null;
+let courseEnded = false;
+/**
+ * Le rendu de cet élève. Il reste dans le navigateur une fois reçu : une coupure de courant peut faire perdre au serveur un
+ * rendu déjà confirmé (section 4 de la feuille de route), et la page le renvoie alors.
+ */
+let submission = null;
+let sendState = 'sending';
+let sending = false;
 
 function refusal(error) {
   const again = error.status === 0;
@@ -66,6 +85,8 @@ async function loadWork(project) {
     fatal('Ce navigateur ne peut pas garder votre travail (navigation privée ?). Ne fermez pas cette page.');
     return {};
   }
+  submission = (await Progress.get(submissionKey(project.id))) ?? null;
+  S.finished = Boolean(submission);
   const work = {};
   for (const map of project.maps) {
     const saved = await Progress.get(`${project.id}/${map.id}`);
@@ -84,11 +105,70 @@ function renderHeader() {
   $('#planEmpty').hidden = !!S.map.image;
 }
 
-const footHTML = () =>
-  `<div class="panel-foot"><div class="locked-note">Votre travail reste dans ce navigateur. Pour le retrouver, rouvrez cette page ou le même QR code.</div></div>`;
+function footHTML() {
+  if (!submission) {
+    return `<div class="panel-foot">
+      <button type="button" class="btn" id="finishBtn">Terminer</button>
+      <p class="hint">Quand vous avez fini : vos placements et vos mesures seront figés, puis envoyés à l'enseignant. D'ici là, votre travail reste dans ce navigateur.</p>
+    </div>`;
+  }
+  return `<div class="panel-foot">
+      <div class="locked-note" role="status">🔒 Travail terminé : il ne peut plus être modifié.<br>${SEND_STATES[sendState]}</div>
+      ${sendState === 'waiting' ? '<button type="button" class="btn soft" id="retrySend">Réessayer</button>' : ''}
+    </div>`;
+}
+
+function bindPanel(panel) {
+  bindStudentList(panel);
+  $('#finishBtn')?.addEventListener('click', finish);
+  $('#retrySend')?.addEventListener('click', sendAnswers);
+}
 
 function renderPanel() {
-  fillPanel(listed().length, studentListHTML() + footHTML(), bindStudentList);
+  fillPanel(listed().length, studentListHTML() + footHTML(), bindPanel);
+}
+
+/** Les fiches non placées, sur toutes les cartes : l'élève n'a peut-être pas vu l'autre carte. */
+const unplacedCount = () =>
+  S.project.maps.reduce((count, map) => count + map.fiches.filter((fiche) => !placedPos(S.progress[map.id]?.entries[fiche.id])).length, 0);
+
+async function keepSubmission() {
+  if (!S.storageOk) return;
+  try {
+    await Progress.put(submissionKey(S.project.id), submission);
+  } catch (e) {
+    toast('⚠ Enregistrement impossible : ' + errorText(e));
+  }
+}
+
+async function sendAnswers() {
+  if (sending) return;
+  sending = true;
+  sendState = 'sending';
+  render();
+  try {
+    await api('PUT', '/student/answers', { answers: submission.answers }, token);
+    sendState = 'received';
+  } catch (e) {
+    // Une réponse du serveur qui refuse ne changera pas d'elle-même. Tout le reste se réessaie
+    sendState = e.status === 400 || e.status === 413 ? 'refused' : 'waiting';
+    if (e.status === 401) showBanner(COURSE_GONE);
+  }
+  sending = false;
+  render();
+}
+
+async function finish() {
+  const missing = unplacedCount();
+  const warning = missing ? `${missing} fiche(s) ne sont pas placée(s).\n\n` : '';
+  if (!confirm(`${warning}Terminer ? Vos placements et vos mesures seront figés, puis envoyés à l'enseignant.`)) return;
+  await flush();
+  submission = { answers: Object.fromEntries(S.project.maps.map((map) => [map.id, S.progress[map.id]?.entries ?? {}])), finishedAt: new Date().toISOString() };
+  S.finished = true;
+  S.ui.placing = null;
+  await keepSubmission();
+  showCourseState();
+  await sendAnswers();
 }
 
 function bindHeader(me) {
@@ -113,18 +193,33 @@ function showBanner(text) {
   banner.hidden = false;
 }
 
-/** Le cours est-il terminé ? Rien de grave si le réseau manque : on réessaiera. */
-async function checkState(me) {
+function showCourseState() {
+  if (courseEnded)
+    showBanner(submission ? "L'enseignant a terminé ce cours." : "L'enseignant a terminé ce cours. Cliquez sur Terminer pour lui envoyer votre travail.");
+}
+
+/** Le cours est-il terminé ? Le rendu est-il bien arrivé ? Rien de grave si le réseau manque : on réessaiera. */
+async function checkState() {
+  let state;
   try {
-    const { ended } = await api('GET', '/student/state', undefined, me.token);
-    if (ended) showBanner("L'enseignant a terminé ce cours. Votre travail reste dans ce navigateur.");
+    state = await api('GET', '/student/state', undefined, token);
   } catch (e) {
-    if (e.status === 401) showBanner("Ce cours n'existe plus. Votre travail reste dans ce navigateur.");
+    if (e.status === 401) showBanner(COURSE_GONE);
+    return;
+  }
+  courseEnded = state.ended;
+  showCourseState();
+  if (!submission) return;
+  if (!state.received) {
+    if (sendState !== 'refused') await sendAnswers();
+  } else if (sendState !== 'received') {
+    sendState = 'received';
+    render();
   }
 }
 
-function watchState(me) {
-  const check = () => document.visibilityState === 'visible' && navigator.onLine && checkState(me);
+function watchState() {
+  const check = () => document.visibilityState === 'visible' && navigator.onLine && checkState();
   setInterval(check, STATE_EVERY);
   document.addEventListener('visibilitychange', check);
   window.addEventListener('online', check);
@@ -146,8 +241,10 @@ async function openCourse(me) {
       )
     ]);
   }
+  token = me.token;
   const project = normalizeProject({ ...course, id: me.id });
   const work = await loadWork(project);
+  if (submission && !navigator.onLine) sendState = 'waiting';
 
   $('#app').hidden = true;
   $('#course').hidden = false;
@@ -165,7 +262,7 @@ async function openCourse(me) {
   // Une dernière écriture si l'élève ferme l'onglet juste après avoir placé une fiche
   window.addEventListener('pagehide', () => flush());
   document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && flush());
-  watchState(me);
+  watchState();
 }
 
 const me = remembered();

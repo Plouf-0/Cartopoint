@@ -3,7 +3,7 @@
  * La fenêtre s'adapte à la forme de la photo (classes .portrait / .landscape).
  */
 import { $, esc, frDate } from '../util.js';
-import { S, byId, verified, entryOf, posOf, progress, mediaURL, changedProgress } from '../store.js';
+import { S, byId, verified, locked, entryOf, posOf, progress, mediaURL, changedProgress } from '../store.js';
 import { NEEDS, MEASURES, numberOf, titleOf, thumbOf, evaluate } from '../model.js';
 import { render } from '../render.js';
 import { openPhoto } from './viewer.js';
@@ -21,7 +21,7 @@ export async function openReader(id) {
     .map(([k, icon, label]) => `<div class="need"><dt><span aria-hidden="true">${icon}</span>${label}</dt><dd>${esc(f[k])}</dd></div>`)
     .join('');
   const ev = verified() ? evaluate(f, progress().entries[f.id], { ratio: S.ratio, widthMeters: S.map.widthMeters }) : null;
-  const canPlace = !posOf(f) && !verified();
+  const canPlace = !posOf(f) && !locked();
 
   box.innerHTML = `
     <div class="dlg-head">
@@ -39,11 +39,11 @@ export async function openReader(id) {
         ${needs ? `<h3 class="mini-h">Besoins</h3><dl class="needs">${needs}</dl>` : ''}
         <div class="measures">
           <h3>Vos mesures</h3>
-          <p>Notez ce que vous mesurez sur place. C'est enregistré automatiquement.</p>
+          ${S.finished ? '' : "<p>Notez ce que vous mesurez sur place. C'est enregistré automatiquement.</p>"}
           <div class="measure-grid">
             ${MEASURES.map(
               ([k, , unit, label, mode]) =>
-                `<div class="measure"><label for="m-${k}">${label}</label><div class="unit-input"><input id="m-${k}" data-k="${k}" inputmode="${mode}" value="${esc(e[k])}"><span>${unit}</span></div></div>`
+                `<div class="measure"><label for="m-${k}">${label}</label><div class="unit-input"><input id="m-${k}" data-k="${k}" inputmode="${mode}" value="${esc(e[k])}" ${S.finished ? 'disabled' : ''}><span>${unit}</span></div></div>`
             ).join('')}
           </div>
           <div class="saved-note" id="mSaved"></div>

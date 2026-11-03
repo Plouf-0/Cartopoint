@@ -3,7 +3,7 @@
  * l'application d'origine sont dans views/student-panel.js.
  */
 import { $, esc } from '../util.js';
-import { S, listed, verified, posOf, progress } from '../store.js';
+import { S, listed, verified, locked, posOf, progress } from '../store.js';
 import { numberOf, titleOf, evaluate, matches } from '../model.js';
 import { render } from '../render.js';
 import { photoHTML, measuresHTML, bindMeasures, bindCards, bindSearch } from './cards.js';
@@ -22,8 +22,9 @@ export function studentListHTML() {
         const ev = evaluate(f, progress().entries[f.id], { ratio: S.ratio, widthMeters: S.map.widthMeters });
         foot += `<span class="grade ${ev.cls}">${esc(ev.label)}</span>`;
       } else if (placed) foot += `<span class="state">Placée</span>`;
+      else if (locked()) foot += `<span class="state">Non placée</span>`;
       else foot += `<button type="button" class="btn sm" data-place="${esc(f.id)}">Placer sur le plan</button>`;
-      return `<article class="label ${S.ui.placing?.id === f.id ? 'is-placing' : ''}" data-open="${esc(f.id)}" draggable="${!v && !placed}" data-drag="${esc(f.id)}">
+      return `<article class="label ${S.ui.placing?.id === f.id ? 'is-placing' : ''}" data-open="${esc(f.id)}" draggable="${!locked() && !placed}" data-drag="${esc(f.id)}">
         ${photoHTML(f)}
         <div class="label-body">
           <h3>${esc(titleOf(f))}</h3>

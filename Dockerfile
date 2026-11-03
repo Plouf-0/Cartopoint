@@ -16,6 +16,8 @@ WORKDIR /app
 ENV NODE_ENV=production PORT=8080 ROOT=/app/dist DATA_DIR=/data
 COPY --from=build /app/dist ./dist
 COPY server ./server
+# Le serveur calcule les résultats avec le même code que le navigateur
+COPY src/js/model.js src/js/util.js ./src/js/
 RUN mkdir -p /data && chown -R node:node /data
 USER node
 EXPOSE 8080

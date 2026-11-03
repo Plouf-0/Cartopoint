@@ -4,8 +4,8 @@
 import { api } from '../api.js';
 import { DEFAULT_TITLE, hasRef } from '../model.js';
 import { render } from '../render.js';
-import { S, changedMeta, flush, hasUnsentChanges } from '../store.js';
-import { $, download, errorText, esc, safeFileName, toast } from '../util.js';
+import { S, changedMap, changedMeta, flush, hasUnsentChanges } from '../store.js';
+import { $, download, errorText, esc, loadImage, safeFileName, toast } from '../util.js';
 import { exportCourse } from './course-io.js';
 
 /** Le cours lu sur le serveur, tenu à jour par course-backend.js. */
@@ -84,11 +84,38 @@ function warnings() {
   return list;
 }
 
+/**
+ * CRG-09 : le serveur calcule les écarts sans jamais ouvrir le plan. Il lui faut ses proportions, telles que les élèves les
+ * verront : une photo tournée par ses métadonnées n'a pas les dimensions écrites dans son fichier.
+ */
+async function measurePlans() {
+  for (const map of S.project.maps) {
+    if (!map.image) continue;
+    let plan;
+    try {
+      plan = await loadImage(map.image);
+    } catch {
+      throw new Error(`le plan de la carte « ${map.name} » ne se charge pas.`);
+    }
+    const ratio = +(plan.naturalWidth / plan.naturalHeight).toFixed(4);
+    if (map.ratio !== ratio) {
+      map.ratio = ratio;
+      changedMap(map);
+    }
+  }
+}
+
 export async function publishCourse() {
   const warned = warnings();
   if (warned.length && !confirm(`${warned.join('\n')}\n\nPublier quand même ?`)) return;
   publishError = '';
   renderPublishState();
+  try {
+    await measurePlans();
+  } catch (e) {
+    publishError = `Publication impossible : ${errorText(e)}`;
+    return renderPublishState();
+  }
   await flush();
   if (hasUnsentChanges()) {
     publishError = 'Publication impossible : les dernières modifications ne sont pas enregistrées. Voir le message en haut de la page.';

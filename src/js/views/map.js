@@ -6,7 +6,7 @@
  * de la taille de l'écran.
  */
 import { $, toast } from '../util.js';
-import { S, listed, byId, verified, posOf, entryOf, changedMap, changedProgress } from '../store.js';
+import { S, listed, byId, verified, locked, posOf, entryOf, changedMap, changedProgress } from '../store.js';
 import { hasRef, numberOf, titleOf } from '../model.js';
 import { render } from '../render.js';
 import { openFiche } from './fiche.js';
@@ -20,7 +20,7 @@ export function renderMap() {
   const lines = $('#mapLines');
   lines.innerHTML = '';
   const showRefs = S.admin || verified();
-  const studentCanMove = !S.admin && !verified();
+  const studentCanMove = !S.admin && !locked();
 
   for (const f of listed()) {
     const n = numberOf(S.map, f);
@@ -119,7 +119,7 @@ export function setPosition(f, kind, p) {
     changedMap();
     toast(`✓ Position réelle de « ${titleOf(f)} » enregistrée`);
   } else {
-    if (verified() && !S.admin) return;
+    if (locked()) return;
     Object.assign(entryOf(f, true), { x, y });
     changedProgress();
     toast(`✓ « ${titleOf(f)} » placée`);
@@ -135,7 +135,7 @@ export function setPosition(f, kind, p) {
 
 /** Passe en mode placement : le prochain clic sur le plan place la fiche. */
 export function startPlacing(id, kind) {
-  if (kind === 'student' && verified() && !S.admin) return;
+  if (kind === 'student' && locked()) return;
   S.ui.placing = { id, kind };
   render();
   $('#mapFrame').scrollIntoView({ behavior: 'smooth', block: 'nearest' });

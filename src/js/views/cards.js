@@ -31,7 +31,7 @@ export function measuresHTML(f) {
   const e = entryOf(f) || {};
   return `<div class="card-measures">${MEASURES.map(
     ([k, icon, unit, label, mode]) =>
-      `<label title="${label} (${unit})"><span aria-hidden="true">${icon}</span><input data-measure="${k}" data-id="${esc(f.id)}" inputmode="${mode}" value="${esc(e[k])}" placeholder="—" aria-label="${label} en ${unit}, ${esc(titleOf(f))}"><em>${unit}</em></label>`
+      `<label title="${label} (${unit})"><span aria-hidden="true">${icon}</span><input data-measure="${k}" data-id="${esc(f.id)}" inputmode="${mode}" value="${esc(e[k])}" ${S.finished ? 'disabled' : ''} placeholder="—" aria-label="${label} en ${unit}, ${esc(titleOf(f))}"><em>${unit}</em></label>`
   ).join('')}</div>`;
 }
 

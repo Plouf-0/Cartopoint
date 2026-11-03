@@ -5,9 +5,12 @@
  *   GET  /join/:code       ce code est-il valable ? Le titre du cours, sans rien créer
  *   POST /join/:code       entrer, avec les noms. Renvoie le jeton, une seule fois
  *   GET  /student/course   le cours, sans les réponses ni les fiches masquées
- *   GET  /student/state    le cours est-il terminé ?
+ *   PUT  /student/answers  rendre : le premier envoi fait foi, et la réponse ne contient ni résultat ni position
+ *   GET  /student/state    le cours est-il terminé ? Les réponses de cet élève sont-elles arrivées ?
  */
+import { MAX_ANSWERS_BYTES, cleanAnswers, computeResults } from '../answers.mjs';
 import { HttpError, readJson, sendJson } from '../http.mjs';
+import { normalizeProject } from '../../src/js/model.js';
 import { clientIp, createLimiter, sameOriginOnly } from '../security.mjs';
 import { studentCourse } from '../student-view.mjs';
 
@@ -59,8 +62,21 @@ export function studentRoutes(router, { launches, trustProxy }) {
       })
     )
     .add('GET', '/api/student/course', (req, res) => sendJson(req, res, studentCourse(JSON.parse(participantOf(req).content)), REVALIDATED))
+    .add('PUT', '/api/student/answers', async (req, res) => {
+      participantOf(req);
+      const { answers } = await readJson(req, MAX_ANSWERS_BYTES);
+      // Relu après l'envoi, qui peut être long : un autre envoi a pu arriver entre-temps
+      const participant = participantOf(req);
+      let submittedAt = participant.submitted_at;
+      if (!submittedAt) {
+        const project = normalizeProject(JSON.parse(participant.content));
+        const clean = cleanAnswers(answers, project);
+        submittedAt = launches.submit(participant, clean, computeResults(project, clean));
+      }
+      return sendJson(req, res, { received: true, submittedAt }, PRIVATE);
+    })
     .add('GET', '/api/student/state', (req, res) => {
-      const { id, names, ended_at: endedAt } = participantOf(req);
-      return sendJson(req, res, { id, names, ended: Boolean(endedAt) }, PRIVATE);
+      const { id, names, ended_at: endedAt, submitted_at: submittedAt } = participantOf(req);
+      return sendJson(req, res, { id, names, ended: Boolean(endedAt), received: Boolean(submittedAt) }, PRIVATE);
     });
 }

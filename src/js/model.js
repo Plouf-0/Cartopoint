@@ -87,6 +87,7 @@ export function normalizeMap(raw = {}, fallbackImage = '') {
     name: str(raw.name) || 'Plan',
     image: raw.image || fallbackImage, // URL data: de l'image du plan
     widthMeters: num(raw.widthMeters), // largeur réelle du terrain (facultatif)
+    ratio: num(raw.ratio), // largeur / hauteur du plan, mesurée à la publication : le serveur calcule les écarts sans voir l'image
     fiches: (Array.isArray(raw.fiches) ? raw.fiches : Array.isArray(raw.locations) ? raw.locations : []).map(normalizeFiche)
   };
 }

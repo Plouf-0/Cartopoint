@@ -137,11 +137,27 @@ export function createLaunches(db, { makeCode = newCode } = {}) {
       return { id, token, names };
     },
 
+    /**
+     * Le premier envoi fait foi (CRG-07) : la condition est dans la requête, deux envois simultanés n'en font donc qu'un.
+     * Un rendu reçu après la fin du cours est signalé à l'enseignant (HOR-07).
+     * @returns la date du rendu gardé
+     */
+    submit(participant, answers, results) {
+      db.prepare('UPDATE participants SET answers = ?, results = ?, submitted_at = ?, late = ? WHERE id = ? AND submitted_at IS NULL').run(
+        JSON.stringify(answers),
+        JSON.stringify(results),
+        iso(),
+        participant.ended_at ? 1 : 0,
+        participant.id
+      );
+      return db.prepare('SELECT submitted_at FROM participants WHERE id = ?').get(participant.id).submitted_at;
+    },
+
     /** L'élève d'un jeton, avec son lancement et la version qu'il doit voir. */
     participant(token) {
       return db
         .prepare(
-          `SELECT participants.id, participants.names, launches.ended_at, course_versions.content FROM participants
+          `SELECT participants.id, participants.names, participants.submitted_at, launches.ended_at, course_versions.content FROM participants
            JOIN launches ON launches.id = participants.launch_id JOIN course_versions ON course_versions.id = launches.version_id
            WHERE participants.token_hash = ?`
         )

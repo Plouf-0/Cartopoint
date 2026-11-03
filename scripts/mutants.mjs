@@ -5,6 +5,11 @@
  *
  *   npm run test:mutants            toutes les modifications (plusieurs minutes)
  *   npm run test:mutants -- E-04    seulement celles dont le nom contient « E-04 »
+ *   npm run test:mutants -- --jobs=4 E-04   quatre à la fois, chacune dans sa propre copie
+ *
+ * Plusieurs à la fois : une seule série occupe déjà environ 2 cœurs. Viser la moitié des cœurs de la machine : un test qui dépasse
+ * son délai sous la charge ferait passer un mutant pour attrapé. Le contrôle sur le code intact tourne avec le même nombre d'essais
+ * simultanés, et une charge trop forte s'y voit.
  *
  * Il vérifie d'abord que les tests passent sur le code intact. Une modification que les tests ne
  * remarquent pas « survit » : il manque alors un test. Le script échoue aussi si un texte à remplacer a disparu du code, pour que cette liste reste à jour, ou si
@@ -492,12 +497,7 @@ const MUTANTS = [
   ['nettoyage : envoi interrompu jamais effacé', 'server/media.mjs', ': statSync(file).mtimeMs <= now - DAY', ': false'],
   ['nettoyage : envoi en cours effacé', 'server/media.mjs', ': statSync(file).mtimeMs <= now - DAY', ': true'],
   ['nettoyage : fichiers oubliés au démarrage', 'server/app.mjs', 'media.purge();', ''],
-  [
-    'page d’un cours introuvable',
-    'server/routes/pages.mjs',
-    "router.add('GET', '/prof/cours/:id', (req, res) => sendFile(req, res, path.join(root, 'prof-cours.html'), 'no-cache'));",
-    ''
-  ],
+  ['page d’un cours introuvable', 'server/routes/pages.mjs', "'/prof/cours/:id': 'prof-cours.html'", "'/prof/cours/:id': 'prof.html'"],
   ['EV-04 : l’écran masque la vraie erreur', 'src/js/db.js', 't.onabort = () => reject(', 't.onerror = () => reject(t.error);\n    t.onabort = () => reject('],
   [
     'EV-04 : erreur sans texte',
@@ -582,6 +582,71 @@ const MUTANTS = [
     ''
   ],
   ['API : erreur sans texte', 'src/js/api.js', 'text || `Le serveur a répondu ${response.status}.`', 'text'],
+  // Rendre : vérifier, corriger, ne rien laisser repartir
+  ['rendu : position hors du plan', 'server/answers.mjs', 'value >= 0 && value <= 100', 'value >= 0'],
+  ['rendu : position négative', 'server/answers.mjs', 'value >= 0 && value <= 100', 'value <= 100'],
+  ['rendu : position en texte', 'server/answers.mjs', "typeof value === 'number' && ", ''],
+  ['rendu : placement à moitié', 'server/answers.mjs', '(raw.x ?? raw.y ?? null) !== null', 'false'],
+  ['rendu : mesure trop longue', 'server/answers.mjs', 'value.length > MAX_MEASURE', 'false'],
+  ['rendu : mesure qui n’est pas du texte', 'server/answers.mjs', "typeof value !== 'string' || ", ''],
+  ['rendu : champ en trop gardé', 'server/answers.mjs', 'const entry = { x: placed ?', 'const entry = { ...raw, x: placed ?'],
+  [
+    'rendu : fiche masquée acceptée',
+    'server/answers.mjs',
+    'new Set(visibleFiches(map).map((fiche) => fiche.id))',
+    'new Set(map.fiches.map((fiche) => fiche.id))'
+  ],
+  ['rendu : fiche inconnue acceptée', 'server/answers.mjs', 'if (!fiches.has(ficheId)) refuse();', ''],
+  ['rendu : proportions du plan ignorées', 'server/answers.mjs', 'ratio: map.ratio || 1', 'ratio: 1'],
+  ['rendu : échelle ignorée', 'server/answers.mjs', 'widthMeters: map.widthMeters', 'widthMeters: null'],
+  ['rendu : fiches masquées notées', 'server/answers.mjs', 'const fiches = visibleFiches(map).map((fiche) => {', 'const fiches = map.fiches.map((fiche) => {'],
+  ['rendu : écart inventé', 'server/answers.mjs', 'd === undefined ? { state } : { state, d, dist }', '{ state, d, dist }'],
+  ['rendu : score par carte seulement', 'server/answers.mjs', 'total[state]++;', ''],
+  ['rendu : résultat renvoyé à l’élève', 'server/routes/student.mjs', '{ received: true, submittedAt }', '{ received: true, submittedAt, score: 1 }'],
+  ['rendu : second envoi vérifié à son tour', 'server/routes/student.mjs', 'if (!submittedAt) {', 'if (true) {'],
+  ['rendu : réception jamais confirmée', 'server/routes/student.mjs', 'received: Boolean(submittedAt)', 'received: false'],
+  ['rendu : limite de 64 Ko', 'server/routes/student.mjs', 'readJson(req, MAX_ANSWERS_BYTES)', 'readJson(req)'],
+  ['rendu : pas de limite utile', 'server/answers.mjs', 'MAX_ANSWERS_BYTES = 256 * 1024', 'MAX_ANSWERS_BYTES = 2560 * 1024'],
+  ['rendu : le second envoi remplace le premier', 'server/launches.mjs', 'WHERE id = ? AND submitted_at IS NULL', 'WHERE id = ?'],
+  ['rendu : retard non signalé', 'server/launches.mjs', 'participant.ended_at ? 1 : 0', '0'],
+  ['rendu : terminer sans confirmation', 'src/js/eleve/main.js', 'if (!confirm(`${warning}Terminer ?', 'if (false && !confirm(`${warning}Terminer ?'],
+  ['rendu : fiches non placées non annoncées', 'src/js/eleve/main.js', 'const warning = missing ?', 'const warning = false ?'],
+  ['rendu : une seule carte comptée', 'src/js/eleve/main.js', 'S.project.maps.reduce(', '[S.map].reduce('],
+  ['rendu : rien de figé', 'src/js/eleve/main.js', '  S.finished = true;\n', ''],
+  ['rendu : figé oublié au rechargement', 'src/js/eleve/main.js', '  S.finished = Boolean(submission);\n', ''],
+  ['rendu : réponses non gardées', 'src/js/eleve/main.js', '  await keepSubmission();\n', ''],
+  ['rendu : réponses vides', 'src/js/eleve/main.js', 'S.progress[map.id]?.entries ?? {}', '{}'],
+  ['rendu : jamais renvoyé', 'src/js/eleve/main.js', "if (sendState !== 'refused') await sendAnswers();", ''],
+  ['rendu : refus réessayé sans fin', 'src/js/eleve/main.js', "if (sendState !== 'refused') await sendAnswers();", 'await sendAnswers();'],
+  ['rendu : refus traité comme une coupure', 'src/js/eleve/main.js', "e.status === 400 || e.status === 413 ? 'refused' : 'waiting'", "'waiting'"],
+  ['rendu : réception non découverte', 'src/js/eleve/main.js', "} else if (sendState !== 'received') {", '} else if (false) {'],
+  ['rendu : pas de bouton Réessayer', 'src/js/eleve/main.js', "${sendState === 'waiting' ?", '${false ?'],
+  ['rendu : hors ligne, prétend envoyer', 'src/js/eleve/main.js', "if (submission && !navigator.onLine) sendState = 'waiting';", ''],
+  ['rendu : invitation restée après avoir rendu', 'src/js/eleve/main.js', '  showCourseState();\n  await sendAnswers();', '  await sendAnswers();'],
+  ['rendu : pas d’invitation à la fin du cours', 'src/js/eleve/main.js', 'if (courseEnded)', 'if (false)'],
+  ['figé : règle commune sans le rendu', 'src/js/store.js', '!S.admin && (verified() || S.finished)', '!S.admin && verified()'],
+  [
+    'figé : repère encore déplaçable',
+    'src/js/views/map.js',
+    'const studentCanMove = !S.admin && !locked();',
+    'const studentCanMove = !S.admin && !verified();'
+  ],
+  ['figé : placement encore possible', 'src/js/views/student-list.js', 'else if (locked()) foot += `<span class="state">Non placée</span>`;', ''],
+  ['figé : fiche encore à glisser', 'src/js/views/student-list.js', 'draggable="${!locked() && !placed}"', 'draggable="${!placed}"'],
+  ['figé : mesures encore modifiables', 'src/js/views/cards.js', "${S.finished ? 'disabled' : ''}", ''],
+  ['figé : mesures de la fiche encore modifiables', 'src/js/views/reader.js', "${S.finished ? 'disabled' : ''}", ''],
+  ['figé : placer depuis la fiche', 'src/js/views/reader.js', 'const canPlace = !posOf(f) && !locked();', 'const canPlace = !posOf(f) && !verified();'],
+  ['plan : proportions non mesurées', 'src/js/prof/course-tab.js', '      map.ratio = ratio;\n', ''],
+  ['plan : mesure fausse', 'src/js/prof/course-tab.js', 'plan.naturalWidth / plan.naturalHeight', 'plan.naturalHeight / plan.naturalWidth'],
+  ['plan : publié même illisible', 'src/js/prof/course-tab.js', 'throw new Error(`le plan de la carte « ${map.name} » ne se charge pas.`);', 'continue;'],
+  ['fin : COU-10, élèves non finis non annoncés', 'src/js/prof/launch.js', 'const warning = unfinished\n', 'const warning = false\n'],
+  ['fin : COU-10, avertissement même sans raison', 'src/js/prof/launch.js', 'const warning = unfinished\n', 'const warning = true\n'],
+  [
+    'fin : nombre d’élèves ayant fini faux',
+    'src/js/prof/launch.js',
+    'const finished = launch.participants.filter((participant) => participant.submittedAt).length;',
+    'const finished = 0;'
+  ],
   // CRG-01 : ce qu'un élève reçoit
   ['CRG-01 : positions réelles envoyées', 'server/student-view.mjs', "'thumbnailId',", "'thumbnailId', 'refX', 'refY',"],
   ['CRG-01 : fiches masquées envoyées', 'server/student-view.mjs', '.filter(isVisible)', ''],
@@ -673,12 +738,7 @@ const MUTANTS = [
   ['lancement : code encore affiché après la fin', 'src/js/prof/launch.js', 'joinCard.hidden = ended;', ''],
   ['lancement : bouton Terminer après la fin', 'src/js/prof/launch.js', 'endCard.hidden = ended;', ''],
   ['lancement : QR code resté ouvert après la fin', 'src/js/prof/launch.js', 'if (ended && qr.open) qr.close();', ''],
-  [
-    'lancement : terminer sans confirmation',
-    'src/js/prof/launch.js',
-    "if (!confirm('Terminer le cours ?\\n\\nLe QR code et le code cesseront de fonctionner.')) return;",
-    ''
-  ],
+  ['lancement : terminer sans confirmation', 'src/js/prof/launch.js', 'if (!confirm(`Terminer le cours ?', 'if (false && !confirm(`Terminer le cours ?'],
   ['lancement : bouton Terminer bloqué après un échec', 'src/js/prof/launch.js', 'end.disabled = false;', ''],
   [
     'lancement : liste vidée quand une mise à jour échoue',
@@ -728,8 +788,12 @@ const MUTANTS = [
   ['élève : changer de carte sans effet', 'src/js/eleve/main.js', 'await switchMap(event.target.value);', ''],
   ['élève : image cassée sans plan', 'src/js/eleve/main.js', "$('#plan').hidden = !S.map.image;", ''],
   ['élève : pas de message sans plan', 'src/js/eleve/main.js', "$('#planEmpty').hidden = !!S.map.image;", "$('#planEmpty').hidden = true;"],
-  ['élève : fin du cours non annoncée', 'src/js/eleve/main.js', 'if (ended) showBanner(', 'if (false) showBanner('],
-  ['élève : cours disparu non annoncé', 'src/js/eleve/main.js', 'if (e.status === 401) showBanner(', 'if (false) showBanner('],
+  [
+    'élève : cours disparu non annoncé',
+    'src/js/eleve/main.js',
+    "state = await api('GET', '/student/state', undefined, token);\n  } catch (e) {\n    if (e.status === 401) showBanner(COURSE_GONE);",
+    "state = await api('GET', '/student/state', undefined, token);\n  } catch (e) {"
+  ],
   ['élève : jeton mort gardé', 'src/js/eleve/main.js', 'prefs.del(STORAGE_KEY);\n    return show(', 'return show('],
   [
     'élève : stockage absent non signalé',
@@ -859,14 +923,32 @@ function runTests(cwd, tests, { stopAtFirstFailure = false } = {}) {
   });
 }
 
-const filter = process.argv[2] ?? '';
+const args = process.argv.slice(2);
+const filter = args.find((arg) => !arg.startsWith('--')) ?? '';
+const jobs = Number(args.find((arg) => arg.startsWith('--jobs='))?.slice('--jobs='.length)) || 1;
 // Plusieurs filtres séparés par « | » : pour ne rejouer que les mutants d'une étape
 const selected = MUTANTS.filter(([name]) => filter.split('|').some((part) => name.includes(part)));
-const copy = mkdtempSync(path.join(tmpdir(), 'ib-mutants-'));
 const source = process.cwd();
-cpSync(source, copy, { recursive: true, filter: (p) => !/(^|\/)(node_modules|\.git|dist|\.dev-data|data)(\/|$)/.test(path.relative(source, p)) });
-mkdirSync(path.join(copy, 'tmp'));
-symlinkSync(path.join(source, 'node_modules'), path.join(copy, 'node_modules'));
+
+function makeCopy() {
+  const copy = mkdtempSync(path.join(tmpdir(), 'ib-mutants-'));
+  cpSync(source, copy, { recursive: true, filter: (p) => !/(^|\/)(node_modules|\.git|dist|\.dev-data|data)(\/|$)/.test(path.relative(source, p)) });
+  mkdirSync(path.join(copy, 'tmp'));
+  symlinkSync(path.join(source, 'node_modules'), path.join(copy, 'node_modules'));
+  return copy;
+}
+const copies = Array.from({ length: jobs }, makeCopy);
+const removeCopies = () => copies.forEach((copy) => rmSync(copy, { recursive: true, force: true }));
+
+/** Traite la liste avec une copie du projet par essai simultané. */
+async function forEachInCopies(items, work) {
+  let next = 0;
+  await Promise.all(
+    copies.map(async (copy) => {
+      while (next < items.length) await work(items[next++], copy);
+    })
+  );
+}
 /** Les tests utiles à chaque fichier : assez pour attraper un bug, sans relancer toute la suite à chaque fois. */
 const TESTS_FOR = {
   'server/auth.mjs': ['accounts', 'password', 'server-start'],
@@ -876,13 +958,17 @@ const TESTS_FOR = {
   'server/routes/pages.mjs': ['accounts', 'courses', 'launches'],
   'server/courses.mjs': ['courses', 'launches'],
   'server/student-view.mjs': ['student-view', 'launches'],
-  'server/launches.mjs': ['launches'],
+  'server/launches.mjs': ['launches', 'answers'],
+  'server/answers.mjs': ['answers'],
   'server/routes/launches.mjs': ['launches'],
-  'server/routes/student.mjs': ['launches'],
+  'server/routes/student.mjs': ['launches', 'answers'],
   'src/js/prof/qr.js': ['e2e/launches'],
   'src/js/prof/launch.js': ['e2e/launches'],
   'src/js/accueil.js': ['e2e/launches'],
   'src/js/eleve/main.js': ['e2e/launches'],
+  'src/js/views/cards.js': ['e2e/launches'],
+  'src/js/views/student-list.js': ['e2e/launches'],
+  'src/js/views/map.js': ['e2e/launches'],
   'src/js/backends/student.js': ['e2e/launches'],
   'src/js/views/fiche.js': ['build', 'e2e/launches'],
   'server/media.mjs': ['courses'],
@@ -895,12 +981,12 @@ const TESTS_FOR = {
   'server/app.mjs': ['server-start', 'courses'],
   'src/js/model.js': ['model', 'e2e/courses', 'e2e/legacy'],
   'src/js/themes.js': ['model', 'e2e/courses'],
-  'src/js/views/reader.js': ['wording'],
+  'src/js/views/reader.js': ['wording', 'e2e/launches'],
   'src/prof-cours.html': ['wording', 'e2e/courses'],
   'src/js/spreadsheet.js': ['spreadsheet', 'e2e/courses'],
   'src/js/util.js': ['util', 'e2e/legacy', 'e2e/courses'],
   'src/js/db.js': ['e2e/legacy'],
-  'src/js/store.js': ['e2e/legacy', 'e2e/courses'],
+  'src/js/store.js': ['e2e/legacy', 'e2e/courses', 'e2e/launches'],
   'src/js/project-io.js': ['e2e/legacy'],
   'src/js/views/editor.js': ['e2e/courses'],
   'src/js/views/admin/fiches.js': ['e2e/courses'],
@@ -921,34 +1007,40 @@ const TESTS_FOR = {
 const testsFor = (file) => (TESTS_FOR[file] ?? []).map((name) => `tests/${name}.test.js`);
 
 // Sur du code intact, tout doit passer : sinon chaque modification paraîtrait attrapée, à tort.
-for (const tests of new Set(selected.map(([, file]) => testsFor(file).join(' ')))) {
+let intactFailure = null;
+await forEachInCopies([...new Set(selected.map(([, file]) => testsFor(file).join(' ')))], async (tests, copy) => {
+  if (intactFailure) return;
   const { code, blocked, out } = await runTests(copy, tests.split(' '));
-  if (code !== 0 || blocked) {
-    const failing = new Set([...out.matchAll(/^✖ (.+?) \(\d/gm)].map((match) => match[1]));
-    const cause = blocked ? `délai de ${RUN_TIMEOUT / 60000} min dépassé` : [...failing].join('\n') || out.slice(-2000);
-    console.error(`Les tests échouent déjà sur le code intact : ${tests}\n${cause}\nRien n'a été vérifié.`);
-    rmSync(copy, { recursive: true, force: true });
-    process.exit(1);
-  }
+  if (code === 0 && !blocked) return;
+  const failing = new Set([...out.matchAll(/^✖ (.+?) \(\d/gm)].map((match) => match[1]));
+  const cause = blocked ? `délai de ${RUN_TIMEOUT / 60000} min dépassé` : [...failing].join('\n') || out.slice(-2000);
+  intactFailure = `Les tests échouent déjà sur le code intact : ${tests}\n${cause}\nRien n'a été vérifié.`;
+});
+if (intactFailure) {
+  console.error(intactFailure);
+  removeCopies();
+  process.exit(1);
 }
 
 const problems = [];
-for (const [name, file, from, to, everywhere] of selected) {
+await forEachInCopies(selected, async ([name, file, from, to, everywhere], copy) => {
   const target = path.join(copy, file);
   const original = readFileSync(target, 'utf8');
   if (!original.includes(from)) {
     console.log(`INTROUVABLE  ${name}`);
     problems.push(`${name} : texte introuvable dans ${file}`);
-    continue;
+    return;
   }
   writeFileSync(target, everywhere ? original.replaceAll(from, to) : original.replace(from, () => to));
   const { code, blocked, out } = await runTests(copy, testsFor(file), { stopAtFirstFailure: true });
   writeFileSync(target, original);
-  const failing = new Set([...out.matchAll(/^✖ (.+?) \(\d/gm)].map((match) => match[1])).size;
-  if (blocked || !failing) problems.push(`${name} : ${blocked ? 'les tests se bloquent' : code === 0 ? 'aucun test n’échoue' : 'échec sans test identifié'}`);
-  console.log(`${failing && !blocked ? 'attrapé     ' : 'PROBLÈME    '} ${name}`);
-}
-rmSync(copy, { recursive: true, force: true });
+  const failing = [...new Set([...out.matchAll(/^✖ (.+?) \(\d/gm)].map((match) => match[1]))];
+  if (blocked || !failing.length)
+    problems.push(`${name} : ${blocked ? 'les tests se bloquent' : code === 0 ? 'aucun test n’échoue' : 'échec sans test identifié'}`);
+  // Le nom du test permet de relire un résultat douteux : un mutant doit être attrapé par un test qui le concerne
+  console.log(`${failing.length && !blocked ? 'attrapé     ' : 'PROBLÈME    '} ${name}${failing.length ? ` ← ${failing[0]}` : ''}`);
+});
+removeCopies();
 
 console.log(`\n${selected.length - problems.length}/${selected.length} attrapés`);
 for (const problem of problems) console.log(`✖ ${problem}`);

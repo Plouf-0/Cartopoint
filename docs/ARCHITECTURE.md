@@ -280,3 +280,16 @@ et le reste de l'application continue de fonctionner à partir de ce qui est en 
   lancement soit supprimé. Son navigateur lui annonce la fin, en interrogeant `GET /api/student/state` toutes les 20 secondes si l'onglet
   est visible. La page de l'enseignant interroge `GET /api/launches/:id` toutes les 5 secondes.
 - **Limites :** 200 élèves par lancement. 30 essais de code inconnu par adresse en 15 minutes : une réussite ne compte pas.
+
+## Rendre son travail
+
+- **Côté élève :** « Terminer » fige le travail (`S.finished`, testé par `locked()` dans les vues), le garde dans IndexedDB sous
+  `rendu/<participant>`, puis l'envoie. Sans réseau, le travail est figé quand même et l'envoi se réessaie. La page contrôle
+  `GET /api/student/state` et renvoie le rendu si le serveur ne l'a pas, y compris s'il l'a perdu après l'avoir confirmé.
+- **`PUT /api/student/answers`** (`server/answers.mjs`) : positions entre 0 et 100, mesures de 50 caractères au plus, fiches visibles
+  de la version du lancement, 256 Ko au total. Tout écart est refusé (400). Le premier envoi fait foi, et les suivants reçoivent la même
+  réponse. Un rendu reçu après la fin du cours est marqué `late`.
+- **Le résultat** est calculé par le serveur avec `evaluate()` (`src/js/model.js`, partagé avec le navigateur), à partir de la version du
+  lancement, des proportions et de l'échelle de chaque carte. Il reste en base : la réponse à l'élève ne contient ni résultat ni position.
+- **Les proportions du plan** (`map.ratio`) sont mesurées par le navigateur de l'enseignant à la publication.
+

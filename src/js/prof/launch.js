@@ -63,7 +63,11 @@ function showLaunch(first) {
   const endError = errorLine();
   const endNote = el('p', { className: 'hint' }, 'Le QR code et le code cesseront de fonctionner. Les élèves déjà entrés gardent leur travail.');
   const end = button('Terminer le cours', 'btn danger', async () => {
-    if (!confirm('Terminer le cours ?\n\nLe QR code et le code cesseront de fonctionner.')) return;
+    const unfinished = latest.participants.filter((participant) => !participant.submittedAt).length;
+    const warning = unfinished
+      ? `\n\n${unfinished} élève(s) ou groupe(s) n'ont pas encore fini : leur rendu restera possible, et sera signalé comme tardif.`
+      : '';
+    if (!confirm(`Terminer le cours ?\n\nLe QR code et le code cesseront de fonctionner.${warning}`)) return;
     end.disabled = true;
     endError.hidden = true;
     try {
@@ -85,7 +89,9 @@ function showLaunch(first) {
     state
   );
 
+  let latest = first;
   function apply(launch) {
+    latest = launch;
     const ended = Boolean(launch.endedAt);
     state.textContent = ended
       ? `Terminé le ${dateAndTime(launch.endedAt)}. Version ${launch.versionNumber} du cours.`
@@ -93,7 +99,9 @@ function showLaunch(first) {
     joinCard.hidden = ended;
     endCard.hidden = ended;
     if (ended && qr.open) qr.close();
-    count.textContent = `${launch.participants.length} élève(s) ou groupe(s) entré(s).`;
+    const finished = launch.participants.filter((participant) => participant.submittedAt).length;
+    const done = finished === 0 ? "aucun n'a fini" : finished === 1 ? '1 a fini' : `${finished} ont fini`;
+    count.textContent = `${launch.participants.length} élève(s) ou groupe(s) entré(s), ${done}.`;
     list.replaceChildren(...launch.participants.map(participantRow));
     empty.hidden = launch.participants.length > 0;
   }

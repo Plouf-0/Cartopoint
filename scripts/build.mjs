@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
  * Construit l'application. index.html est la version autonome : un seul fichier HTML contenant
- * le CSS, le JavaScript et le plan d'exemple. Ce fichier fonctionne :
+ * le CSS, le JavaScript, les polices et le plan d'exemple. Ce fichier fonctionne :
  *   - hébergé sur un serveur (avec project.json à côté) ;
  *   - ouvert directement depuis l'ordinateur (double-clic), sans connexion.
- * Les pages des espaces (enseignant, admin, liens) sont aussi d'un seul tenant, chacune avec son seul code.
+ * Les pages des espaces (enseignant, admin, liens) sont aussi d'un seul tenant, chacune avec son seul code. Elles trouvent leurs
+ * polices dans assets/fonts/, à côté d'elles, et le service worker de la page élève dans sw.js.
  *
  *   npm run build                                   → dist/index.html et les pages des espaces
  *   node scripts/build.mjs --outdir autre/dossier   → la même chose ailleurs
@@ -47,7 +48,17 @@ const replaceOnce = (from, to) => {
   html = html.replace(from, () => to);
 };
 
-replaceOnce('<link rel="stylesheet" href="css/app.css">', `<style>\n${css}</style>`);
+/** Un fichier ouvert d'un double-clic n'a pas de serveur pour lui fournir ses polices : elles entrent dans la page (HOR-05). */
+async function withEmbeddedFonts(text) {
+  let embedded = text;
+  for (const [reference, name] of text.matchAll(/\/assets\/fonts\/([\w-]+\.woff2)/g)) {
+    const font = await fs.readFile(path.join(src, 'assets/fonts', name));
+    embedded = embedded.replace(reference, `data:font/woff2;base64,${font.toString('base64')}`);
+  }
+  return embedded;
+}
+const standaloneCss = await withEmbeddedFonts(css);
+replaceOnce('<link rel="stylesheet" href="css/app.css">', `<style>\n${standaloneCss}</style>`);
 replaceOnce('<script type="module" src="js/main.js"></script>', `<script>\n${js}</script>`);
 
 const mapPath = html.match(/<meta name="default-map" content="([^"]+)">/)[1];
@@ -67,6 +78,8 @@ await fs.writeFile(out, html);
 console.log(`✓ ${path.relative(root, out)} (${(html.length / 1e6).toFixed(2)} Mo)`);
 
 if (!args.out) {
+  await fs.cp(path.join(src, 'assets/fonts'), path.join(outDir, 'assets/fonts'), { recursive: true });
+  await fs.copyFile(path.join(src, 'sw.js'), path.join(outDir, 'sw.js'));
   for (const page of SPACE_PAGES) {
     let source = await fs.readFile(path.join(src, page), 'utf8');
     const entry = source.match(/<script type="module" src="\/([^"]+)"><\/script>/);

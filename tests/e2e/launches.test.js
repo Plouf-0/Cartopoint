@@ -597,10 +597,30 @@ test('le cours d’un compte effacé : l’élève lit qu’il n’existe plus, 
   await page.locator('#courseBanner').getByText("Ce cours n'existe plus").waitFor();
   assert.equal(await page.locator('.pin').count(), 1, 'il garde son travail à l’écran');
 
+  assert.equal(await page.evaluate((code) => localStorage.getItem(`cartopoint.eleve.${code}`), code), null, 'le nom de l’élève ne reste pas sur l’appareil');
+
+  await page.reload();
+  await page.getByRole('heading', { name: 'Impossible de rejoindre ce cours' }).waitFor();
+  await page.getByRole('link', { name: 'Taper un autre code' }).waitFor();
+});
+
+test('le cours d’un compte effacé, sans copie sur l’appareil : l’élève lit qu’il n’existe plus', async (t) => {
+  const { site, teacher, accountId } = await setup(t);
+  const code = await launch(teacher, await publishedCourse(teacher));
+  const page = await student(t, site);
+  await enter(page, code);
+  await page.addInitScript(() => {
+    const get = IDBObjectStore.prototype.get;
+    IDBObjectStore.prototype.get = function (key) {
+      return get.call(this, String(key).startsWith('cours/') ? 'rien' : key);
+    };
+  });
+
+  site.db.prepare('DELETE FROM accounts WHERE id = ?').run(accountId);
   await page.reload();
   await page.getByText("Ce cours n'existe plus").waitFor();
   await page.getByRole('link', { name: 'Taper un autre code' }).waitFor();
-  assert.equal(await page.evaluate((code) => localStorage.getItem(`cartopoint.eleve.${code}`), code), null, 'le nom de l’élève ne reste pas sur l’appareil');
+  assert.equal(await page.evaluate((code) => localStorage.getItem(`cartopoint.eleve.${code}`), code), null);
 });
 
 test('section 9, point 15 : avant de supprimer un compte, l’admin voit ses cours et ses lancements en cours', async (t) => {
@@ -784,7 +804,7 @@ test('HOR-04 : sans réseau au moment de terminer, le travail est figé, et les 
 
   await page.context().setOffline(true);
   await finish(page);
-  await page.locator('.panel-foot').getByText('Vos réponses partiront dès que le réseau reviendra').waitFor();
+  await page.locator('.panel-foot').getByText('Vos réponses restent sur cet appareil').waitFor();
   assert.equal(await page.locator('[data-place]').count(), 0, 'figé quand même');
   assert.equal(participantRow(site).submitted_at, null);
 
@@ -833,7 +853,7 @@ test('une page rouverte hors ligne dit que l’envoi attend, au lieu de prétend
   await received(page);
   await page.addInitScript(() => Object.defineProperty(navigator, 'onLine', { get: () => false }));
   await page.reload();
-  await page.locator('.panel-foot').getByText('Vos réponses partiront dès que le réseau reviendra').waitFor();
+  await page.locator('.panel-foot').getByText('Vos réponses restent sur cet appareil').waitFor();
 });
 
 test('section 4 : si le serveur a perdu un rendu déjà confirmé, la page le renvoie d’elle-même', async (t) => {

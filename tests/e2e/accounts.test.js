@@ -652,7 +652,7 @@ test('DEP-01 : les pages construites fonctionnent aussi, d’un seul tenant', as
   await heading(page, 'Inviter un enseignant');
   await page.getByRole('cell', { name: TEACHER.email }).waitFor();
   assert.deepEqual(
-    files.filter((file) => !file.startsWith('/api/')),
+    files.filter((file) => !file.startsWith('/api/') && !file.startsWith('/assets/fonts/')),
     ['/admin'],
     'aucun fichier séparé à charger'
   );

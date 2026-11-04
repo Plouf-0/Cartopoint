@@ -11,8 +11,8 @@
      peut être remplacé par une nouvelle version (fichier ou publication).
    - La **progression** (placements, mesures, exercice vérifié) appartient à l'élève, reste
      dans son navigateur et survit aux mises à jour du projet.
-3. **Tout fonctionne hors ligne.** La version construite tient dans un seul fichier HTML ; le
-   serveur n'est qu'une option pour diffuser le projet par une adresse.
+3. **Le terrain se passe de réseau.** La page élève fonctionne sans connexion une fois récupérée (voir « Hors ligne »), et le fichier
+   de secours tient dans un seul fichier HTML, polices comprises.
 
 ## Flux de données
 
@@ -292,4 +292,37 @@ et le reste de l'application continue de fonctionner à partir de ce qui est en 
 - **Le résultat** est calculé par le serveur avec `evaluate()` (`src/js/model.js`, partagé avec le navigateur), à partir de la version du
   lancement, des proportions et de l'échelle de chaque carte. Il reste en base : la réponse à l'élève ne contient ni résultat ni position.
 - **Les proportions du plan** (`map.ratio`) sont mesurées par le navigateur de l'enseignant à la publication.
+
+## Hors ligne
+
+Une fois sa page préparée, un élève n'a plus besoin du réseau que pour entrer et rendre (`HOR-01`, `HOR-03`). Cela ne concerne que `/c/`.
+
+| Quoi                               | Où                                                  | Écrit par                   |
+| ---------------------------------- | --------------------------------------------------- | --------------------------- |
+| La page et les polices             | Cache Storage, `cartopoint-page-<version>`          | le service worker           |
+| Les plans et les photos            | Cache Storage, `cartopoint-media`                   | `src/js/eleve/offline.js`   |
+| Le cours, sans réponses            | IndexedDB, `cours/<participant>`                    | `src/js/eleve/main.js`      |
+| Le travail et le rendu             | IndexedDB, `<participant>/<carte>`, `rendu/<participant>` | `store.js`, `main.js` |
+
+- **Le service worker** (`src/sw.js`, servi en `/c/sw.js`) ne voit que `/c/`. Il sert d'abord ce qu'il a gardé : sur le terrain, attendre
+  un réseau faible serait pire que de ne pas en avoir. Il n'écrit jamais rien en passant : tout ce qu'il garde est décidé à l'avance.
+- **`/api/` ne passe jamais par lui,** les vidéos non plus : `Range` et Safari ne s'entendent pas avec un service worker. Rien de ce que le
+  serveur répond à un élève ne peut donc rester dans un cache, ce qui compte pour la correction de l'étape 7.
+- **Sa version** vient du serveur : `GET /c/sw.js` remplace `__VERSION__` par une empreinte du service worker et de `eleve.html`, où tout
+  le code de la page est écrit. Une page qui change déclenche donc la mise à jour chez les élèves. Une mise à jour ne s'active qu'une fois
+  tout récupéré : si elle échoue, l'ancienne version reste en place. Les photos, nommées par leur contenu, ne changent jamais et survivent.
+- **Tous les codes partagent une page,** gardée sous l'adresse `/c/page`, qui n'est jamais un code : ceux-ci ont 6 caractères.
+- **Le cours n'est demandé qu'une fois :** la version d'un lancement est figée (`COU-11`). Pour la même raison, un fichier déjà gardé n'est
+  jamais redemandé. Si le cours a été effacé, `GET /api/student/state` répond 401 : la page le dit, garde le travail à l'écran et oublie le
+  nom de l'élève.
+- **« ✓ Prêt pour le terrain »** ne s'affiche que si le cours est gardé, le service worker actif et tous les fichiers présents. Sinon la page
+  dit ce qui manque : elle propose de réessayer, reprend au retour du réseau, ou prévient que ce navigateur ne peut pas garder le cours. Un
+  service worker dont l'installation échoue ne prévient de rien : au bout de 20 secondes, la page considère que c'est le cas.
+- **Sans réseau, les réponses attendent** dans `rendu/<participant>`. Elles partent quand la page est ouverte avec du réseau : à l'événement
+  `online`, au retour sur l'onglet et toutes les 20 secondes. Il n'y a pas de Background Sync : Safari ne le connaît pas.
+- **En développement,** `npm run dev` sert `src/`, dont les modules ne sont pas gardés : recharger sans réseau ne marche que sur les pages
+  construites, comme `tests/e2e/offline.test.js` et la préproduction.
+
+**Polices :** `src/assets/fonts/`, avec leurs licences. Toutes les pages les demandent à `/assets/fonts/` ; le fichier autonome, qui n'a pas de
+serveur, les contient. Aucune page ne demande plus rien à un autre site (`HOR-05`).
 

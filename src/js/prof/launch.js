@@ -9,6 +9,7 @@ import { qrSvg } from './qr.js';
 const launchId = decodeURIComponent(location.pathname.split('/').pop());
 /** L'adresse à taper avec le code. Elle deviendra la racine du site à l'étape 10. */
 const HOME_PATH = '/accueil';
+const READY_ADVICE = 'Avant de quitter le réseau, attendez de voir « ✓ Prêt pour le terrain » sur votre écran.';
 const REFRESH_EVERY = 5000;
 
 function button(label, className, onClick) {
@@ -33,7 +34,8 @@ function qrDialog(code) {
         { className: 'dlg-body' },
         el('div', { className: 'qr-box' }, qrSvg(`${location.origin}/c/${code}`)),
         el('p', { className: 'launch-code' }, code),
-        el('p', { className: 'hint' }, `Ou tapez ce code sur ${location.host}${HOME_PATH}`)
+        el('p', { className: 'hint' }, `Ou tapez ce code sur ${location.host}${HOME_PATH}`),
+        el('p', { className: 'hint' }, READY_ADVICE)
       )
     )
   );

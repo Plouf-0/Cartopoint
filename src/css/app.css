@@ -5,11 +5,18 @@
  * remplacent --accent, --paper, --ink… : n'écrivez pas de couleur « en dur » pour
  * un élément d'interface, sinon il ne suivra pas le thème.
  *
- * Sommaire : 1. Variables · 2. Base · 3. Boutons · 4. En-tête · 5. Mise en page
+ * Sommaire : 0. Polices · 1. Variables · 2. Base · 3. Boutons · 4. En-tête · 5. Mise en page
  * 6. Carte et repères · 7. Panneau · 8. Fiches (élèves) · 9. Gestion
  * 10. Fenêtres · 11. Fiche ouverte · 12. Édition · 13. Photos · 14. Résultats
  * 15. Notifications · 16. Comptes
  */
+
+/* 0. Polices (HOR-05) : servies par le site, licences dans assets/fonts/ ---- */
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 400; font-display: swap; src: url(/assets/fonts/atkinson-hyperlegible-400.woff2) format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 400; font-style: italic; font-display: swap; src: url(/assets/fonts/atkinson-hyperlegible-400-italic.woff2) format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 700; font-display: swap; src: url(/assets/fonts/atkinson-hyperlegible-700.woff2) format("woff2"); }
+@font-face { font-family: "Fraunces"; font-weight: 500 650; font-display: swap; src: url(/assets/fonts/fraunces.woff2) format("woff2"); }
+@font-face { font-family: "Fraunces"; font-weight: 500; font-style: italic; font-display: swap; src: url(/assets/fonts/fraunces-italic.woff2) format("woff2"); }
 
 /* 1. Variables ------------------------------------------------------------ */
 :root {
@@ -426,6 +433,9 @@ table.teachers .row-actions .btn { white-space: normal; }
 
 /* Lancement d'un cours (enseignant) */
 .launch-head h1 { font: 500 26px/1.2 var(--serif); margin: 12px 0 4px; overflow-wrap: anywhere; }
+.offline-status { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0; padding: 6px 16px; font-size: 13px; color: var(--ink-soft); background: var(--sand-soft); border-bottom: 1px solid var(--sand); }
+.offline-status.ready { color: var(--ok); }
+.offline-status.warning { color: var(--far); font-weight: 700; }
 .launch-code { font: 700 clamp(32px, 9vw, 56px)/1.15 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .1em; margin: 4px 0 8px; color: var(--accent-dark); }
 .qr-dialog { width: min(760px, 96vw); }
 .qr-dialog .dlg-body { text-align: center; }

@@ -1094,10 +1094,6 @@ test('DEP-01 : la page d’un cours construite fonctionne aussi, d’un seul ten
   await choosePlan(page);
   await addFiche(page, 'Olivier');
   await saved(page);
-  assert.deepEqual(
-    [...new Set(files.filter((file) => !file.startsWith('/api/') && !file.startsWith('/media/') && !file.startsWith('/prof/cours/')))],
-    ['/prof'],
-    'aucun fichier séparé à charger'
-  );
+  assert.deepEqual([...new Set(files.filter((file) => !/^\/(api|media|assets\/fonts|prof\/cours)\//.test(file)))], ['/prof'], 'aucun fichier séparé à charger');
   assert.ok(path.basename(files.find((file) => file.startsWith('/prof/cours/'))));
 });

@@ -56,7 +56,6 @@ async function openApp(t, { password = '', init } = {}) {
   if (password) await writeFile(path.join(site.data, 'project.json'), JSON.stringify(PUBLISHED));
   const page = await openPage(t, browser, { base: site.base });
   if (init) await page.addInitScript(init);
-  await page.route(/fonts\.g/, (route) => route.abort());
   await page.goto('/');
   await page.locator('#modeBtn').waitFor();
   return { site, page };

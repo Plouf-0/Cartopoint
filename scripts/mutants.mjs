@@ -792,10 +792,10 @@ const MUTANTS = [
   [
     'élève : cours disparu non annoncé',
     'src/js/eleve/main.js',
-    "state = await api('GET', '/student/state', undefined, token);\n  } catch (e) {\n    if (e.status === 401) showBanner(COURSE_GONE);",
+    "state = await api('GET', '/student/state', undefined, token);\n  } catch (e) {\n    if (e.status === 401) courseGone();",
     "state = await api('GET', '/student/state', undefined, token);\n  } catch (e) {"
   ],
-  ['élève : jeton mort gardé', 'src/js/eleve/main.js', 'prefs.del(STORAGE_KEY);\n    return show(', 'return show('],
+  ['élève : jeton mort gardé', 'src/js/eleve/main.js', 'prefs.del(STORAGE_KEY);\n    show([', 'show(['],
   [
     'élève : stockage absent non signalé',
     'src/js/eleve/main.js',
@@ -884,6 +884,112 @@ const MUTANTS = [
     '@media (max-width: 500px) {\n  table.teachers'
   ],
   ['écran : longue adresse qui élargit le tableau', 'src/css/app.css', 'table.teachers td:first-child { overflow-wrap: anywhere; min-width: 120px; }', ''],
+  // Hors ligne : le service worker
+  ['hors ligne : page non gardée', 'src/sw.js', '[PAGE, ...FONTS]', '[...FONTS]'],
+  ['hors ligne : polices non gardées', 'src/sw.js', '[PAGE, ...FONTS]', '[PAGE]'],
+  ['hors ligne : la page gardée n’est pas servie', 'src/sw.js', "request.mode === 'navigate' ? pageFor(request) : fileFor(request)", 'fileFor(request)'],
+  [
+    'hors ligne : fichiers gardés non servis',
+    'src/sw.js',
+    "request.mode === 'navigate' ? pageFor(request) : fileFor(request)",
+    "request.mode === 'navigate' ? pageFor(request) : fetch(request)"
+  ],
+  ['hors ligne : /api/ passe par le service worker', 'src/sw.js', " || url.pathname.startsWith('/api/')", ''],
+  ['hors ligne : les écritures passent par le service worker', 'src/sw.js', "request.method !== 'GET' || ", ''],
+  ['hors ligne : une nouvelle version attend la fermeture des pages', 'src/sw.js', '.then(() => self.skipWaiting())', ''],
+  ['hors ligne : la page ouverte ne passe pas par lui', 'src/sw.js', '.then(() => self.clients.claim())', ''],
+  ['hors ligne : anciennes versions jamais effacées', 'src/sw.js', 'name.startsWith(PAGE_CACHE_PREFIX) && name !== PAGE_CACHE', 'false'],
+  ['hors ligne : photos effacées à chaque mise à jour', 'src/sw.js', 'name.startsWith(PAGE_CACHE_PREFIX) && ', ''],
+  // Hors ligne : la préparation
+  ['hors ligne : plan non téléchargé', 'src/js/eleve/offline.js', 'files.add(map.image);', ''],
+  ['hors ligne : photos non téléchargées', 'src/js/eleve/offline.js', 'files.add(media.data);', ''],
+  ['hors ligne : vidéos préchargées', 'src/js/eleve/offline.js', "if (media.type === 'image') ", ''],
+  [
+    'hors ligne : une image écrite dans le cours est demandée au réseau',
+    'src/js/eleve/offline.js',
+    ".filter((url) => url?.startsWith('/media/'))",
+    '.filter(Boolean)'
+  ],
+  ['hors ligne : tout est redemandé à chaque ouverture', 'src/js/eleve/offline.js', 'queue = await missingFiles(cache, files);', 'queue = [...files];'],
+  [
+    'hors ligne : « Prêt » malgré une image manquante',
+    'src/js/eleve/offline.js',
+    "failed ? { state: 'incomplete', failed } : { state: 'ready' }",
+    "{ state: 'ready' }"
+  ],
+  [
+    'hors ligne : « Prêt » avant la fin',
+    'src/js/eleve/offline.js',
+    'await Promise.all(Array.from({ length: AT_ONCE }, downloader));',
+    'Promise.all(Array.from({ length: AT_ONCE }, downloader));'
+  ],
+  ['hors ligne : pas de décompte', 'src/js/eleve/offline.js', "report({ state: 'downloading', done: ++done, total: files.length });", 'done++;'],
+  [
+    'hors ligne : installation refusée passée sous silence',
+    'src/js/eleve/offline.js',
+    "if (!(await startWorker()) || !(await workerReady())) return report({ state: 'unavailable' });",
+    'await startWorker();'
+  ],
+  ['hors ligne : attente sans fin d’une installation', 'src/js/eleve/offline.js', 'setTimeout(() => resolve(false), WORKER_WAIT)', 'void resolve'],
+  // Hors ligne : la page élève
+  ['hors ligne : cours redemandé au serveur à chaque ouverture', 'src/js/eleve/main.js', 'let course = await keptCourse(me.id);', 'let course = null;'],
+  ['hors ligne : cours non gardé', 'src/js/eleve/main.js', 'await Progress.put(courseKey(id), course);', ''],
+  [
+    'hors ligne : « Prêt » sans copie du cours',
+    'src/js/eleve/main.js',
+    'kept = await keepCourse(me.id, course);',
+    'await keepCourse(me.id, course);\n    kept = true;'
+  ],
+  ['hors ligne : pas de service worker avant d’entrer', 'src/js/eleve/main.js', 'startWorker();\nconst me', 'const me'],
+  [
+    'hors ligne : rien ne reprend au retour du réseau',
+    'src/js/eleve/main.js',
+    "window.addEventListener('online', () => offlineState !== 'ready' && prepare(project));",
+    ''
+  ],
+  ['hors ligne : pas de bouton pour réessayer', 'src/js/eleve/main.js', 'retry.onclick = () => prepare(S.project);', ''],
+  ['hors ligne : envoi affiché alors que rien ne répond', 'src/js/eleve/main.js', "if (submission && sendState === 'sending' && !sending) {", 'if (false) {'],
+  ['hors ligne : lecteur vide à la place de la vidéo', 'src/js/views/reader.js', "fig.querySelector('video').onerror", "fig.querySelector('video').onabort"],
+  [
+    'hors ligne : le nom reste après l’effacement du cours',
+    'src/js/eleve/main.js',
+    'showBanner(COURSE_GONE);\n  prefs.del(STORAGE_KEY);',
+    'showBanner(COURSE_GONE);'
+  ],
+  // Hors ligne : ce que fournit le serveur
+  ['hors ligne : version jamais remplacée', 'server/routes/pages.mjs', "worker.replaceAll('__VERSION__', version)", 'worker'],
+  [
+    'hors ligne : version remplacée une seule fois',
+    'server/routes/pages.mjs',
+    "worker.replaceAll('__VERSION__', version)",
+    "worker.replace('__VERSION__', version)"
+  ],
+  ['hors ligne : version sans la page', 'server/routes/pages.mjs', '.update(worker).update(page)', '.update(worker)'],
+  ['hors ligne : version sans le service worker', 'server/routes/pages.mjs', '.update(worker).update(page)', '.update(page)'],
+  ['hors ligne : service worker gardé en cache', 'server/routes/pages.mjs', "{ 'Cache-Control': 'no-cache' }", "{ 'Cache-Control': 'public, max-age=3600' }"],
+  ['hors ligne : fichier absent qui fait une erreur serveur', 'server/routes/pages.mjs', "return send(res, 404, 'Introuvable');", 'throw new Error("absent");'],
+  ['HOR-05 : police sans son type', 'server/http.mjs', "  '.woff2': 'font/woff2',\n", ''],
+  ['HOR-05 : service worker absent de la construction', 'scripts/build.mjs', "await fs.copyFile(path.join(src, 'sw.js'), path.join(outDir, 'sw.js'));", ''],
+  [
+    'HOR-05 : polices absentes de la construction',
+    'scripts/build.mjs',
+    "await fs.cp(path.join(src, 'assets/fonts'), path.join(outDir, 'assets/fonts'), { recursive: true });",
+    ''
+  ],
+  ['HOR-05 : fichier autonome sans ses polices', 'scripts/build.mjs', '<style>\\n${standaloneCss}</style>', '<style>\\n${css}</style>'],
+  [
+    'HOR-05 : retour des polices de Google',
+    'src/index.html',
+    '<link rel="stylesheet" href="css/app.css">',
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces">\n<link rel="stylesheet" href="css/app.css">'
+  ],
+  [
+    'HOR-05 : police retirée de la feuille de style',
+    'src/css/app.css',
+    '@font-face { font-family: "Fraunces"; font-weight: 500; font-style: italic; font-display: swap; src: url(/assets/fonts/fraunces-italic.woff2) format("woff2"); }\n',
+    ''
+  ],
+  ['COU-04 : pas de consigne pour l’enseignant', 'src/js/prof/launch.js', "el('p', { className: 'hint' }, READY_ADVICE)", "el('p', { className: 'hint' }, '')"],
   [
     'démarrage : une sauvegarde impossible fait tomber le serveur',
     'server/index.mjs',
@@ -980,7 +1086,7 @@ const TESTS_FOR = {
   'server/routes/auth.mjs': ['accounts'],
   'server/routes/admin.mjs': ['accounts', 'courses'],
   'server/routes/courses.mjs': ['courses'],
-  'server/routes/pages.mjs': ['accounts', 'courses', 'launches'],
+  'server/routes/pages.mjs': ['offline-site', 'accounts', 'courses', 'launches'],
   'server/courses.mjs': ['courses', 'launches'],
   'server/student-view.mjs': ['student-view', 'launches'],
   'server/launches.mjs': ['launches', 'answers'],
@@ -988,9 +1094,13 @@ const TESTS_FOR = {
   'server/routes/launches.mjs': ['launches'],
   'server/routes/student.mjs': ['launches', 'answers'],
   'src/js/prof/qr.js': ['e2e/launches'],
-  'src/js/prof/launch.js': ['e2e/launches'],
+  'src/js/prof/launch.js': ['e2e/offline', 'e2e/launches'],
   'src/js/accueil.js': ['e2e/launches'],
-  'src/js/eleve/main.js': ['e2e/launches'],
+  'src/js/eleve/main.js': ['e2e/offline', 'e2e/launches'],
+  'src/js/eleve/offline.js': ['e2e/offline'],
+  'src/sw.js': ['e2e/offline'],
+  'src/index.html': ['offline-site', 'e2e/offline'],
+  'scripts/build.mjs': ['offline-site', 'build'],
   'src/js/views/cards.js': ['e2e/launches'],
   'src/js/views/student-list.js': ['e2e/launches'],
   'src/js/views/map.js': ['e2e/launches'],
@@ -998,7 +1108,7 @@ const TESTS_FOR = {
   'src/js/views/fiche.js': ['build', 'e2e/launches'],
   'server/media.mjs': ['courses'],
   'server/security.mjs': ['security', 'accounts', 'routes-legacy'],
-  'server/http.mjs': ['http', 'routes-legacy', 'courses'],
+  'server/http.mjs': ['http', 'offline-site', 'routes-legacy', 'courses'],
   'server/db.mjs': ['db', 'server-start'],
   'server/migrations/001-initial.sql': ['db'],
   'server/routes/legacy.mjs': ['routes-legacy', 'server'],
@@ -1006,7 +1116,7 @@ const TESTS_FOR = {
   'server/app.mjs': ['server-start', 'courses'],
   'src/js/model.js': ['model', 'e2e/courses', 'e2e/legacy'],
   'src/js/themes.js': ['model', 'e2e/courses'],
-  'src/js/views/reader.js': ['wording', 'e2e/launches'],
+  'src/js/views/reader.js': ['wording', 'e2e/offline', 'e2e/launches'],
   'src/prof-cours.html': ['wording', 'e2e/courses'],
   'src/js/spreadsheet.js': ['spreadsheet', 'e2e/courses'],
   'src/js/util.js': ['util', 'e2e/legacy', 'e2e/courses'],
@@ -1027,7 +1137,7 @@ const TESTS_FOR = {
   'src/js/admin/main.js': ['e2e/accounts', 'e2e/courses', 'e2e/launches'],
   'src/js/compte/main.js': ['e2e/accounts'],
   'src/js/compte/ui.js': ['e2e/accounts'],
-  'src/css/app.css': ['e2e/accounts', 'e2e/courses', 'e2e/launches']
+  'src/css/app.css': ['offline-site', 'e2e/accounts', 'e2e/courses', 'e2e/launches']
 };
 const testsFor = (file) => (TESTS_FOR[file] ?? []).map((name) => `tests/${name}.test.js`);
 

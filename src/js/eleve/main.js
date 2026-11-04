@@ -1,7 +1,8 @@
 /**
  * Page d'un élève, à l'adresse /c/<code> : entrer avec ses noms, lire les fiches, les placer, puis terminer. Le jeton reste
  * dans ce navigateur : revenir sur le même QR code reprend le même élève. Le travail est rangé sous l'identifiant de l'élève,
- * donc propre à chaque lancement, y compris sur un appareil partagé (COU-09).
+ * donc propre à chaque lancement, y compris sur un appareil partagé (COU-09). Le cours y est gardé dès sa réception : une fois la page
+ * récupérée, le réseau ne sert plus qu'à rendre (HOR-01, HOR-03).
  */
 import { api } from '../api.js';
 import { studentBackend } from '../backends/student.js';
@@ -17,6 +18,7 @@ import { fillPanel } from '../views/panel-frame.js';
 import { bindReader } from '../views/reader.js';
 import { bindStudentList, studentListHTML } from '../views/student-list.js';
 import { bindViewer } from '../views/viewer.js';
+import { prepareOffline, startWorker } from './offline.js';
 
 const code = decodeURIComponent(location.pathname.split('/').pop()).toUpperCase().replace(/[\s-]/g, '');
 const codePath = encodeURIComponent(code);
@@ -26,13 +28,14 @@ const STATE_EVERY = 20000;
 const COURSE_GONE = "Ce cours n'existe plus. Votre travail reste dans ce navigateur.";
 const SEND_STATES = {
   sending: 'Envoi de vos réponses…',
-  waiting: "Envoi impossible pour l'instant. Vos réponses partiront dès que le réseau reviendra : gardez cette page.",
+  waiting: "Envoi impossible pour l'instant. Vos réponses restent sur cet appareil : gardez cette page ouverte, ou rouvrez-la quand vous aurez du réseau.",
   refused: 'Le serveur a refusé vos réponses. Montrez cet écran à votre enseignant.',
   received: '✓ Vos réponses sont bien arrivées.'
 };
 
 const remembered = () => JSON.parse(prefs.get(STORAGE_KEY, 'null'));
 const submissionKey = (id) => `rendu/${id}`;
+const courseKey = (id) => `cours/${id}`;
 
 let token = null;
 let courseEnded = false;
@@ -76,15 +79,39 @@ async function showJoin() {
   show([card(`Rejoindre « ${title} »`, form)]);
 }
 
-/** Le travail déjà fait sur cet appareil. Sans stockage, l'élève travaille quand même : la page le prévient. */
-async function loadWork(project) {
+/** Sans stockage, l'élève travaille quand même : la page le prévient. */
+async function openStorage() {
   try {
     await openDb();
   } catch {
     S.storageOk = false;
     fatal('Ce navigateur ne peut pas garder votre travail (navigation privée ?). Ne fermez pas cette page.');
-    return {};
   }
+}
+
+/** Le cours de cet élève, déjà sur cet appareil. Sa version est figée au lancement (COU-11) : il n'y a jamais à le redemander. */
+async function keptCourse(id) {
+  if (!S.storageOk) return null;
+  try {
+    return (await Progress.get(courseKey(id))) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function keepCourse(id, course) {
+  if (!S.storageOk) return false;
+  try {
+    await Progress.put(courseKey(id), course);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Le travail déjà fait sur cet appareil. */
+async function loadWork(project) {
+  if (!S.storageOk) return {};
   submission = (await Progress.get(submissionKey(project.id))) ?? null;
   S.finished = Boolean(submission);
   const work = {};
@@ -152,7 +179,7 @@ async function sendAnswers() {
   } catch (e) {
     // Une réponse du serveur qui refuse ne changera pas d'elle-même. Tout le reste se réessaie
     sendState = e.status === 400 || e.status === 413 ? 'refused' : 'waiting';
-    if (e.status === 401) showBanner(COURSE_GONE);
+    if (e.status === 401) courseGone();
   }
   sending = false;
   render();
@@ -193,6 +220,12 @@ function showBanner(text) {
   banner.hidden = false;
 }
 
+/** Son jeton ne vaut plus rien : le travail reste à l'écran le temps de la page, mais son nom ne reste pas sur l'appareil. */
+function courseGone() {
+  showBanner(COURSE_GONE);
+  prefs.del(STORAGE_KEY);
+}
+
 function showCourseState() {
   if (courseEnded)
     showBanner(submission ? "L'enseignant a terminé ce cours." : "L'enseignant a terminé ce cours. Cliquez sur Terminer pour lui envoyer votre travail.");
@@ -204,7 +237,12 @@ async function checkState() {
   try {
     state = await api('GET', '/student/state', undefined, token);
   } catch (e) {
-    if (e.status === 401) showBanner(COURSE_GONE);
+    if (e.status === 401) courseGone();
+    // Le réseau peut être annoncé alors qu'il ne répond pas : ne pas laisser croire qu'un envoi est en cours
+    if (submission && sendState === 'sending' && !sending) {
+      sendState = 'waiting';
+      render();
+    }
     return;
   }
   courseEnded = state.ended;
@@ -226,20 +264,64 @@ function watchState() {
   check();
 }
 
-async function openCourse(me) {
-  let course;
+const OFFLINE_STATES = {
+  downloading: ({ done, total }) => `Téléchargement pour le terrain… ${total ? `${done} / ${total}` : ''}`,
+  ready: () => '✓ Prêt pour le terrain : le cours reste disponible sans réseau.',
+  incomplete: ({ failed }) => `⚠ Téléchargement incomplet : ${failed} image(s) manqueront sans réseau. Restez connecté.`,
+  unavailable: () => '⚠ Ce navigateur ne gardera pas le cours sans réseau : restez connecté et ne fermez pas cette page.'
+};
+const OFFLINE_LOOK = { downloading: '', ready: 'ready', incomplete: 'warning', unavailable: 'warning' };
+
+let offlineState = null;
+let preparing = false;
+
+function showOfflineState(status) {
+  offlineState = status.state;
+  const line = $('#offlineStatus');
+  line.className = `offline-status ${OFFLINE_LOOK[status.state]}`;
+  line.textContent = OFFLINE_STATES[status.state](status);
+  if (status.state !== 'incomplete') return;
+  const retry = el('button', { className: 'btn sm soft', type: 'button' }, 'Réessayer');
+  retry.onclick = () => prepare(S.project);
+  line.append(retry);
+}
+
+async function prepare(project) {
+  if (preparing) return;
+  preparing = true;
+  await prepareOffline(project, showOfflineState);
+  preparing = false;
+}
+
+/** Le cours gardé sur cet appareil ou, à défaut, celui du serveur. Sans cours, la page explique pourquoi et répond null. */
+async function fetchCourse(me) {
   try {
-    course = await api('GET', '/student/course', undefined, me.token);
+    return await api('GET', '/student/course', undefined, me.token);
   } catch (e) {
-    if (e.status !== 401) return show([refusal(e)]);
+    if (e.status !== 401) {
+      show([refusal(e)]);
+      return null;
+    }
     prefs.del(STORAGE_KEY);
-    return show([
+    show([
       card(
         "Ce cours n'existe plus",
         el('p', {}, 'Votre travail reste dans ce navigateur.'),
         el('a', { className: 'btn ghost', href: '/accueil' }, 'Taper un autre code')
       )
     ]);
+    return null;
+  }
+}
+
+async function openCourse(me) {
+  await openStorage();
+  let course = await keptCourse(me.id);
+  let kept = Boolean(course);
+  if (!course) {
+    course = await fetchCourse(me);
+    if (!course) return;
+    kept = await keepCourse(me.id, course);
   }
   token = me.token;
   const project = normalizeProject({ ...course, id: me.id });
@@ -263,8 +345,12 @@ async function openCourse(me) {
   window.addEventListener('pagehide', () => flush());
   document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && flush());
   watchState();
+  if (!kept) return showOfflineState({ state: 'unavailable' });
+  window.addEventListener('online', () => offlineState !== 'ready' && prepare(project));
+  prepare(project);
 }
 
+startWorker();
 const me = remembered();
 if (me) openCourse(me);
 else showJoin();

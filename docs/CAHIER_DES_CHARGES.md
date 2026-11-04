@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.19** · 3 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.20** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -49,11 +49,11 @@ trace.
 | EV-03   | 01/11/2026 | Pas de compte pour les élèves. Leur nom, leur prénom et leurs réponses restent dans l'historique du cours, pour l'enseignant.                                                                | PRI-04, Q-02, Q-17                       | Haute    | En cours : entrer sans compte et rendre sont faits ; l'enseignant verra le détail des réponses à l'étape 8. Voir 12.3 |
 | EV-04   | 01/11/2026 | Revoir la publication des fiches, qui semble ne pas fonctionner.                                                                                                                             | PUB-01, DEM-02, E-02, E-16               | Moyenne  | En cours. Voir 12.9                                                                    |
 | EV-05   | 01/11/2026 | Suivre le cours : voir les noms des élèves qui ont commencé, et s'ils ont fini ou non.                                                                                                       | Q-10                                     | Haute    | Fait : la liste montre qui a commencé et qui a fini, sans recharger. Voir 12.4 |
-| EV-06   | 01/11/2026 | Travailler hors ligne une fois la page récupérée, avec l'avancement gardé dans le navigateur. La connexion ne sert qu'à rendre.                                                              | Q-04, Q-05, Q-15, E-06                   | Haute    | Validée. Voir 12.5                                                                     |
+| EV-06   | 01/11/2026 | Travailler hors ligne une fois la page récupérée, avec l'avancement gardé dans le navigateur. La connexion ne sert qu'à rendre.                                                              | Q-04, Q-05, Q-15, E-06                   | Haute    | Fait, à essayer sur de vrais téléphones. Voir 12.5 |
 | EV-07   | 01/11/2026 | Alléger le cours, en particulier les photos, sans les rendre illisibles.                                                                                                                     | E-05                                     | Moyenne  | En cours. Voir 12.7                                                                    |
 | EV-08   | 01/11/2026 | Donner à l'élève la correction complète sur son téléphone quand l'enseignant termine le cours, s'il a du réseau et que sa page est toujours ouverte. Elle n'y reste que le temps de la page. | Q-03, Q-16, Q-20, VER-01                 | Haute    | Validée. Voir 12.6                                                                     |
 | EV-09   | 01/11/2026 | Afficher sous le QR code un code court à taper, comme alternative.                                                                                                                           | COU-04                                   | Moyenne  | Fait. Voir 12.2 |
-| EV-10   | 01/11/2026 | Ne plus dépendre de Google pour les polices.                                                                                                                                                 | E-08                                     | Basse    | Validée. Voir 12.5                                                                     |
+| EV-10   | 01/11/2026 | Ne plus dépendre de Google pour les polices.                                                                                                                                                 | E-08                                     | Basse    | Fait. Voir 12.5 |
 | EV-11   | 01/11/2026 | Garder le fichier autonome comme export de secours.                                                                                                                                          | PRI-02, Q-12                             | Moyenne  | Validée. Voir 12.8                                                                     |
 | EV-12   | 01/11/2026 | Carte collective anonyme : tous les placements, sans nom, sur l'écran de l'enseignant pour le débrief.                                                                                       |                                          | Basse    | Reportée                                                                               |
 | EV-13   | 01/11/2026 | Avancement des élèves en direct.                                                                                                                                                             | Q-10                                     | Basse    | Reportée                                                                               |
@@ -180,8 +180,8 @@ noter ici.
   sont jamais envoyés au serveur. Seul l'enseignant publie, et il publie le projet sans progression.
   **À faire évoluer :** le nom, l'état et le travail rendu des élèves seront conservés sur le serveur, pour
   l'enseignant (`ANO-05`, `HIS-01`).
-- **PRI-05 — Hors ligne.** Le fichier autonome fonctionne sans connexion. ⚠️ E-06 pour le mode
-  hébergé (prévu : `HOR-01`)
+- **PRI-05 — Hors ligne.** Le fichier autonome fonctionne sans connexion. La page élève aussi, une fois préparée (`HOR-01`, dans la
+  branche de la refonte)
 - **PRI-06 — Positions indépendantes de l'écran.** Toute position est enregistrée en % de l'image
   du plan (0–100).
 - **PRI-07 — Rien ne se perd d'une version à l'autre.** Les projets et les données des versions
@@ -557,9 +557,9 @@ Code : [`server/`](../server/) · Tests : [`tests/`](../tests/) (`server`, `serv
 Code : [`scripts/`](../scripts/), [`Dockerfile`](../Dockerfile),
 [`docker-compose.yml`](../docker-compose.yml)
 
-- **DEP-01** `npm run build` produit `dist/index.html` : un seul fichier contenant le CSS, le JavaScript et
+- **DEP-01** `npm run build` produit `dist/index.html` : un seul fichier contenant le CSS, le JavaScript, les polices et
   le plan d'exemple. Il produit aussi les pages des espaces (`prof.html`, `admin.html`, `compte.html`), chacune d'un
-  seul tenant et avec son seul code.
+  seul tenant et avec son seul code, en dehors des polices, servies par le site (`HOR-05`).
 - **DEP-02** `scripts/build.mjs --embed <projet> --out <fichier>` produit un fichier autonome contenant un
   projet.
 - **DEP-03** `npm run convert` convertit un ancien `.html` ou `.json` au format actuel.
@@ -596,8 +596,8 @@ Code : [`store.js`](../src/js/store.js), [`db.js`](../src/js/db.js)
 - **SEC-02** La seule protection réelle est le mot de passe de publication, vérifié par le serveur.
 - **SEC-03** Aucun secret ne doit figurer dans le projet ni dans le code.
 - **SEC-04** Tout texte venant d'un projet ou d'un utilisateur est échappé avant d'être affiché.
-- **SEC-05** Aucune donnée personnelle des élèves n'arrive sur le serveur (`PRI-04`). ⚠️ E-08 pour les
-  polices
+- **SEC-05** Aucune donnée personnelle des élèves n'arrive sur le serveur (`PRI-04`). E-08 est corrigé pour les polices dans la branche
+  de la refonte
 
 ### 8.3 Interface — `INT`
 
@@ -717,14 +717,14 @@ jour, E-05 et E-09 en partie.
 - **E-06 — Le mode hébergé ne fonctionne pas sans réseau.** Il n'y a ni service worker ni manifeste :
   sans connexion, recharger la page échoue, alors que l'usage prévu est la sortie de terrain.
   `ARCHITECTURE.md` annonce « Tout fonctionne hors ligne », ce qui n'est vrai que pour le fichier autonome.
-  _Lié à `PRI-05`, Q-04._
+  _Lié à `PRI-05`, Q-04._ **Corrigé dans la branche, étape 6.**
 - **E-07 — Un `project.json` déposé à la main contient la progression.** Contrairement à la publication,
   le téléchargement inclut placements, mesures et état « vérifié » de ce navigateur. Un nouvel élève en
   hérite à sa première ouverture. _Lié à `FIL-02`, `PUB-05`._
 - **E-08 — Les polices viennent de Google.** La page charge Atkinson Hyperlegible et Fraunces depuis Google
   Fonts, y compris dans le fichier autonome. Ouvrir la page en ligne transmet donc l'adresse IP de
   l'élève à un tiers. C'est en tension avec `PRI-01` et `SEC-05`, et à regarder dans un contexte scolaire
-  (RGPD). Hors ligne, les polices du système prennent le relais.
+  (RGPD). Hors ligne, les polices du système prennent le relais. **Corrigé dans la branche, étape 6 :** le site sert ses polices.
 - **E-09 — La partie la plus risquée n'est pas testée.** Aucun test ne couvre le choix du projet au
   démarrage et la publication côté navigateur (`project-io.js`), le stockage (`store.js`), les rendus
   (`report.js`), la lecture `.xlsx` (`xlsx.js`) ni les vues. _Lié à `QUA-01`._ **Corrigé en partie :** le serveur est
@@ -975,6 +975,9 @@ Demandes : EV-06, EV-10
   correction.
 - **HOR-04** Un envoi impossible faute de réseau ne perd rien : les réponses partent dès que le réseau revient.
 - **HOR-05** L'application n'a besoin d'aucun service tiers pour s'afficher : elle sert elle-même ses polices.
+- **HOR-10** La page dit à l'élève où en est sa préparation : le décompte du téléchargement, puis « ✓ Prêt pour le terrain » une fois tout
+  gardé, ou ce qui manque. L'enseignant est invité à attendre ce message avant de quitter le réseau.
+- **HOR-11** Les vidéos ne sont pas gardées sur l'appareil (section 9 de la feuille de route). Sans réseau, la fiche l'explique.
 - **HOR-06** Dès que l'élève clique sur Terminer, ses placements et ses mesures sont figés.
 - **HOR-07** Un élève peut rendre après la fin du cours : son rendu est accepté et signalé à l'enseignant.
 - **HOR-08** L'élève dispose d'un bouton Terminer : son clic notifie l'enseignant et envoie ses réponses s'il a du
@@ -1110,3 +1113,4 @@ Demande : EV-28
 | 0.17    | 2 novembre 2026   | Étape 4 : lancement, QR code, entrée des élèves et suivi ; COU-12, COU-13 ; exception à PRI-01 pour la bibliothèque de QR code |
 | 0.18    | 3 novembre 2026   | Étape 5 : terminer, envoi et renvoi des réponses, résultat calculé par le serveur ; COU-10 fait en avance ; proportions du plan mesurées à la publication |
 | 0.19    | 3 novembre 2026   | EV-04 : constats sur le poste du premier enseignant |
+| 0.20    | 4 novembre 2026   | Étape 6 : page élève disponible sans réseau, polices servies par le site ; HOR-10, HOR-11 |

@@ -204,7 +204,7 @@ test('ADM-01 : sans variables ou avec des variables invalides, le journal le sig
   assert.doesNotMatch(second.output.stdout, /court/);
 });
 
-test('ADM-01 : un admin qui a perdu son mot de passe obtient un lien, sans mot de passe dans le terminal', async (t) => {
+test('ADM-09 : un admin qui a perdu son mot de passe obtient un lien, sans mot de passe dans le terminal', async (t) => {
   const { root, data } = await dirs(t);
   const run = () => spawnSync(process.execPath, ['server/admin-reset.mjs', '--data', data], { encoding: 'utf8' });
   await mkdir(data, { recursive: true });

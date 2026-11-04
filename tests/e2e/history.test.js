@@ -84,7 +84,7 @@ async function saved(page, action) {
 
 /* --- HIS-03, SUI-03 : une ligne par élève --- */
 
-test('HIS-03 : une ligne par élève : son état, son score et sa précision ; rien pour celui qui n’a pas rendu', async (t) => {
+test('HIS-03, SUI-03 : une ligne par élève : son état, son score et sa précision ; rien pour celui qui n’a pas rendu', async (t) => {
   const { site, teacher, launch, openLaunch } = await setup(t);
   const lea = await join(site, launch, 'Léa Dupont');
   await join(site, launch, 'Tom Martin');

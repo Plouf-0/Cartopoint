@@ -113,7 +113,7 @@ test('plusieurs à la fois : chaque essai a sa copie, et le temps restant s’af
   assert.deepEqual(await readdir(where.scratch), []);
 });
 
-test('un mutant qu’aucun test ne remarque est un problème, et le script échoue', async (t) => {
+test('QUA-08 : un mutant qu’aucun test ne remarque est un problème, et le script échoue', async (t) => {
   const { code, out } = await run(await fakeProject(t, NEVER_FAILS), [MUTANT]);
   assert.equal(code, 1, out);
   assert.match(out, new RegExp(`\\[1/1\\] PROBLÈME ${MUTANT}`));

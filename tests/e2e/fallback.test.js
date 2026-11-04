@@ -97,7 +97,7 @@ async function openOffline(t, target) {
   return { page, outside };
 }
 
-test('EXP-01 : l’enseignant télécharge un seul fichier, qui emporte le plan et les photos ; les fiches masquées restent ici', async (t) => {
+test('EXP-01, EXP-03 : l’enseignant télécharge un seul fichier, qui emporte le plan et les photos ; les fiches masquées restent ici', async (t) => {
   const { teacher } = await setup(t);
   const { name, text } = await downloadFile(t, teacher);
   assert.equal(name, 'Sortie au parc - secours.html');
@@ -149,7 +149,7 @@ test('EXP-01 : sans réseau, le travail reste après un rechargement', async (t)
   await page.locator('.pin').first().waitFor();
 });
 
-test('E-03 : le mode gestion demande le mot de passe choisi ; ni « admin » ni un autre n’ouvrent', async (t) => {
+test('E-03, EXP-04 : le mode gestion demande le mot de passe choisi ; ni « admin » ni un autre n’ouvrent', async (t) => {
   const { teacher } = await setup(t);
   const { target } = await downloadFile(t, teacher);
   const { page } = await openOffline(t, target);
@@ -168,7 +168,7 @@ test('E-03 : le mode gestion demande le mot de passe choisi ; ni « admin » ni 
   await page.locator('#newFiche').waitFor();
 });
 
-test('E-03 : un mot de passe trop court est refusé, et renoncer ne télécharge rien', async (t) => {
+test('E-03, EXP-04 : un mot de passe trop court est refusé, et renoncer ne télécharge rien', async (t) => {
   const { teacher } = await setup(t);
   let downloads = 0;
   teacher.on('download', () => downloads++);
@@ -211,7 +211,7 @@ test('EXP-01 : un fichier disparu du serveur, ou une base manquante, le disent a
   assert.equal(downloads, 0);
 });
 
-test('EXP-01 : déposé sur un site, le fichier de secours ne lit aucune configuration ni aucun projet en ligne', async (t) => {
+test('EXP-03 : déposé sur un site, le fichier de secours ne lit aucune configuration ni aucun projet en ligne', async (t) => {
   const { site } = await setup(t);
   const page = await openPage(t, browser, { base: site.base });
   const asked = [];

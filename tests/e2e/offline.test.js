@@ -243,7 +243,7 @@ test('HOR-01 : sans réseau et sans recharger, une photo encore jamais affichée
   assert.equal(await naturalWidth(page, '#readGallery img'), 10);
 });
 
-test('HOR-02 : sans réseau, l’élève place une fiche, ferme la page et la retrouve', async (t) => {
+test('HOR-02, HOR-03 : sans réseau, l’élève place une fiche, ferme la page et la retrouve', async (t) => {
   const { site, teacher } = await setup(t);
   const code = await launch(teacher, await fieldCourse(teacher));
   const page = await fieldStudent(t, site, code);
@@ -474,7 +474,7 @@ test('le retour du réseau reprend un téléchargement incomplet, de lui-même',
   await offlineStatus(page, READY);
 });
 
-test('section 9, point 9 : une vidéo ne se précharge pas, et sans réseau la fiche l’explique', async (t) => {
+test('HOR-11 : une vidéo ne se précharge pas, et sans réseau la fiche l’explique', async (t) => {
   const { site, teacher } = await setup(t);
   const [plan, picture, video] = [await upload(teacher, PLAN), await upload(teacher, PHOTO_1), await upload(teacher, MP4, 'video/mp4')];
   const course = await publish(teacher, {

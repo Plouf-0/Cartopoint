@@ -852,7 +852,7 @@ test('ADM-10 : l’adresse reste prise jusqu’à l’effacement, puis plus rien
 
 /* --- Changer son mot de passe --- */
 
-test('changer son mot de passe exige une session et le mot de passe actuel', async (t) => {
+test('ENS-05 : changer son mot de passe exige une session et le mot de passe actuel', async (t) => {
   const { base, db } = await site(t);
   assert.equal((await client(base).post('/api/auth/password', { current: PASSWORD, password: OTHER_PASSWORD })).status, 401);
   const browser = await loggedIn(base, TEACHER);
@@ -865,7 +865,7 @@ test('changer son mot de passe exige une session et le mot de passe actuel', asy
   assert.equal(accountOf(db, TEACHER).password_hash, HASH);
 });
 
-test('changer son mot de passe ferme ses autres sessions, pas la sienne', async (t) => {
+test('ENS-05 : changer son mot de passe ferme ses autres sessions, pas la sienne', async (t) => {
   const { base } = await site(t);
   const here = await loggedIn(base, TEACHER);
   const elsewhere = await loggedIn(base, TEACHER);

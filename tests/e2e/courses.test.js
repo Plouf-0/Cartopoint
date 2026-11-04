@@ -99,7 +99,7 @@ async function placeOnPlan(page, name) {
 
 /* --- ENS-02 : créer et remplir un cours --- */
 
-test('ENS-02 : créer un cours, y ajouter un plan, des fiches et des photos, et tout retrouver après un rechargement', async (t) => {
+test('ENS-02, LEG-02 : créer un cours, y ajouter un plan, des fiches et des photos, et tout retrouver après un rechargement', async (t) => {
   const { site, page } = await setup(t);
   await see(page, 'Aucun cours pour le moment.');
   await createCourse(page);

@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
 const ROOT = path.join(import.meta.dirname, '..');
@@ -54,6 +54,25 @@ test('le guide ne cite que des images qui existent, et chacune de celles qui exi
   const cited = [...new Set([...guide.matchAll(/images\/([\w-]+\.(?:png|jpg))/g)].map(([, name]) => `docs/images/${name}`))].sort();
   assert.deepEqual(cited, NEUTRAL_MEDIA.filter((file) => file.startsWith('docs/images/')).sort());
   for (const file of cited) assert.ok(existsSync(path.join(ROOT, file)), file);
+});
+
+test('QUA-05 : chaque exigence de la section 12 du cahier a au moins un test qui la cite dans son titre', () => {
+  const cahier = readFileSync(path.join(ROOT, 'docs/CAHIER_DES_CHARGES.md'), 'utf8');
+  // Quand la section 12 aura rejoint les sections 4 à 8, à la mise en service, cette recherche devra les suivre
+  const section = cahier.slice(cahier.indexOf('## 12. Fonctionnement cible'), cahier.indexOf('## 13. Historique'));
+  // Un identifiant retiré garde son ancien texte entre guillemets (12.11)
+  const required = [...section.matchAll(/^- \*\*([A-Z]{2,4}-\d{2})\*\* (?!«)/gm)].map(([, id]) => id);
+  assert.ok(required.length > 80, 'la recherche trouve bien les exigences');
+  // Des règles de travail : elles se vérifient à la revue, et par npm run test:coverage lui-même, pas par un test
+  const method = ['QUA-04', 'QUA-06', 'QUA-07'];
+  const testFiles = readdirSync(import.meta.dirname, { recursive: true }).filter((file) => file.endsWith('.test.js'));
+  const titles = testFiles
+    .flatMap((file) => [...readFileSync(path.join(import.meta.dirname, file), 'utf8').matchAll(/\btest\(\s*[`'"](.*)/g)].map(([, title]) => title))
+    .join('\n');
+  assert.deepEqual(
+    required.filter((id) => !method.includes(id) && !titles.includes(id)),
+    []
+  );
 });
 
 test('Git ignore les données, les bases et les secrets', () => {

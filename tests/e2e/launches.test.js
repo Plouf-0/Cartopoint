@@ -104,7 +104,7 @@ test('COU-04 : le QR code affiché mène bien au cours, et le code est écrit de
   assert.equal(await teacher.locator('dialog[open]').count(), 0);
 });
 
-test('COU-05 : scanner le QR code suffit pour entrer, sans compte, et l’élève voit le cours et ses fiches', async (t) => {
+test('COU-05, CRG-05 : scanner le QR code suffit pour entrer, sans compte, et l’élève voit le cours et ses fiches', async (t) => {
   const { site, teacher } = await setup(t);
   const code = await launch(teacher, await publishedCourse(teacher));
   const page = await student(t, site);
@@ -249,7 +249,7 @@ test('une carte sans plan le dit au lieu d’afficher une image cassée', async 
 
 /* --- Reprendre, et repartir à zéro (COU-09) --- */
 
-test('revenir sur le même QR code reprend le même élève et son travail, sans créer personne', async (t) => {
+test('COU-13 : revenir sur le même QR code reprend le même élève et son travail, sans créer personne', async (t) => {
   const { site, teacher } = await setup(t);
   const code = await launch(teacher, await publishedCourse(teacher));
   const page = await student(t, site);
@@ -300,7 +300,7 @@ test('COU-09 : un nouveau lancement repart à zéro sur le même appareil, même
   assert.equal(await page.locator('#studentName').textContent(), NAMES);
 });
 
-test('sur un appareil partagé, « Ce n’est pas vous ? » laisse entrer quelqu’un d’autre, sans le travail du précédent', async (t) => {
+test('COU-13 : sur un appareil partagé, « Ce n’est pas vous ? » laisse entrer quelqu’un d’autre, sans le travail du précédent', async (t) => {
   const { site, teacher } = await setup(t);
   const code = await launch(teacher, await publishedCourse(teacher));
   const page = await student(t, site);

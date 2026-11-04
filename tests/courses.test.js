@@ -274,7 +274,7 @@ test('ENS-03 : un cours n’existe pas pour un autre enseignant, ni pour l’adm
   assert.equal(count(db, 'course_versions'), 0);
 });
 
-test('ENS-04 : sans session, tout est refusé ; l’admin n’a pas de cours', async (t) => {
+test('ENS-04, ADM-08 : sans session, tout est refusé ; l’admin n’a pas de cours', async (t) => {
   const { base } = await site(t);
   const owner = await loggedIn(base);
   const course = await createCourse(owner);

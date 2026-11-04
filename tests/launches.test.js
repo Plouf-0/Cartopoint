@@ -282,7 +282,7 @@ test('COU-08 : un cours terminé pendant que les noms sont en route refuse l’�
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM participants').get().n, 0);
 });
 
-test('un code inconnu est refusé, et les échecs répétés sont limités sans gêner la classe', async (t) => {
+test('COU-12 : un code inconnu est refusé, et les échecs répétés sont limités sans gêner la classe', async (t) => {
   const { base } = await site(t);
   const { launch } = await launched(await loggedIn(base));
   const anyone = student(base);
@@ -309,7 +309,7 @@ test('derrière le proxy, chaque adresse a sa propre limite', async (t) => {
   assert.equal((await anyone.get('/api/join/ZZZZZZ', from('203.0.113.2'))).status, 404);
 });
 
-test('un lancement accepte 200 élèves, pas un de plus', async (t) => {
+test('COU-12 : un lancement accepte 200 élèves, pas un de plus', async (t) => {
   const { base, app } = await site(t);
   const { launch } = await launched(await loggedIn(base));
   const insert = app.db.prepare('INSERT INTO participants (id, launch_id, token_hash, names, joined_at) VALUES (?, ?, ?, ?, ?)');

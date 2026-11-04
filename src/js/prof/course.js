@@ -79,7 +79,6 @@ function showFailure(message) {
 async function start() {
   S.admin = true;
   S.teacherSpace = true;
-  S.source.kind = 'course';
   setProjectTab('Cours', courseTab);
   $('#publishTop').onclick = courseTab.publishCourse;
 

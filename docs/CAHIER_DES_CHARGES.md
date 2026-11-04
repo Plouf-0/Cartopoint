@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.31** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.32** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -759,10 +759,10 @@ jour, E-05 et E-09 en partie.
 - **E-15 — Écarts mineurs de documentation et d'accessibilité.**
   - Le README dit de changer `PUBLISH_PASSWORD` dans `docker-compose.yml`, or il vient du `.env`. Il ne
     mentionne ni Traefik ni le réseau externe. Le routage est défini hors du dépôt, dans la configuration de
-    Traefik.
-  - Placer une fiche exige un pointeur : il n'y a pas d'alternative au clavier.
+    Traefik. **Corrigé sur la branche :** le README est réécrit.
+  - Placer une fiche exige un pointeur : il n'y a pas d'alternative au clavier. **Reste à traiter :** voir Q-08.
   - La cible de construction annonce Firefox 100 et Safari 15.4, mais le compte rendu utilise
-    `CanvasRenderingContext2D.roundRect`, disponible à partir de Firefox 112 et Safari 16.
+    `CanvasRenderingContext2D.roundRect`, disponible à partir de Firefox 112 et Safari 16. **Corrigé sur la branche :** sans lui, le compte rendu garde des angles droits.
 - **E-16 — « Plus récent » dépend de l'horloge de l'appareil.** Le navigateur choisit la version à garder en
   comparant des dates produites par les appareils, pas par le serveur. Le 1er novembre, une publication
   portait l'heure 15 h 16 alors que le serveur l'a reçue à 15 h 04. Un appareil en avance peut donc refuser
@@ -1185,3 +1185,4 @@ fichier `.log` : le journal arrive sans rien demander à la personne, et l'admin
 | 0.29    | 4 novembre 2026   | Numérotation du projet en x.y.z (EV-44). Attention : ce numéro-ci est celui du cahier des charges, pas celui du logiciel |
 | 0.30    | 4 novembre 2026   | Étape 9 : fichier de secours d'un cours (EXP-03, EXP-04) ; une photo manquante à l'enregistrement est annoncée |
 | 0.31    | 4 novembre 2026   | EV-45 : l'heure de lancement sur le JPG, la correction, l'Excel, la page du lancement, la liste des lancements et le nom des fichiers |
+| 0.32    | 4 novembre 2026   | Étape 10, sur la branche : l'accueil à la racine, l'ancienne publication retirée (`SRV-02` à `SRV-08`, `MUL-01`, `MUL-02`), E-04 derrière Cloudflare, E-15 en partie. La section 12 rejoindra les sections 4 à 8 une fois la production passée |

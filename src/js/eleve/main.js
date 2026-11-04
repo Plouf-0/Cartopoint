@@ -64,7 +64,7 @@ function refusal(error) {
   return card(
     'Impossible de rejoindre ce cours',
     el('p', {}, error.message),
-    el('a', { className: 'btn ghost', href: again ? location.pathname : '/accueil' }, again ? 'Réessayer' : 'Taper un autre code')
+    el('a', { className: 'btn ghost', href: again ? location.pathname : '/' }, again ? 'Réessayer' : 'Taper un autre code')
   );
 }
 
@@ -373,7 +373,7 @@ async function fetchCourse(me) {
       card(
         "Ce cours n'existe plus",
         el('p', {}, 'Votre travail reste dans ce navigateur.'),
-        el('a', { className: 'btn ghost', href: '/accueil' }, 'Taper un autre code')
+        el('a', { className: 'btn ghost', href: '/' }, 'Taper un autre code')
       )
     ]);
     return null;

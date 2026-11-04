@@ -34,7 +34,6 @@ export const S = {
   /** Rapport largeur / hauteur de l'image du plan affiché. */
   ratio: 1.16,
   /** D'où vient le projet : 'local', 'remote' (serveur), 'embedded' (fichier autonome). */
-  source: { kind: 'local', url: null, remoteRevision: null, publishUrl: null },
   /** Le stockage du navigateur fonctionne-t-il ? */
   storageOk: true
 };

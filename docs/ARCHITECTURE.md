@@ -8,7 +8,7 @@
    toute une classe de bugs de synchronisation.
 2. **Le projet et le travail des élèves sont séparés.**
    - Le **projet** (cartes, fiches, positions réelles, thème) est préparé par l'enseignant et
-     peut être remplacé par une nouvelle version (fichier ou publication).
+     peut être remplacé par une nouvelle version.
    - La **progression** (placements, mesures, exercice vérifié) appartient à l'élève, reste
      dans son navigateur et survit aux mises à jour du projet.
 3. **Le terrain se passe de réseau.** La page élève fonctionne sans connexion une fois récupérée (voir « Hors ligne »), et le fichier
@@ -17,19 +17,17 @@
 ## Flux de données
 
 ```
-                             ┌────────────── démarrage (project-io.js) ──────────────┐
-project.json ──▶│ serveur › projet intégré au .html › navigateur                                                  │──▶ S (store.js)
-        (ou .html)     │ › anciennes données (2026) › nouveau projet vide                                         │      │
-                 └───────────────────────────────────────────────────────┘      │
-                                                                                ▼
-   vues (views/*) ── lisent S, modifient les objets ── changedMap() / changedMeta() / changedProgress()
-                                                                                │  (regroupé, 250 ms)
-                                                                                ▼
-                                                                  IndexedDB (db.js)
+ backend (backends/*, prof/course-backend.js) ──▶ S (store.js)
+                                                     │
+                                                     ▼
+ vues (views/*) ── lisent S, modifient les objets ── changedMap() / changedMeta() / changedProgress()
+                                                     │  (regroupé, 250 ms)
+                                                     ▼
+      local : IndexedDB (db.js) · cours : serveur · élève : son navigateur, puis le serveur
 ```
 
 `S` (store.js) contient : `project`, `map` (carte affichée), `progress` (par carte),
-`local` (modifications en attente, révision d'origine), `admin`, `ui`, `source`.
+`local` (modifications en attente, révision d'origine), `admin`, `ui`.
 
 ## Stockage dans le navigateur
 
@@ -50,15 +48,14 @@ n'est perdu en passant à cette version. Les anciennes bases ne sont pas supprim
 
 ## Format d'un projet (version 3)
 
-C'est le contenu de `project.json`, et du bloc `<script id="embedded-project">` des fichiers
-autonomes.
+C'est le contenu d'un cours exporté en `.json`, et du bloc `<script id="embedded-project">` d'un fichier de secours.
 
 ```jsonc
 {
   "format": "inventaire-botanique",
   "version": 3,
   "id": "proj-…",            // stable : relie un projet à la progression des élèves
-  "revision": "…",           // change à chaque enregistrement / publication
+  "revision": "…",           // change à chaque enregistrement
   "savedAt": "2026-10-12T15:04:59.952Z",
   "title": "Sortie au parc",
   "theme": { "preset": "vegetal", "accent": "", "icon": "leaf" },
@@ -105,36 +102,24 @@ autonomes.
 - `normalizeProject()` accepte aussi le format 2 (`locations`, `code`, `studentEnabled`, placements
   dans les fiches) et le convertit.
 
-## Choix du projet au démarrage
+## Fichier de secours : le choix du projet au démarrage
 
-1. **Serveur** : `config.json` (facultatif) puis `project.json` (ou `projets/<nom>.json` avec
-   `?projet=nom`). Seulement en `http(s)://`.
-2. **Projet intégré** à la page (fichier autonome enregistré depuis l'application).
-3. **Navigateur** (IndexedDB).
-4. **Anciennes données** (2026), puis **nouveau projet** avec le plan d'exemple.
+L'application d'origine, avec son backend `local`, est devenue la page du fichier de secours (`src/secours.html`, `js/main.js`). Elle ne connaît aucun serveur.
 
-Quand un projet arrive (1 ou 2) et qu'un projet de **même identifiant** est déjà dans le navigateur :
-- version entrante plus récente et pas de modification locale → installée, progression conservée ;
-- sinon → la version du navigateur est gardée (cas de l'enseignant qui n'a pas encore publié ;
-  un bandeau lui propose de publier ou de reprendre la version en ligne).
+1. **Projet intégré** au fichier.
+2. **Navigateur** (IndexedDB).
+3. **Anciennes données** (2026), puis **nouveau projet** avec le plan d'exemple.
 
-Projet **différent** : installé directement, sauf si le navigateur contient des modifications
-non enregistrées (confirmation).
+Quand le projet intégré arrive et qu'un projet de **même identifiant** est déjà dans le navigateur :
 
-## Publication
+- version intégrée plus récente et pas de modification locale → installée, progression conservée ;
+- sinon → la version du navigateur est gardée.
 
-`project-io.publish()` envoie le projet complet (sans progression) en `PUT` avec
-`Authorization: Bearer <mot de passe>` vers `publishUrl` (fourni par `config.json`, donc par le
-serveur quand `PUBLISH_PASSWORD` est défini). Le serveur vérifie le mot de passe, le format,
-sauvegarde l'ancienne version puis écrit le fichier de façon atomique.
+Projet **différent** : installé directement, sauf si le navigateur contient des modifications non enregistrées (confirmation).
 
-## Version autonome
-
-`scripts/build.mjs` regroupe le JavaScript (esbuild, format IIFE), intègre le CSS et le plan
-d'exemple dans `index.html`. Au démarrage, `captureTemplate()` mémorise cette page : c'est elle
-que l'on recopie, avec le projet dans `<script id="embedded-project">`, pour **Enregistrer le
-projet (.html)** et la **version élèves**. En développement (`src/`, modules séparés), seul
-l'export `.json` est proposé.
+`scripts/build.mjs` regroupe le JavaScript (esbuild, format IIFE), intègre le CSS, les polices et le plan d'exemple dans `secours.html`. Au démarrage, `captureTemplate()`
+mémorise cette page : c'est elle que l'on recopie, avec le projet dans `<script id="embedded-project">`, pour **Enregistrer le projet (.html)** et la **version élèves**. En
+développement (`src/`, modules séparés), seul l'export `.json` est proposé.
 
 ## Thèmes
 
@@ -146,7 +131,7 @@ sont fixes, pour garder le même sens d'un thème à l'autre.
 ## Ajouter un champ à une fiche
 
 1. `model.normalizeFiche()` : ajouter la propriété (avec valeur par défaut) ;
-2. `index.html` : le champ dans le formulaire d'édition, et `views/editor.js` : `FIELDS` ;
+2. `prof-cours.html` et `secours.html` : le champ dans le formulaire d'édition, et `views/editor.js` : `FIELDS` ;
 3. `views/reader.js` : l'affichage côté élèves (ou l'ajouter à `NEEDS` dans `model.js` pour
    qu'il apparaisse avec les besoins) ;
 4. `spreadsheet.js` : une entrée dans `COLUMNS` pour l'import / export.
@@ -164,8 +149,7 @@ sont fixes, pour garder le même sens d'un thème à l'autre.
 | `admin-reset.mjs`   | Lien de réinitialisation pour l'admin, à lancer sur le serveur           |
 | `routes/auth.mjs`   | Connexion, déconnexion, mot de passe, utilisation d'un lien (`/api/auth`) |
 | `routes/admin.mjs`  | Tableau de bord de l'admin (`/api/admin`)                                |
-| `routes/pages.mjs`  | Pages des espaces, `robots.txt`                                          |
-| `routes/legacy.mjs` | Projet unique et publication, jusqu'aux espaces enseignants              |
+| `routes/pages.mjs`  | Pages du site, dont l'accueil à la racine, `robots.txt`                  |
 
 **Base de données.** `DATA_DIR/app.db`, SQLite, avec les clés étrangères actives, le mode WAL et
 `synchronous = NORMAL`. `node:sqlite` est synchrone : une écriture bloque tout le serveur le temps
@@ -178,9 +162,7 @@ une transaction, en entier ou pas du tout, et le serveur refuse une base plus r�
 Ne jamais modifier une migration déjà livrée.
 
 **Sauvegardes.** Au démarrage puis chaque heure, le serveur vérifie si la copie du jour existe :
-`backups/app-AAAA-MM-JJ.db`, 14 conservées. Une publication copie aussi l'ancienne version du projet
-dans `backups/`, 20 conservées par projet. Les noms sont comparés en entier, pour ne jamais confondre
-`rocaille`, `rocaille-2` et les copies de la base.
+`backups/app-AAAA-MM-JJ.db`, 14 conservées. Les fichiers de `media/` n'y sont pas : sauvegarder tout `data/` ailleurs.
 
 **Mise en cache.** Tout fichier et toute réponse JSON portent un ETag, et le serveur répond 304 si le
 client a déjà cette version. L'ETag d'un fichier vient de sa taille et de sa date, celui d'un JSON de
@@ -189,6 +171,10 @@ pour le texte à partir de 1 Ko, jamais pour les images, déjà compressées.
 
 **IP du client.** Derrière un proxy, seule la **dernière** valeur de `X-Forwarded-For` est sûre : c'est
 celle que le proxy a ajoutée, les précédentes viennent du client. Elle n'est lue qu'avec `TRUST_PROXY=1`.
+
+Cette dernière valeur est l'adresse qui s'est connectée au proxy. Derrière Cloudflare, c'est donc l'un de ses serveurs, partagé par
+des inconnus, et le visiteur est dans `CF-Connecting-IP`. N'importe qui pourrait écrire cet en-tête en s'adressant au serveur sans passer par Cloudflare. `clientIp()` ne le croit donc que si la dernière valeur tombe dans les plages publiées par Cloudflare (`server/security.mjs`). Si cette liste vieillit, rien
+ne s'ouvre : les visiteurs d'un nouveau serveur partagent seulement un compteur. En IPv6, la clé est le bloc `/64`, dont dispose tout abonné.
 
 ## Comptes
 
@@ -266,7 +252,7 @@ et le reste de l'application continue de fonctionner à partir de ce qui est en 
 | Page                     | Fichier               | Contenu                                                  |
 | ------------------------ | --------------------- | -------------------------------------------------------- |
 | `/prof/lancements/<id>`  | `prof-lancement.html` | QR code, code à taper, liste des élèves, fin du cours    |
-| `/accueil`               | `accueil.html`        | Taper un code ; deviendra la racine du site à l'étape 10 |
+| `/`                      | `accueil.html`        | Taper un code, ou aller vers l'espace enseignant         |
 | `/c/<CODE>`              | `eleve.html`          | Entrer avec ses noms, lire les fiches, les placer        |
 
 - **Un lancement** (`server/launches.mjs`) fige la dernière version publiée et reçoit un code de 6 caractères, sans O, 0, I ni 1. Le QR

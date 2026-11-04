@@ -139,7 +139,7 @@ test('INC-01 : une erreur du programme arrive de chaque page, avec son adresse, 
   const page = await openPage(t, browser, { base: site.base, expectErrors: true });
   await logIn(page, TEACHER, '/prof');
   await heading(page, 'Mes cours');
-  const addresses = ['/', '/accueil', '/admin', '/invitation', '/prof', `/prof/cours/${id}`, `/prof/lancements/${launchId}`, `/c/${code}`];
+  const addresses = ['/', '/admin', '/invitation', '/prof', `/prof/cours/${id}`, `/prof/lancements/${launchId}`, `/c/${code}`];
   for (const address of addresses) {
     await page.goto(address);
     await page.waitForLoadState('networkidle');
@@ -179,7 +179,7 @@ test('INC-01 : le compte de l’enseignant est noté, et la place manquante se v
 test('INC-01 : une promesse rejetée sans personne pour l’attraper arrive aussi', async (t) => {
   const { site } = await teacherSite(t);
   const page = await openPage(t, browser, { base: site.base, expectErrors: true });
-  await page.goto('/accueil');
+  await page.goto('/');
   await runScript(page, "Promise.reject(new TypeError('promesse perdue'))");
   const row = await waitForRow(site, /promesse perdue/);
   assert.equal(row.action, 'Erreur du programme');
@@ -189,7 +189,7 @@ test('INC-01 : une promesse rejetée sans personne pour l’attraper arrive auss
 test('INC-01 : ce qui ne vient pas du site reste dehors : le bruit du navigateur, les extensions', async (t) => {
   const { site, teacher } = await teacherSite(t);
   const page = await openPage(t, browser, { base: site.base, expectErrors: true });
-  await page.goto('/accueil');
+  await page.goto('/');
   await runScript(page, "throw new Error('x')");
   await waitForRow(site, /Error : x/);
   site.db.exec('DELETE FROM incidents');
@@ -418,7 +418,7 @@ test('INC-06 : le message qui attendait part aussi à la prochaine ouverture d�
       JSON.stringify([{ at: Date.now() - 5000, page: '/prof', action: 'Essai', reason: 'retrouvé à l’ouverture', details: '', machine: {} }])
     )
   );
-  await teacher.goto('/accueil');
+  await teacher.goto('/');
   await waitForRow(site, /retrouvé à l’ouverture/);
 });
 
@@ -448,7 +448,7 @@ test('INC-07 : un appareil ne garde que les 20 derniers messages, et une page n�
   assert.equal((await waitingReports(teacher)).at(-1).reason, 'problème 29', 'une page qui s’emballe finit par se taire');
   await teacher.evaluate(() => localStorage.setItem('cartopoint.incidents', 'pas du JSON'));
   await teacher.context().setOffline(false);
-  await teacher.goto('/accueil');
+  await teacher.goto('/');
   assert.equal(await teacher.locator('input').first().isVisible(), true, 'une file illisible ne gêne rien');
   assert.deepEqual(rows(site), []);
 });

@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, utimes, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, utimes, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { createRouter, HttpError, readBody, readJson, send, sendJson, staticFiles } from '../server/http.mjs';
-import { request, serve, tempDir } from './helpers.js';
+import { request, serve, startApp, tempDir } from './helpers.js';
 
 const LARGE = 'contenu répétitif '.repeat(500);
 const BIG_JSON = { texte: LARGE };
@@ -117,11 +117,10 @@ test('HEAD donne les en-têtes, sans le contenu', async (t) => {
 
 test('SRV-10 : les pages, scripts et styles sont revalidés, les autres fichiers gardés une heure', async (t) => {
   const { base } = await site(t);
-  const page = await request(base, '/');
+  const page = await request(base, '/index.html');
   assert.equal(page.headers['cache-control'], 'no-cache');
   assert.equal(page.headers['content-type'], 'text/html; charset=utf-8');
   assert.match(page.body.toString(), /accueil/);
-  assert.equal((await request(base, '/index.html')).status, 200);
   assert.equal((await request(base, '/petit.css')).headers['cache-control'], 'no-cache');
   assert.equal((await request(base, '/app.js')).headers['cache-control'], 'no-cache');
   const photo = await request(base, '/photo.png');
@@ -243,9 +242,9 @@ test("seule une lecture réussie porte un ETag ; l'en-tête de cache se règle",
 
 test('le routeur lit les paramètres, y compris avec un suffixe', () => {
   const handler = () => {};
-  const router = createRouter().add('GET', '/courses/:id', handler).add('GET', '/projets/:name.json', handler).add('GET', '/a/:x/b/:y', handler);
+  const router = createRouter().add('GET', '/courses/:id', handler).add('GET', '/media/:name.json', handler).add('GET', '/a/:x/b/:y', handler);
   assert.deepEqual(router.find('GET', '/courses/abc').params, { id: 'abc' });
-  assert.deepEqual(router.find('GET', '/projets/rocaille.json').params, { name: 'rocaille' });
+  assert.deepEqual(router.find('GET', '/media/rocaille.json').params, { name: 'rocaille' });
   assert.deepEqual(router.find('GET', '/a/1/b/2').params, { x: '1', y: '2' });
   assert.deepEqual(router.find('GET', '/courses/a%20b').params, { id: 'a b' });
   assert.equal(router.find('GET', '/courses/abc').handler, handler);
@@ -254,8 +253,8 @@ test('le routeur lit les paramètres, y compris avec un suffixe', () => {
 test('le routeur ne confond pas les chemins voisins', () => {
   const router = createRouter()
     .add('GET', '/courses/:id', () => {})
-    .add('GET', '/projets/:name.json', () => {});
-  for (const p of ['/courses', '/courses/', '/courses/a/b', '/projets/aXjson', '/projets/a.json/x', '/x/courses/a']) {
+    .add('GET', '/media/:name.json', () => {});
+  for (const p of ['/courses', '/courses/', '/courses/a/b', '/media/aXjson', '/media/a.json/x', '/x/courses/a']) {
     assert.equal(router.find('GET', p).handler, undefined, p);
     assert.deepEqual(router.find('GET', p).allow, [], p);
   }
@@ -282,8 +281,8 @@ test('HEAD suit les routes GET, et une mauvaise méthode donne un 405 avec Allow
 test('sans route, on tombe sur les fichiers en lecture, et sur un 405 pour le reste', async (t) => {
   const { root } = await site(t);
   const base = await serve(t, createRouter(), staticFiles(root));
-  assert.equal((await request(base, '/')).status, 200);
-  const write = await request(base, '/', { method: 'POST' });
+  assert.equal((await request(base, '/index.html')).status, 200);
+  const write = await request(base, '/index.html', { method: 'POST' });
   assert.equal(write.status, 405);
   assert.equal(write.headers.allow, 'GET, HEAD');
 });
@@ -388,4 +387,43 @@ test('readJson rend un objet, et refuse tout le reste avec un 400', async (t) =>
     assert.equal(r.body.toString(), 'Requête invalide', body);
   }
   assert.equal((await request(base, '/json', { method: 'POST', body: JSON.stringify({ a: 'x'.repeat(200) }) })).status, 413);
+});
+
+/* --- Ce qui ne sort jamais --- */
+
+test('SRV-09 : ni la base, ni les sauvegardes, ni rien du dossier de données ne sort', async (t) => {
+  const { app, base, data } = await startApp(t);
+  app.backup();
+  await writeFile(path.join(data, 'secret.txt'), 'ne doit pas sortir');
+  const today = new Date().toISOString().slice(0, 10);
+  for (const address of ['/app.db', `/backups/app-${today}.db`, '/secret.txt', '/../secret.txt', '/%2e%2e/secret.txt', '/..%2fsecret.txt']) {
+    const r = await request(base, address);
+    assert.equal(r.status, 404, address);
+    assert.doesNotMatch(r.body.toString(), /ne doit pas sortir|SQLite/, address);
+  }
+});
+
+test('la racine sert l’accueil, et une adresse de l’ancienne publication ne mène plus à rien, même si son fichier reste sur le disque', async (t) => {
+  const { base, data, root } = await startApp(t);
+  await writeFile(path.join(root, 'accueil.html'), 'page accueil');
+  await writeFile(path.join(data, 'project.json'), JSON.stringify({ format: 'inventaire-botanique', maps: [], title: 'ne doit pas sortir' }));
+  await mkdir(path.join(data, 'projets'));
+  await writeFile(path.join(data, 'projets', 'rocaille.json'), '{"title":"ne doit pas sortir"}');
+  assert.equal((await request(base, '/')).body.toString(), 'page accueil');
+  assert.equal((await request(base, '/accueil')).status, 404);
+  for (const address of ['/project.json', '/projets/rocaille.json', '/config.json', '/index.html']) {
+    const r = await request(base, address);
+    assert.equal(r.status, 404, address);
+    assert.doesNotMatch(r.body.toString(), /ne doit pas sortir/, address);
+  }
+  const body = JSON.stringify({ format: 'inventaire-botanique', maps: [], title: 'nouveau' });
+  assert.equal((await request(base, '/api/project', { method: 'PUT', headers: { Authorization: 'Bearer x' }, body })).status, 405);
+  assert.match(await readFile(path.join(data, 'project.json'), 'utf8'), /ne doit pas sortir/, 'le fichier n’a pas bougé');
+});
+
+test('SRV-02 : la racine n’accepte que la lecture', async (t) => {
+  const { base } = await startApp(t);
+  const write = await request(base, '/', { method: 'DELETE' });
+  assert.equal(write.status, 405);
+  assert.equal((await request(base, '/', { method: 'HEAD' })).status, 200);
 });

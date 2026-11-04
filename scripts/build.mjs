@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 /**
- * Construit l'application. index.html est la version autonome : un seul fichier HTML contenant
- * le CSS, le JavaScript, les polices et le plan d'exemple. Ce fichier fonctionne :
- *   - hébergé sur un serveur (avec project.json à côté) ;
- *   - ouvert directement depuis l'ordinateur (double-clic), sans connexion.
- * Les pages des espaces (enseignant, admin, liens) sont aussi d'un seul tenant, chacune avec son seul code. Elles trouvent leurs
- * polices dans assets/fonts/, à côté d'elles, et le service worker de la page élève dans sw.js. secours.html est la base du fichier de secours d'un cours.
+ * Construit l'application. secours.html est la base du fichier de secours d'un cours : un seul fichier HTML contenant
+ * le CSS, le JavaScript, les polices et le plan d'exemple, qui s'ouvre d'un double-clic, sans serveur ni connexion.
+ * Les pages des espaces (accueil, enseignant, admin, élève, liens) sont aussi d'un seul tenant, chacune avec son seul code. Elles trouvent leurs
+ * polices dans assets/fonts/, à côté d'elles, et le service worker de la page élève dans sw.js.
  *
- *   npm run build                                   → dist/index.html et les pages des espaces
+ *   npm run build                                   → dist/secours.html et les pages des espaces
  *   node scripts/build.mjs --outdir autre/dossier   → la même chose ailleurs
  *   node scripts/build.mjs --embed data/project.json --out "dist/Mon projet.html"
  *                                                   → fichier autonome contenant un projet
@@ -26,7 +24,7 @@ const src = path.join(root, 'src');
 const args = {};
 for (let i = 2; i < process.argv.length; i++) if (process.argv[i].startsWith('--')) args[process.argv[i].slice(2)] = process.argv[++i];
 const outDir = path.resolve(root, args.outdir || 'dist');
-const out = args.out ? path.resolve(root, args.out) : path.join(outDir, 'index.html');
+const out = args.out ? path.resolve(root, args.out) : path.join(outDir, 'secours.html');
 const SPACE_PAGES = ['prof.html', 'prof-cours.html', 'prof-lancement.html', 'admin.html', 'compte.html', 'accueil.html', 'eleve.html'];
 
 function commitLabel() {
@@ -39,8 +37,7 @@ function commitLabel() {
 const { version: number } = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
 const version = `${number} (${commitLabel()})`;
 
-/** @param fallback le fichier de secours : sans aucun lien avec un serveur (voir project-io.js) */
-async function bundle(entry, { fallback = false } = {}) {
+async function bundle(entry) {
   const { outputFiles } = await build({
     entryPoints: [path.join(src, entry)],
     bundle: true,
@@ -49,7 +46,7 @@ async function bundle(entry, { fallback = false } = {}) {
     write: false,
     legalComments: 'none',
     charset: 'utf8',
-    define: { __APP_VERSION__: JSON.stringify(version), __FALLBACK__: String(fallback) }
+    define: { __APP_VERSION__: JSON.stringify(version) }
   });
   // Dans un <script> en ligne, « </script » fermerait la balise : on l'échappe.
   return outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
@@ -57,10 +54,10 @@ async function bundle(entry, { fallback = false } = {}) {
 
 const js = await bundle('js/main.js');
 const css = await fs.readFile(path.join(src, 'css/app.css'), 'utf8');
-let html = await fs.readFile(path.join(src, 'index.html'), 'utf8');
+let html = await fs.readFile(path.join(src, 'secours.html'), 'utf8');
 
 const replaceOnce = (from, to) => {
-  if (!html.includes(from)) throw new Error('motif introuvable dans index.html : ' + from);
+  if (!html.includes(from)) throw new Error('motif introuvable dans secours.html : ' + from);
   html = html.replace(from, () => to);
 };
 
@@ -94,12 +91,6 @@ await fs.writeFile(out, html);
 console.log(`✓ ${path.relative(root, out)} (${(html.length / 1e6).toFixed(2)} Mo)`);
 
 if (!args.out) {
-  // La base du fichier de secours d'un cours (prof/fallback-file.js) : la même page, mais qui ne cherche aucun serveur
-  const fallbackJs = await bundle('js/main.js', { fallback: true });
-  await fs.writeFile(
-    path.join(outDir, 'secours.html'),
-    html.replace(js, () => fallbackJs)
-  );
   await fs.cp(path.join(src, 'assets/fonts'), path.join(outDir, 'assets/fonts'), { recursive: true });
   await fs.copyFile(path.join(src, 'sw.js'), path.join(outDir, 'sw.js'));
   for (const page of SPACE_PAGES) {

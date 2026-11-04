@@ -7,6 +7,9 @@ import { S, verified, progress, evaluationOf } from './store.js';
 import { visibleFiches, numberOf, titleOf, hasRef, placedPos, MEASURES } from './model.js';
 import { paletteOf } from './themes.js';
 
+/** roundRect manque avant Firefox 112 et Safari 16 : le compte rendu y garde des angles droits plutôt que de ne pas se faire (E-15). */
+const roundedBox = (ctx, x, y, w, h, r) => (ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h));
+
 const STUDENT = '#b3263e';
 const TRUTH = '#1d5fa6';
 const GRADE = { ok: ['#e1f1e6', '#2e7d4f'], near: ['#fbefd9', '#a46a12'], far: ['#fbe5e8', '#b3263e'], none: ['#eef0ec', '#55615a'] };
@@ -42,7 +45,7 @@ function drawTag(ctx, x, y, r, text, color, roundness) {
   ctx.font = `bold ${Math.round(r * 0.95)}px ${SANS}`;
   const w = Math.max(2 * r, ctx.measureText(text).width + r * 0.9);
   ctx.beginPath();
-  ctx.roundRect(x - w / 2, y - r, w, 2 * r, r * roundness);
+  roundedBox(ctx, x - w / 2, y - r, w, 2 * r, r * roundness);
   ctx.fillStyle = color;
   ctx.fill();
   ctx.lineWidth = r * 0.2;
@@ -102,7 +105,7 @@ function pill(ctx, x, y, text, [bg, fg], size = 20) {
   const w = ctx.measureText(text).width + size * 1.1;
   const h = size * 1.6;
   ctx.beginPath();
-  ctx.roundRect(x, y - h / 2, w, h, h / 2);
+  roundedBox(ctx, x, y - h / 2, w, h, h / 2);
   ctx.fillStyle = bg;
   ctx.fill();
   ctx.fillStyle = fg;
@@ -177,12 +180,12 @@ async function drawReport(names, { date } = {}) {
   y = headerH;
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(P, y, CW, planH, 14);
+  roundedBox(ctx, P, y, CW, planH, 14);
   ctx.clip();
   ctx.drawImage(plan, P, y, CW, planH);
   ctx.restore();
   ctx.beginPath();
-  ctx.roundRect(P, y, CW, planH, 14);
+  roundedBox(ctx, P, y, CW, planH, 14);
   ctx.lineWidth = 2;
   ctx.strokeStyle = pal.line;
   ctx.stroke();

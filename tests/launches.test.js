@@ -580,6 +580,6 @@ test('les pages des élèves et du lancement sont servies, quel que soit le code
   }
   assert.equal((await request(base, '/c/ABC234')).body.toString(), 'page élève');
   assert.equal((await request(base, '/c/code-inconnu')).body.toString(), 'page élève');
-  assert.equal((await request(base, '/accueil')).body.toString(), 'page accueil');
+  assert.equal((await request(base, '/')).body.toString(), 'page accueil');
   assert.equal((await request(base, '/prof/lancements/un-identifiant')).body.toString(), 'page lancement');
 });

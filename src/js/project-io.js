@@ -1,13 +1,12 @@
 /**
- * Entrées / sorties du projet :
- *  - choix du projet au démarrage (navigateur, fichier autonome, serveur) ;
+ * Entrées / sorties du projet, dans le fichier de secours, qui ne connaît aucun serveur :
+ *  - choix du projet au démarrage (fichier, navigateur) ;
  *  - enregistrement en fichier autonome (.html) ou en données (.json) ;
- *  - version élèves ; ouverture d'un fichier ; nouveau projet ;
- *  - publication sur le serveur (si configurée, voir server/routes/legacy.mjs).
+ *  - version élèves ; ouverture d'un fichier ; nouveau projet.
  *
  * Format d'un fichier de projet : voir docs/ARCHITECTURE.md.
  */
-import { $, esc, toast, download, safeFileName, blobToDataURL, prefs, errorText } from './util.js';
+import { $, toast, download, safeFileName, blobToDataURL, prefs, errorText } from './util.js';
 import { S, installProject, activate, exportProject, markExported, loadLocal } from './store.js';
 import { normalizeProject, newProject, projectFromText, DEFAULT_TITLE } from './model.js';
 import { readLegacyProject } from './db.js';
@@ -16,9 +15,6 @@ import { render } from './render.js';
 /* ------------------------------------------------------------------ */
 /* Modèle de page autonome                                              */
 /* ------------------------------------------------------------------ */
-
-/** Vrai dans le fichier de secours d'un cours (voir scripts/build.mjs). */
-const IS_FALLBACK = typeof __FALLBACK__ !== 'undefined' && __FALLBACK__;
 
 let template = null;
 
@@ -65,62 +61,17 @@ export async function defaultMapImage() {
 }
 
 /**
- * Configuration d'hébergement (facultative), lue dans `config.json` à côté de la page :
- *   { "projectUrl": "project.json", "publishUrl": "api/project" }
- * L'adresse `…/?projet=nom` charge `projets/nom.json` (et publie vers `publishUrl?projet=nom`).
- */
-async function readConfig() {
-  const cfg = { projectUrl: null, publishUrl: null, projectName: null };
-  // Un fichier de secours ne cherche aucun serveur, même si quelqu'un le dépose sur un site
-  if (IS_FALLBACK || !location.protocol.startsWith('http')) return cfg;
-  try {
-    const r = await fetch('config.json', { cache: 'no-store' });
-    if (r.ok) Object.assign(cfg, await r.json());
-  } catch {
-    /* pas de config : valeurs par défaut */
-  }
-  cfg.projectUrl ??= 'project.json';
-  const name = new URLSearchParams(location.search).get('projet');
-  if (name && /^[a-z0-9][a-z0-9-]{0,60}$/i.test(name)) {
-    cfg.projectName = name;
-    cfg.projectUrl = `projets/${name}.json`;
-  }
-  return cfg;
-}
-
-async function fetchRemote(url) {
-  try {
-    const r = await fetch(url, { cache: 'no-cache' });
-    if (!r.ok) return null;
-    return await r.json();
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Choisit et active le projet au démarrage.
- * Ordre de priorité : serveur (si hébergé) › projet intégré au fichier › projet du navigateur
- * › données d'une ancienne version › nouveau projet vide.
+ * Ordre de priorité : projet intégré au fichier › projet du navigateur › données d'une ancienne version › nouveau projet vide.
  * Le travail des élèves (progression) n'est jamais écrasé par une nouvelle version du projet.
  */
 export async function resolveStartupProject() {
   const image = await defaultMapImage();
-  const cfg = await readConfig();
-  S.source.publishUrl = cfg.publishUrl ? cfg.publishUrl + (cfg.projectName ? `?projet=${cfg.projectName}` : '') : null;
-
   const local = S.storageOk ? await loadLocal().catch(() => null) : null;
-  let incoming = null;
-  const remote = cfg.projectUrl ? await fetchRemote(cfg.projectUrl) : null;
-  if (remote) {
-    incoming = normalizeProject(remote, image);
-    Object.assign(S.source, { kind: 'remote', url: cfg.projectUrl, remoteRevision: incoming.revision });
-  } else if (embeddedProject()) {
-    incoming = normalizeProject(embeddedProject(), image);
-    S.source.kind = 'embedded';
-  }
+  const embedded = embeddedProject();
 
-  if (incoming) {
+  if (embedded) {
+    const incoming = normalizeProject(embedded, image);
     if (!local) return installProject(incoming, { progress: 'replace' });
     if (local.project.id === incoming.id) {
       const newer = incoming.savedAt > local.project.savedAt && incoming.revision !== local.project.revision;
@@ -139,7 +90,6 @@ export async function resolveStartupProject() {
       return installProject(incoming, { progress: 'seed' });
     }
     prefs.set(askKey, '1');
-    S.source.kind = 'local';
     return activate(local.project, local.progress, local.local);
   }
 
@@ -160,8 +110,8 @@ export async function resolveStartupProject() {
 /* ------------------------------------------------------------------ */
 
 /** Fichier autonome (.html, application + projet) ou données seules (.json). */
-export async function saveProject(kind = 'html', fixedName = null) {
-  const name = fixedName ?? prompt('Nom du fichier :', S.project.title);
+export async function saveProject(kind = 'html') {
+  const name = prompt('Nom du fichier :', S.project.title);
   if (name === null) return;
   toast('Préparation du fichier…');
   try {
@@ -216,7 +166,6 @@ export async function openProjectFile(file) {
   if (!confirm(`Ouvrir le projet « ${project.title} » (${project.maps.length} carte(s), ${nf} fiche(s)) ?${unsavedWarning()}`)) return;
   try {
     await installProject(project, { progress: 'replace' });
-    S.source.kind = 'local';
     render();
     toast('✓ Projet ouvert');
   } catch (e) {
@@ -232,99 +181,9 @@ export async function startNewProject() {
   project.theme = { ...S.project.theme };
   project.passwordHash = S.project.passwordHash;
   await installProject(project, { progress: 'replace', dirty: true });
-  S.source.kind = 'local';
   prefs.del('ib.studentNames');
   $('#studentNames').value = '';
   S.ui.tab = 'cartes';
   render();
   toast("Nouveau projet : remplacez l'image du plan avec « Changer l'image »");
-}
-
-/* ------------------------------------------------------------------ */
-/* Publication sur le serveur                                           */
-/* ------------------------------------------------------------------ */
-
-/** Petite fenêtre de mot de passe (le prompt() du navigateur afficherait le texte en clair). */
-function askPassword(message) {
-  return new Promise((resolve) => {
-    const dlg = document.createElement('dialog');
-    dlg.innerHTML = `<form class="dlg"><div class="dlg-head"><h2>Publier en ligne</h2></div>
-      <div class="dlg-body"><div class="field"><label for="pubPw">${esc(message)}</label><input id="pubPw" type="password" autocomplete="current-password"></div></div>
-      <div class="dlg-foot"><button class="btn ghost" type="button" value="">Annuler</button><button class="btn" type="submit">Publier</button></div></form>`;
-    document.body.appendChild(dlg);
-    const done = (v) => {
-      dlg.close();
-      dlg.remove();
-      resolve(v);
-    };
-    dlg.querySelector('button[type=button]').onclick = () => done(null);
-    dlg.querySelector('form').onsubmit = (e) => {
-      e.preventDefault();
-      done(dlg.querySelector('input').value);
-    };
-    dlg.addEventListener('cancel', () => done(null));
-    dlg.showModal();
-  });
-}
-
-export async function publish() {
-  if (!S.source.publishUrl) return;
-  let password = sessionStorage.getItem('ib.publishPw');
-  if (!password) {
-    password = await askPassword('Mot de passe de publication (fourni par la personne qui héberge le site)');
-    if (!password) return;
-  }
-  toast('Publication…');
-  try {
-    let missing = 0;
-    const bundle = await exportProject({ withProgress: false, onMissing: (count) => (missing = count) });
-    const r = await fetch(S.source.publishUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + password },
-      body: JSON.stringify(bundle)
-    });
-    if (r.status === 401 || r.status === 403) {
-      sessionStorage.removeItem('ib.publishPw');
-      return toast('⚠ Mot de passe de publication refusé');
-    }
-    if (!r.ok) throw new Error('le serveur a répondu ' + r.status);
-    sessionStorage.setItem('ib.publishPw', password);
-    S.project.savedAt = bundle.savedAt;
-    S.source.remoteRevision = bundle.revision;
-    await markExported(bundle.revision);
-    render();
-    toast(
-      missing
-        ? `⚠ Publié, mais sans ${missing} photo(s) dont le fichier manque dans ce navigateur.`
-        : '✓ Publié : les élèves verront cette version en rechargeant la page'
-    );
-  } catch (e) {
-    toast('⚠ Publication impossible : ' + errorText(e));
-  }
-}
-
-/** Recharge la version publiée sur le serveur (abandonne les modifications locales). */
-async function reloadRemote() {
-  if (!confirm('Remplacer les modifications de ce navigateur par la version publiée sur le serveur ?')) return;
-  const remote = await fetchRemote(S.source.url);
-  if (!remote) return toast('⚠ Version en ligne introuvable');
-  await installProject(normalizeProject(remote, await defaultMapImage()), { progress: 'keep' });
-  S.source.remoteRevision = S.project.revision;
-  render();
-  toast('✓ Version en ligne rechargée');
-}
-
-/** Bandeau affiché en gestion quand des modifications locales ne sont pas en ligne. */
-export function draftBannerHTML() {
-  if (S.source.kind !== 'remote' || !S.local.dirty) return '';
-  const stale = S.source.remoteRevision && S.local.baseRevision && S.source.remoteRevision !== S.local.baseRevision;
-  return `<span>✎ Vos modifications sont enregistrées dans ce navigateur seulement : les élèves voient la version publiée.${stale ? ' ⚠ Une autre version a été publiée depuis.' : ''}</span>
-    ${S.source.publishUrl ? '<button type="button" class="btn sm" data-publish>Publier</button>' : '<button type="button" class="btn sm" data-dl-json>Télécharger project.json</button>'}
-    <button type="button" class="btn ghost sm" data-reload-remote>Reprendre la version en ligne</button>`;
-}
-
-export function bindDraftBanner(root) {
-  root.querySelector('[data-publish]')?.addEventListener('click', publish);
-  root.querySelector('[data-dl-json]')?.addEventListener('click', () => saveProject('json', 'project'));
-  root.querySelector('[data-reload-remote]')?.addEventListener('click', reloadRemote);
 }

@@ -6,7 +6,6 @@ import { S, fiches, listed, verified, posOf } from '../store.js';
 import { hasRef } from '../model.js';
 import { render } from '../render.js';
 import { openLogin } from './login.js';
-import { draftBannerHTML, bindDraftBanner } from '../project-io.js';
 
 export function renderHeader() {
   const title = S.project.title;
@@ -26,12 +25,6 @@ export function renderHeader() {
     const placed = list.filter(posOf).length;
     $('#progress').innerHTML = list.length ? `<b>${placed}</b> / ${list.length} fiche(s) placée(s)${verified() ? ' · exercice vérifié' : ''}` : '';
   }
-
-  const banner = $('#draftBanner');
-  const html = S.admin ? draftBannerHTML() : '';
-  banner.hidden = !html;
-  banner.innerHTML = html;
-  if (html) bindDraftBanner(banner);
 }
 
 export function studentNames() {

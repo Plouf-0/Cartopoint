@@ -173,8 +173,7 @@ const ALWAYS_REVALIDATED = new Set(['.html', '.js', '.css']);
 
 export function staticFiles(root) {
   return (req, res, { url }) => {
-    const p = url.pathname;
-    const file = inside(root, p.endsWith('/') ? p + 'index.html' : p);
+    const file = inside(root, url.pathname);
     if (!file) return send(res, 400, 'Chemin invalide');
     return sendFile(req, res, file, ALWAYS_REVALIDATED.has(path.extname(file)) ? 'no-cache' : 'public, max-age=3600');
   };
@@ -209,7 +208,7 @@ export async function readJson(req, maxBytes = 64 * 1024) {
   return value;
 }
 
-/** Routes de la forme « /courses/:id » ou « /projets/:name.json ». HEAD suit les routes GET. */
+/** Routes de la forme « /courses/:id » ou « /media/:file.png ». HEAD suit les routes GET. */
 export function createRouter() {
   const routes = [];
   return {

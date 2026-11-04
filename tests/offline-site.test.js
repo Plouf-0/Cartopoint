@@ -124,7 +124,7 @@ test('la construction fournit le service worker et les polices ; aucune page ne 
   assert.ok(pages.length >= 8);
   for (const page of pages) assert.doesNotMatch(readFileSync(path.join(out, page), 'utf8'), /fonts\.(googleapis|gstatic)\.com/, page);
 
-  const standalone = readFileSync(path.join(out, 'index.html'), 'utf8');
+  const standalone = readFileSync(path.join(out, 'secours.html'), 'utf8');
   assert.doesNotMatch(standalone, /\/assets\/fonts\//, 'un fichier ouvert d’un double-clic n’a pas de serveur');
   assert.equal(standalone.match(/data:font\/woff2;base64,/g)?.length, 5);
   const student = readFileSync(path.join(out, 'eleve.html'), 'utf8');

@@ -17,11 +17,10 @@ import { authRoutes } from './routes/auth.mjs';
 import { courseRoutes } from './routes/courses.mjs';
 import { incidentRoutes } from './routes/incidents.mjs';
 import { launchRoutes } from './routes/launches.mjs';
-import { legacyRoutes } from './routes/legacy.mjs';
 import { pageRoutes } from './routes/pages.mjs';
 import { studentRoutes } from './routes/student.mjs';
 
-export function createApp({ root, data, password = '', maxBody = 100 * 1024 * 1024, trustProxy = false }) {
+export function createApp({ root, data, maxBody = 100 * 1024 * 1024, trustProxy = false }) {
   mkdirSync(data, { recursive: true });
   const db = openDatabase(path.join(data, 'app.db'));
   const auth = createAuth(db, { trustProxy });
@@ -37,7 +36,6 @@ export function createApp({ root, data, password = '', maxBody = 100 * 1024 * 10
   launchRoutes(router, { auth, courses, launches });
   studentRoutes(router, { launches, trustProxy });
   pageRoutes(router, root);
-  legacyRoutes(router, { data, password, maxBody, trustProxy });
   const server = http.createServer(createHandler(router, staticFiles(root)));
   return {
     server,

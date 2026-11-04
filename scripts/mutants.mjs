@@ -58,7 +58,8 @@ const MUTANTS = [
   ['E-04 : IPv6 sensible à la casse', 'server/security.mjs', 'ip.toLowerCase().split', 'ip.split'],
   ['E-04 : IPv6 courte mal lue', 'server/security.mjs', "...Array(8 - start.length - end.length).fill('0'), ", ''],
   ['E-04 : un bloc plus large qu’un abonné', 'server/security.mjs', '.slice(0, 4).join', '.slice(0, 3).join'],
-  ['E-04 : TRUST_PROXY ignoré par la publication', 'server/routes/legacy.mjs', 'clientIp(req, trustProxy)', 'clientIp(req, false)'],
+  ['E-04 : TRUST_PROXY ignoré à la connexion', 'server/routes/auth.mjs', 'clientIp(req, trustProxy)', 'clientIp(req, false)'],
+  ['E-04 : TRUST_PROXY ignoré à l’entrée d’un code', 'server/routes/student.mjs', 'clientIp(req, trustProxy)', 'clientIp(req, false)'],
   ['E-04 : variable TRUST_PROXY toujours active', 'server/index.mjs', "process.env.TRUST_PROXY === '1'", 'true'],
   ['limite : bloque un essai trop tôt', 'server/security.mjs', 'entry.count >= max', 'entry.count >= max - 1'],
   ['limite : le délai n’expire jamais', 'server/security.mjs', 'entry.until > now()', 'true'],
@@ -69,12 +70,6 @@ const MUTANTS = [
   ['E-05 : images compressées', 'server/http.mjs', 'COMPRESSIBLE.test(type) && stat.size >= MIN_GZIP', 'stat.size >= MIN_GZIP'],
   ['E-05 : petits fichiers compressés', 'server/http.mjs', 'COMPRESSIBLE.test(type) && stat.size >= MIN_GZIP', 'COMPRESSIBLE.test(type)'],
   ['JSON : ETag aussi sur les écritures', 'server/http.mjs', "if (status === 200 && (req.method === 'GET' || req.method === 'HEAD')) {", 'if (true) {'],
-  [
-    'E-11 : sauvegardes de projet triées sur le début du nom',
-    'server/routes/legacy.mjs',
-    'filter((f) => own.test(f))',
-    "filter((f) => f.startsWith(base + '-'))"
-  ],
   [
     'E-11 : copies de la base triées sur le début du nom',
     'server/db.mjs',
@@ -98,16 +93,6 @@ const MUTANTS = [
     'server/migrations/001-initial.sql',
     'launch_id TEXT NOT NULL REFERENCES launches ON DELETE CASCADE',
     'launch_id TEXT NOT NULL REFERENCES launches ON DELETE SET NULL'
-  ],
-  ['publication : sans vérification du mot de passe', 'server/routes/legacy.mjs', 'if (!authorized(req)) {', 'if (false) {'],
-  ['publication : échecs non comptés', 'server/routes/legacy.mjs', 'failures.fail(ip);', ''],
-  ['publication : écriture non atomique', 'server/routes/legacy.mjs', "const tmp = file + '.tmp';", 'const tmp = file;'],
-  ['publication : pas de sauvegarde', 'server/routes/legacy.mjs', 'await backup(file);', ''],
-  [
-    'publication : format non vérifié',
-    'server/routes/legacy.mjs',
-    "if (p.format !== 'inventaire-botanique' || !Array.isArray(p.maps)) throw new Error('format de projet non reconnu');",
-    ''
   ],
   [
     'chemins : contrôle de sortie du dossier retiré',
@@ -1309,7 +1294,7 @@ const MUTANTS = [
   ['EV-42 : pas de version à l’écran', 'src/js/version.js', '  document.body.append(label);\n', ''],
   ['EV-44 : numéro de version oublié', 'scripts/build.mjs', 'const version = `${number} (${commitLabel()})`;', 'const version = commitLabel();'],
   ['démarrage : port annoncé faux', 'server/index.mjs', 'http://localhost:${app.server.address().port}', 'http://localhost:${PORT}'],
-  ['EV-42 : pages construites sans version', 'scripts/build.mjs', '__APP_VERSION__: JSON.stringify(version), ', ''],
+  ['EV-42 : pages construites sans version', 'scripts/build.mjs', 'define: { __APP_VERSION__: JSON.stringify(version) }', 'define: {}'],
   ['EV-42 : version demandée ignorée', 'scripts/build.mjs', 'if (process.env.APP_VERSION) return process.env.APP_VERSION;', ''],
   ['EV-42 : la version empêche d’appuyer', 'src/css/app.css', 'font-size: 11px; pointer-events: none; }', 'font-size: 11px; }'],
   ['EV-42 : journal sans version', 'src/js/incident.js', '    version: APP_VERSION,\n', ''],
@@ -1461,6 +1446,7 @@ const MUTANTS = [
   ['HIS-08 : impression non réglée', 'src/js/xlsx-write.js', '<pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>', ''],
   ['zip : contrôle faux', 'src/js/zip.js', 'return (crc ^ 0xffffffff) >>> 0;', 'return crc >>> 0;'],
   ['HIS-03 : la liste se redessine sans raison', 'src/js/prof/launch.js', 'if (listed !== shownList) {', 'if (true) {'],
+  ['E-15 : roundRect exigé', 'src/js/report.js', 'ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h)', 'ctx.roundRect(x, y, w, h, r)'],
   ['HIS-09 : la date du jour au lieu de celle du lancement', 'src/js/report.js', '${dateAndTime(date ?? Date.now())}', '${dateAndTime(Date.now())}'],
   [
     'HIS-09 : l’heure de lancement oubliée',
@@ -1509,18 +1495,6 @@ const MUTANTS = [
   ['placement : bandeau de retour dans le plan', 'src/eleve.html', '</div>\n      <div class="place-hint"', '<div class="place-hint"'],
   // Fichier de secours
   ['EXP-01 : pas de fichier de secours', 'scripts/build.mjs', "path.join(outDir, 'secours.html')", "path.join(outDir, 'autre.html')"],
-  [
-    'EXP-01 : le fichier de secours cherche un serveur',
-    'src/js/project-io.js',
-    'if (IS_FALLBACK || !location.protocol.startsWith',
-    'if (!location.protocol.startsWith'
-  ],
-  [
-    'EXP-01 : la page d’origine ne cherche plus de serveur',
-    'src/js/project-io.js',
-    "const IS_FALLBACK = typeof __FALLBACK__ !== 'undefined' && __FALLBACK__;",
-    'const IS_FALLBACK = true;'
-  ],
   ['EXP-01 : fiches masquées dans le fichier', 'src/js/prof/fallback-file.js', 'map.fiches.filter((fiche) => fiche.visible)', 'map.fiches'],
   [
     'EXP-01 : cours absent du fichier',
@@ -1558,12 +1532,6 @@ const MUTANTS = [
     'src/js/project-io.js',
     'exportProject({ onMissing: (count) => (missing = count) })',
     'exportProject()'
-  ],
-  [
-    'export : photo manquante non annoncée à la publication',
-    'src/js/project-io.js',
-    'exportProject({ withProgress: false, onMissing: (count) => (missing = count) })',
-    'exportProject({ withProgress: false })'
   ],
   // Hors ligne : la préparation
   ['hors ligne : plan non téléchargé', 'src/js/eleve/offline.js', 'files.add(map.image);', ''],
@@ -1644,7 +1612,7 @@ const MUTANTS = [
   ['HOR-05 : fichier autonome sans ses polices', 'scripts/build.mjs', '<style>\\n${standaloneCss}</style>', '<style>\\n${css}</style>'],
   [
     'HOR-05 : retour des polices de Google',
-    'src/index.html',
+    'src/secours.html',
     '<link rel="stylesheet" href="css/app.css">',
     '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces">\n<link rel="stylesheet" href="css/app.css">'
   ],
@@ -1782,7 +1750,7 @@ const TESTS_FOR = {
   'src/js/prof/fallback-file.js': ['e2e/fallback'],
   'src/js/eleve/offline.js': ['e2e/offline', 'e2e/incidents'],
   'src/sw.js': ['e2e/offline'],
-  'src/index.html': ['offline-site', 'e2e/offline'],
+  'src/secours.html': ['offline-site', 'e2e/offline'],
   'scripts/build.mjs': ['offline-site', 'build', 'e2e/fallback'],
   'src/js/views/cards.js': ['e2e/launches', 'e2e/correction'],
   'src/js/views/student-list.js': ['e2e/launches', 'e2e/correction'],
@@ -1790,11 +1758,10 @@ const TESTS_FOR = {
   'src/js/backends/student.js': ['e2e/launches'],
   'src/js/views/fiche.js': ['build', 'e2e/launches'],
   'server/media.mjs': ['courses'],
-  'server/security.mjs': ['security', 'accounts', 'routes-legacy'],
-  'server/http.mjs': ['http', 'offline-site', 'routes-legacy', 'courses'],
+  'server/security.mjs': ['security', 'accounts'],
+  'server/http.mjs': ['http', 'offline-site', 'courses'],
   'server/db.mjs': ['db', 'server-start'],
   'server/migrations/001-initial.sql': ['db'],
-  'server/routes/legacy.mjs': ['routes-legacy', 'server'],
   'server/index.mjs': ['server-start'],
   'server/app.mjs': ['server-start', 'courses', 'incidents', 'history'],
   'src/js/model.js': ['model', 'e2e/courses', 'e2e/legacy', 'e2e/correction', 'history', 'results-workbook'],

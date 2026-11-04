@@ -95,11 +95,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .students label { font-weight: 700; font-size: 13px; color: var(--ink-soft); }
 .students input { width: min(46vw, 300px); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; background: var(--paper); }
 .mode-pill { display: inline-flex; align-items: center; gap: 6px; background: var(--sand); color: var(--ink); border-radius: 999px; padding: 5px 11px; font-size: 13px; font-weight: 700; }
-.draft-banner {
-  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
-  margin: 12px clamp(12px, 2vw, 24px) 0; padding: 9px 12px; border-radius: 8px;
-  background: var(--sand-soft); border: 1px solid var(--sand); font-size: 14px;
-}
 @media (max-width: 600px) {
   .top { gap: 10px; }
   .brand { flex: 1; }

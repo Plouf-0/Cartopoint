@@ -239,7 +239,7 @@ async function runLocally(counts) {
   try {
     for (let tries = 0; tries < 100; tries++) {
       if (
-        await fetch(`${base}/accueil`).then(
+        await fetch(`${base}/`).then(
           (r) => r.ok,
           () => false
         )

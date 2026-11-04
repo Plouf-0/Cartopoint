@@ -224,14 +224,3 @@ test('EXP-01 : déposé sur un site, le fichier de secours ne lit aucune configu
     []
   );
 });
-
-test('la page d’origine, elle, continue de lire sa configuration et son projet', async (t) => {
-  const { site } = await setup(t);
-  const page = await openPage(t, browser, { base: site.base });
-  const asked = [];
-  page.on('request', (request) => asked.push(new URL(request.url()).pathname));
-  await page.goto('/');
-  await page.locator('#modeBtn').waitFor();
-  await page.waitForTimeout(300);
-  assert.ok(asked.includes('/config.json'), asked.join(' | '));
-});

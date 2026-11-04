@@ -4,12 +4,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { tempDir } from './helpers.js';
 
 const ROOT = path.join(import.meta.dirname, '..');
-const PAGES = ['index.html', 'prof.html', 'prof-cours.html', 'prof-lancement.html', 'admin.html', 'compte.html', 'accueil.html', 'eleve.html'];
+const PAGES = ['secours.html', 'prof.html', 'prof-cours.html', 'prof-lancement.html', 'admin.html', 'compte.html', 'accueil.html', 'eleve.html'];
 
 test('toutes les pages se construisent en un seul fichier ; celle de l’élève, sans le code de gestion', async (t) => {
   const out = await tempDir(t);
@@ -47,8 +47,7 @@ test('EXP-01 : le fichier de secours se construit en un seul fichier, avec sa pl
   const page = readFileSync(path.join(out, 'secours.html'), 'utf8');
   assert.doesNotMatch(page, /<script type="module"|<link rel="stylesheet" href="\/?css/);
   assert.match(page, /<script id="embedded-project" type="application\/json">null<\/script>/);
-  assert.doesNotMatch(page, /__FALLBACK__/);
-  assert.doesNotMatch(readFileSync(path.join(out, 'index.html'), 'utf8'), /__FALLBACK__/);
+  assert.equal(existsSync(path.join(out, 'index.html')), false, 'la racine du site est l’accueil, plus rien ne s’appelle index.html');
 });
 
 test('EV-42, EV-44 : le numéro de version et le commit entrent dans chaque page ; sans commit donné, c’est celui du dépôt', async (t) => {
@@ -57,7 +56,7 @@ test('EV-42, EV-44 : le numéro de version et le commit entrent dans chaque page
     spawnSync(process.execPath, ['scripts/build.mjs', '--outdir', out], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, APP_VERSION: version } });
   const given = await tempDir(t);
   assert.equal(run(given, 'essai-42').status, 0);
-  for (const page of [...PAGES, 'secours.html']) {
+  for (const page of PAGES) {
     const text = readFileSync(path.join(given, page), 'utf8');
     assert.ok(text.includes(`${number} (essai-42)`), `${page} : le numéro de version, puis le commit`);
     assert.doesNotMatch(text, /__APP_VERSION__/, page);

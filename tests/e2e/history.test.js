@@ -170,6 +170,17 @@ test('HIS-09 : le compte rendu d’un élève se télécharge, avec les position
   await teacher.getByText('✓ Compte rendu de Léa Dupont téléchargé').waitFor();
 });
 
+test('E-15 : un navigateur sans roundRect sort quand même le compte rendu', async (t) => {
+  const { site, teacher, launch, openLaunch } = await setup(t);
+  await teacher.addInitScript(() => {
+    delete CanvasRenderingContext2D.prototype.roundRect;
+  });
+  await handIn(site, await join(site, launch, 'Léa'), { f1: entry(40, 60) });
+  await openLaunch();
+  const file = await saved(teacher, () => row(teacher, 'Léa').getByRole('button', { name: 'JPG' }).click());
+  assert.ok(file.bytes.subarray(0, 3).equals(JPEG));
+});
+
 test('HIS-09 : tous les comptes rendus portent aussi le jour et l’heure du lancement', async (t) => {
   const { site, teacher, launch, openLaunch } = await setup(t);
   await handIn(site, await join(site, launch, 'Léa'), { f1: entry(40, 60) });

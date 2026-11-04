@@ -8,10 +8,9 @@ import path from 'node:path';
 import { send, sendFile } from '../http.mjs';
 
 const PAGES = {
+  '/': 'accueil.html',
   '/prof': 'prof.html',
   '/admin': 'admin.html',
-  // Devient la page d'accueil, à l'adresse /, à l'étape 10
-  '/accueil': 'accueil.html',
   '/invitation': 'compte.html',
   '/reinitialisation': 'compte.html'
 };

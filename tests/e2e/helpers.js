@@ -49,10 +49,10 @@ export function makePng(width, height, { pad = 0 } = {}) {
 }
 
 /** Démarre un site neuf, avec son admin. `root` pour servir autre chose que src/. */
-export async function startSite(t, { root = path.resolve('src'), password = '' } = {}) {
+export async function startSite(t, { root = path.resolve('src') } = {}) {
   const log = t.mock.method(console, 'log', () => {});
   const data = await tempDir(t);
-  const app = createApp({ root, data, password });
+  const app = createApp({ root, data });
   await ensureAdmin(app.db, ADMIN);
   await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
   t.after(() => app.close());

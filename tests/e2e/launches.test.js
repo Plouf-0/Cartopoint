@@ -94,7 +94,7 @@ test('COU-04 : le QR code affiché mène bien au cours, et le code est écrit de
   assert.equal(text, `${site.base}/c/${code}`);
   assert.equal(await teacher.locator('dialog[open] .launch-code').textContent(), code);
   const { host } = new URL(site.base);
-  await teacher.locator('dialog[open]').getByText(`${host}/accueil`).waitFor();
+  await teacher.locator('dialog[open]').getByText(`Ou tapez ce code sur ${host}`, { exact: true }).waitFor();
 
   // En grand : le code occupe l'essentiel de l'écran, sans en sortir
   const box = await qr.boundingBox();
@@ -126,13 +126,13 @@ test('COU-05 : taper le code sur l’accueil mène au cours, en minuscules comme
   const { site, teacher } = await setup(t);
   const code = await launch(teacher, await publishedCourse(teacher));
   const page = await student(t, site);
-  await page.goto('/accueil');
+  await page.goto('/');
   await page.getByRole('link', { name: 'Espace enseignant' }).waitFor();
 
   await page.getByLabel('Code du cours').fill('ZZZZZZ');
   await page.getByRole('button', { name: 'Rejoindre le cours' }).click();
   await page.getByRole('alert').getByText("Ce code n'existe pas").waitFor();
-  assert.match(page.url(), /\/accueil$/, 'on reste ici pour corriger');
+  assert.equal(new URL(page.url()).pathname, '/', 'on reste ici pour corriger');
 
   await page.getByLabel('Code du cours').fill(`${code.slice(0, 3).toLowerCase()} ${code.slice(3)}`);
   await page.getByRole('button', { name: 'Rejoindre le cours' }).click();
@@ -513,7 +513,7 @@ test('COU-08 : terminer coupe le QR code et le code ; la liste reste, et l’él
   const late = await student(t, site);
   await late.goto(`/c/${code}`);
   await late.getByText('Ce cours est terminé').waitFor();
-  await late.goto('/accueil');
+  await late.goto('/');
   await late.getByLabel('Code du cours').fill(code);
   await late.getByRole('button', { name: 'Rejoindre le cours' }).click();
   await late.getByRole('alert').getByText('Ce cours est terminé').waitFor();
@@ -1123,7 +1123,7 @@ test('EV-34 : ni l’accueil, ni la page élève ne parlent de botanique', async
   const code = await launch(teacher, await publishedCourse(teacher, { ...twoMaps, title: 'Sortie' }));
   const page = await student(t, site);
   const botany = /botani|inventaire|la plante|espèce/i;
-  await page.goto('/accueil');
+  await page.goto('/');
   await page.getByLabel('Code du cours').waitFor();
   assert.doesNotMatch(await page.evaluate(() => document.title + document.documentElement.textContent), botany);
   await enter(page, code);

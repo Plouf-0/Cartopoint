@@ -10,7 +10,6 @@ import { stateText } from './results-workbook.js';
 
 const launchId = decodeURIComponent(location.pathname.split('/').pop());
 /** L'adresse à taper avec le code. Elle deviendra la racine du site à l'étape 10. */
-const HOME_PATH = '/accueil';
 const READY_ADVICE =
   'Avant de quitter le réseau, attendez le message « ✓ Prêt pour le terrain » : l’icône du réseau, en haut de votre écran, garde ensuite une coche.';
 const REFRESH_EVERY = 5000;
@@ -37,7 +36,7 @@ function qrDialog(code) {
         { className: 'dlg-body' },
         el('div', { className: 'qr-box' }, qrSvg(`${location.origin}/c/${code}`)),
         el('p', { className: 'launch-code' }, code),
-        el('p', { className: 'hint' }, `Ou tapez ce code sur ${location.host}${HOME_PATH}`),
+        el('p', { className: 'hint' }, `Ou tapez ce code sur ${location.host}`),
         el('p', { className: 'hint' }, READY_ADVICE)
       )
     )
@@ -52,7 +51,7 @@ function showLaunch(first) {
 
   const showQr = button('Afficher le QR code', 'btn', () => qr.showModal());
   const code = el('p', { className: 'launch-code' }, first.code);
-  const address = el('p', { className: 'hint' }, `Les élèves scannent le QR code, ou tapent ce code sur ${location.host}${HOME_PATH}`);
+  const address = el('p', { className: 'hint' }, `Les élèves scannent le QR code, ou tapent ce code sur ${location.host}`);
   const joinCard = card('Pour rejoindre le cours', code, address, showQr);
 
   const listError = errorLine();

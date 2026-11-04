@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
-import { freePort, request, tempDir } from './helpers.js';
+import { client, freePort, request, tempDir } from './helpers.js';
 
 const START_TIMEOUT = 15000;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -55,7 +55,7 @@ async function launch(t, { args = [], env = {}, ready = /base sauvegardée|impos
 async function dirs(t) {
   trackServers(t);
   const root = await tempDir(t);
-  await writeFile(path.join(root, 'index.html'), '<title>ok</title>');
+  await writeFile(path.join(root, 'accueil.html'), '<title>ok</title>');
   return { root, data: path.join(await tempDir(t), 'donnees') };
 }
 
@@ -65,7 +65,7 @@ test('au démarrage : dossier de données, base et copie du jour sont créés', 
   assert.ok(port > 0, output.stdout);
   assert.ok(existsSync(path.join(data, 'app.db')));
   assert.ok(existsSync(path.join(data, 'backups', `app-${today()}.db`)));
-  assert.match(output.stdout, /publication : désactivée/);
+  assert.doesNotMatch(output.stdout, /publication/);
   assert.equal((await request(`http://127.0.0.1:${port}`, '/')).status, 200);
 });
 
@@ -104,7 +104,7 @@ test('un redémarrage le même jour réutilise la base, sans refaire de copie', 
   first.child.kill('SIGTERM');
   await first.exited;
 
-  const { output } = await launch(t, { args: [...args, '--port', '0'], ready: /publication : / });
+  const { output } = await launch(t, { args: [...args, '--port', '0'], ready: /admin +: / });
   await new Promise((resolve) => setTimeout(resolve, 100));
   assert.doesNotMatch(output.stdout, /base sauvegardée/);
   assert.deepEqual(await readdir(path.join(data, 'backups')), [`app-${today()}.db`]);
@@ -122,39 +122,37 @@ test('les variables d’environnement priment sur les options', async (t) => {
   assert.equal(existsSync(other.data), false);
 });
 
-test('MAX_BODY_MB et PUBLISH_PASSWORD sont pris en compte', async (t) => {
+test('MAX_BODY_MB est pris en compte', async (t) => {
   const { root, data } = await dirs(t);
-  const { output, port } = await launch(t, {
-    args: ['--root', root, '--data', data, '--port', '0'],
-    env: { PUBLISH_PASSWORD: 'pw', MAX_BODY_MB: '0.001' }
+  const env = { ADMIN_EMAIL: 'admin@example.org', ADMIN_PASSWORD: 'mot-de-passe-admin', MAX_BODY_MB: '0.001' };
+  const { port } = await launch(t, { args: ['--root', root, '--data', data, '--port', '0'], env });
+  const base = `http://127.0.0.1:${port}`;
+  const admin = client(base);
+  await admin.post('/api/auth/login', { email: env.ADMIN_EMAIL, password: env.ADMIN_PASSWORD });
+  const { link } = (await admin.post('/api/admin/invites')).json();
+  const token = new URL(link, base).hash.slice(1);
+  const teacher = client(base);
+  assert.equal((await teacher.post('/api/auth/invite', { token, email: 'prof@example.org', password: 'mot-de-passe-prof' })).status, 200);
+  const file = await request(base, '/api/media', {
+    method: 'POST',
+    headers: { Origin: base, Cookie: teacher.cookie, 'Content-Type': 'image/png' },
+    body: Buffer.alloc(2000)
   });
-  assert.match(output.stdout, /publication : activée/);
-  const r = await request(`http://127.0.0.1:${port}`, '/api/project', {
-    method: 'PUT',
-    headers: { Authorization: 'Bearer pw' },
-    body: JSON.stringify({ format: 'inventaire-botanique', maps: [], title: 'x'.repeat(2000) })
-  });
-  assert.equal(r.status, 413);
+  assert.equal(file.status, 413);
 });
 
 test('E-04 : TRUST_PROXY=1 sépare les clients, sans lui ils ne font qu’un', async (t) => {
-  const attempt = (base, ip, password) =>
-    request(base, '/api/project', {
-      method: 'PUT',
-      headers: { Authorization: 'Bearer ' + password, 'X-Forwarded-For': ip },
-      body: JSON.stringify({ format: 'inventaire-botanique', maps: [] })
-    });
-
   for (const [value, expected] of [
-    ['1', 200],
+    ['1', 401],
     ['0', 429],
     ['', 429]
   ]) {
     const { root, data } = await dirs(t);
-    const { port } = await launch(t, { args: ['--root', root, '--data', data, '--port', '0'], env: { PUBLISH_PASSWORD: 'pw', TRUST_PROXY: value } });
-    const base = `http://127.0.0.1:${port}`;
-    for (let i = 0; i < 10; i++) assert.equal((await attempt(base, '1.1.1.1', 'faux')).status, 401);
-    assert.equal((await attempt(base, '2.2.2.2', 'pw')).status, expected, `TRUST_PROXY=${value}`);
+    const { port } = await launch(t, { args: ['--root', root, '--data', data, '--port', '0'], env: { TRUST_PROXY: value } });
+    const browser = client(`http://127.0.0.1:${port}`);
+    const attempt = (ip) => browser.post('/api/auth/login', { email: 'prof@example.org', password: 'mauvais-mot-de-passe' }, { 'X-Forwarded-For': ip });
+    for (let i = 0; i < 10; i++) assert.equal((await attempt('1.1.1.1')).status, 401);
+    assert.equal((await attempt('2.2.2.2')).status, expected, `TRUST_PROXY=${value}`);
   }
 });
 

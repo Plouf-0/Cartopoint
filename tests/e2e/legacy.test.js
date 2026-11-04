@@ -1,25 +1,13 @@
 /**
- * L'application actuelle, enregistrée dans le navigateur : elle doit continuer à fonctionner avec son backend `local`
- * jusqu'à la bascule, et elle servira de base au fichier de secours. Contient aussi la reproduction de EV-04 :
- * ce que voit l'enseignant quand son navigateur refuse une écriture.
+ * L'application d'origine, enregistrée dans le navigateur avec son backend `local` : elle est devenue le fichier de secours, et ne connaît plus aucun
+ * serveur. Contient aussi la reproduction de EV-04 : ce que voit l'enseignant quand son navigateur refuse une écriture.
  */
 import { before, after, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { launchBrowser, makePng, openPage, startSite } from './helpers.js';
 
 const PNG = makePng(40, 20);
-const PUBLISH_PASSWORD = 'mot-de-publication';
-const PUBLISHED = {
-  format: 'inventaire-botanique',
-  version: 3,
-  id: 'en-ligne',
-  revision: 'r1',
-  title: 'Projet en ligne',
-  maps: [{ id: 'm1', name: 'Plan', image: '', fiches: [] }]
-};
-
 /** Une écriture qui échoue, comme quand le navigateur n'a plus de place : `window.__fail` l'active à la demande. */
 const REFUSED_WRITES = {
   'une requête refusée': `
@@ -50,13 +38,11 @@ before(async () => {
 });
 after(() => browser.close());
 
-async function openApp(t, { password = '', init } = {}) {
-  const site = await startSite(t, { password });
-  // Un projet déjà en ligne : c'est lui qui rend la publication accessible
-  if (password) await writeFile(path.join(site.data, 'project.json'), JSON.stringify(PUBLISHED));
+async function openApp(t, { init } = {}) {
+  const site = await startSite(t);
   const page = await openPage(t, browser, { base: site.base });
   if (init) await page.addInitScript(init);
-  await page.goto('/');
+  await page.goto('/secours.html');
   await page.locator('#modeBtn').waitFor();
   return { site, page };
 }
@@ -210,23 +196,6 @@ for (const [kind, init] of Object.entries(REFUSED_WRITES)) {
   });
 }
 
-test('EV-04 : une publication reste possible quand le navigateur refuse d’écrire', async (t) => {
-  const { site, page } = await openApp(t, { password: PUBLISH_PASSWORD, init: REFUSED_WRITES['une requête refusée'] });
-  await enterManagement(page);
-  await page.evaluate(() => (window.__fail = true));
-  await addFiche(page, 'Olivier');
-  await toast(page, '⚠ Enregistrement impossible');
-
-  await page.locator('[data-tab=projet]').click();
-  await page.locator('#publishBtn').click();
-  await page.locator('#pubPw').fill(PUBLISH_PASSWORD);
-  await page.locator('dialog[open] button[type=submit]').click();
-  // Le « ⚠ » du refus reste affiché : seul ce message dit que le serveur a répondu
-  await toast(page, '✓ Publié');
-  const published = JSON.parse(await readFile(path.join(site.data, 'project.json'), 'utf8'));
-  assert.equal(published.maps[0].fiches[0].common, 'Olivier');
-});
-
 test('une erreur reste le temps d’être lue, un message ordinaire disparaît vite', async (t) => {
   const { page } = await openApp(t, { init: REFUSED_WRITES['une transaction annulée'] });
   await enterManagement(page);
@@ -271,36 +240,6 @@ test('EV-34 : sans projet, la page s’appelle Cartopoint, avec une carte « Pla
   assert.equal(await page.locator('#pageTitle').textContent(), 'Cartopoint');
   assert.match(await page.title(), /Cartopoint/);
   assert.match(await page.locator('#search').getAttribute('placeholder'), /fiche/);
-});
-
-test('publier envoie le projet au serveur, et un mauvais mot de passe s’explique', async (t) => {
-  const { site, page } = await openApp(t, { password: PUBLISH_PASSWORD });
-  await enterManagement(page);
-  await addFiche(page, 'Olivier');
-  await page.locator('[data-tab=projet]').click();
-
-  await page.locator('#publishBtn').click();
-  await page.locator('#pubPw').fill('mauvais');
-  await page.locator('dialog[open] button[type=submit]').click();
-  await toast(page, '⚠ Mot de passe de publication refusé');
-
-  await page.locator('#publishBtn').click();
-  await page.locator('#pubPw').fill(PUBLISH_PASSWORD);
-  await page.locator('dialog[open] button[type=submit]').click();
-  await toast(page, '✓ Publié');
-  const published = JSON.parse(await readFile(path.join(site.data, 'project.json'), 'utf8'));
-  assert.equal(published.maps[0].fiches[0].common, 'Olivier');
-});
-
-test('EV-04 : une erreur du serveur à la publication s’affiche avec son code', async (t) => {
-  const { page } = await openApp(t, { password: PUBLISH_PASSWORD });
-  await enterManagement(page);
-  await page.locator('[data-tab=projet]').click();
-  await page.route('**/api/project*', (route) => route.fulfill({ status: 500, body: 'Erreur du serveur' }));
-  await page.locator('#publishBtn').click();
-  await page.locator('#pubPw').fill(PUBLISH_PASSWORD);
-  await page.locator('dialog[open] button[type=submit]').click();
-  await toast(page, '⚠ Publication impossible : le serveur a répondu 500');
 });
 
 test('ouvrir un projet remplace celui du navigateur, et un mauvais fichier s’explique', async (t) => {

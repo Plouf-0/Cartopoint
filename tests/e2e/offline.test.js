@@ -751,7 +751,7 @@ test('le service worker ne s’occupe que de /c/ : ni l’accueil, ni les pages 
   const { site, teacher } = await setup(t);
   const code = await launch(teacher, await fieldCourse(teacher));
   const page = await fieldStudent(t, site, code);
-  await page.goto('/accueil');
+  await page.goto('/');
   await page.locator('input').first().waitFor();
   assert.equal(await page.evaluate(() => navigator.serviceWorker.controller), null);
   await page.goto('/prof');
@@ -760,7 +760,7 @@ test('le service worker ne s’occupe que de /c/ : ni l’accueil, ni les pages 
 
   await cutNetwork(site, page);
   // Chromium seul : Firefox peut encore la resservir de son cache HTTP, qu'on ne sait vider que dans Chromium
-  if (ENGINE === 'chromium') await assert.rejects(page.goto('/accueil'), /ERR_INTERNET_DISCONNECTED|ERR_CONNECTION_REFUSED/);
+  if (ENGINE === 'chromium') await assert.rejects(page.goto('/'), /ERR_INTERNET_DISCONNECTED|ERR_CONNECTION_REFUSED/);
 });
 
 test('la page de l’enseignant demande d’attendre le message que l’élève voit vraiment', async (t) => {
@@ -996,7 +996,7 @@ test('EV-42 : chaque page dit sa version, en bas de l’écran', async (t) => {
   const course = await fieldCourse(teacher);
   const code = await launch(teacher, course);
   const page = await openPage(t, browser, { base: site.base });
-  for (const address of ['/', '/accueil', '/admin', '/invitation', `/c/${code}`]) {
+  for (const address of ['/', '/admin', '/invitation', `/c/${code}`]) {
     await page.goto(address);
     await page.locator('#appVersion').waitFor();
     assert.equal(await appVersion(page), label(VERSION), address);
@@ -1009,7 +1009,7 @@ test('EV-42 : chaque page dit sa version, en bas de l’écran', async (t) => {
 
 test('EV-42 : le fichier autonome dit aussi sa version', async (t) => {
   const page = await openPage(t, browser, {});
-  await page.goto('file://' + path.join(dist, 'index.html'));
+  await page.goto('file://' + path.join(dist, 'secours.html'));
   await page.locator('#modeBtn').waitFor();
   assert.equal(await appVersion(page), label(VERSION));
 });
@@ -1037,7 +1037,7 @@ test('HOR-05 : aucune page ne demande quoi que ce soit à un autre site, et tout
   page.on('request', (request) => {
     if (!request.url().startsWith(site.base) && !/^(data|blob):/.test(request.url())) elsewhere.push(request.url());
   });
-  for (const address of ['/', '/accueil', '/prof', '/admin', '/invitation', `/c/${code}`]) {
+  for (const address of ['/', '/prof', '/admin', '/invitation', `/c/${code}`]) {
     await page.goto(address);
     assert.ok((await loadedFonts(page)).includes('Atkinson Hyperlegible'), address);
   }
@@ -1050,7 +1050,7 @@ test('INC-01 : le fichier autonome, sans serveur, ne signale rien à personne', 
   page.on('request', (request) => {
     if (request.url().includes('incidents')) reports.push(request.url());
   });
-  await page.goto('file://' + path.join(dist, 'index.html'));
+  await page.goto('file://' + path.join(dist, 'secours.html'));
   await page.locator('#modeBtn').waitFor();
   await page.evaluate(() => {
     const script = document.createElement('script');
@@ -1069,7 +1069,7 @@ test('HOR-05 : le fichier autonome, ouvert d’un double-clic, a ses polices san
   page.on('request', (request) => {
     if (!/^(file|data|blob):/.test(request.url())) elsewhere.push(request.url());
   });
-  await page.goto('file://' + path.join(dist, 'index.html'));
+  await page.goto('file://' + path.join(dist, 'secours.html'));
   await page.locator('#modeBtn').waitFor();
   assert.ok((await loadedFonts(page)).includes('Atkinson Hyperlegible'));
   assert.deepEqual(elsewhere, []);

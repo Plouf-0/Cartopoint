@@ -1,7 +1,7 @@
 # Image de production : construit l'application puis la sert avec server/index.mjs.
 #
 #   docker build -t inventaire-botanique .
-#   docker run -p 8080:8080 -v ./data:/data -e PUBLISH_PASSWORD=change-moi inventaire-botanique
+#   docker run -p 8080:8080 -v ./data:/data -e ADMIN_EMAIL=moi@example.org -e ADMIN_PASSWORD=change-moi inventaire-botanique
 
 FROM node:24-alpine AS build
 WORKDIR /app

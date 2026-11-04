@@ -31,7 +31,7 @@ export async function startApp(t, options = {}) {
   t.mock.method(console, 'log', () => {});
   const data = await tempDir(t);
   const root = await tempDir(t);
-  await writeFile(path.join(root, 'index.html'), '<!doctype html><title>ok</title>');
+  await writeFile(path.join(root, 'accueil.html'), '<!doctype html><title>ok</title>');
   const app = createApp({ root, data, ...options });
   await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
   t.after(() => app.close());

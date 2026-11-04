@@ -399,6 +399,9 @@ const MUTANTS = [
     "'SELECT * FROM courses WHERE id = ? AND account_id = ?').get(id, accountId)",
     "'SELECT * FROM courses WHERE id = ?').get(id)"
   ],
+  ['ENS-02 : égalité de dates au hasard', 'server/courses.mjs', 'ORDER BY updated_at DESC, rowid DESC', 'ORDER BY updated_at DESC, id'],
+  ['SUI-01 : égalité d’arrivée au hasard', 'server/launches.mjs', 'ORDER BY joined_at, rowid', 'ORDER BY joined_at, id'],
+  ['HIS : égalité de lancements au hasard', 'server/launches.mjs', 'ORDER BY opened_at DESC, rowid DESC', 'ORDER BY opened_at DESC, id'],
   ['ENS-03 : liste de tous les cours', 'server/courses.mjs', 'WHERE account_id = ? ORDER BY updated_at DESC', 'WHERE ? IS NOT NULL ORDER BY updated_at DESC'],
   ['E-10 : révision non vérifiée à l’enregistrement', 'server/courses.mjs', 'WHERE id = ? AND revision = ?', 'WHERE id = ? AND ? IS NOT NULL'],
   ['E-10 : révision non entière acceptée', 'server/courses.mjs', 'if (!Number.isInteger(revision)) throw new HttpError(409, CHANGED_ELSEWHERE);', ''],

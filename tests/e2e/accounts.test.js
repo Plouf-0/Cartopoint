@@ -251,8 +251,8 @@ test('ADM-10 : il faut recopier le mot, et renoncer ne supprime rien', async (t)
 
   await wordField(admin).fill('SUPPRIMER');
   await dialog.getByRole('button', { name: 'Annuler' }).click();
-  await dialog.waitFor({ state: 'detached' });
-  assert.equal(await admin.locator('dialog').count(), 0, 'la fenêtre ne reste pas dans la page');
+  // Une fenêtre fermée disparaît pour le rôle « dialog » un instant avant de quitter la page : c'est la page qu'il faut regarder
+  await admin.locator('dialog').waitFor({ state: 'detached' });
   assert.equal(isDeleted(site, id), false);
 
   await openDeleteDialog(admin);
@@ -393,7 +393,7 @@ test('ADM-10 : une session expirée pendant la confirmation ramène à la connex
   await confirmDelete(admin).click();
   await heading(admin, 'Administration');
   await admin.getByRole('button', { name: 'Se connecter' }).waitFor();
-  assert.equal(await admin.locator('dialog').count(), 0);
+  await admin.locator('dialog').waitFor({ state: 'detached' });
   assert.equal(isDeleted(site, id), false);
 });
 

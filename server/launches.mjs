@@ -40,7 +40,7 @@ export function normalizeNames(value) {
 }
 
 export function createLaunches(db, { makeCode = newCode } = {}) {
-  const participantsOf = (launchId) => db.prepare('SELECT * FROM participants WHERE launch_id = ? ORDER BY joined_at, id').all(launchId);
+  const participantsOf = (launchId) => db.prepare('SELECT * FROM participants WHERE launch_id = ? ORDER BY joined_at, rowid').all(launchId);
   const participantCount = (launchId) => db.prepare('SELECT COUNT(*) AS n FROM participants WHERE launch_id = ?').get(launchId).n;
   const versionNumber = (versionId) => db.prepare('SELECT number FROM course_versions WHERE id = ?').get(versionId).number;
 
@@ -78,7 +78,7 @@ export function createLaunches(db, { makeCode = newCode } = {}) {
     },
 
     forCourse(courseId) {
-      return db.prepare('SELECT * FROM launches WHERE course_id = ? ORDER BY opened_at DESC, id').all(courseId).map(summary);
+      return db.prepare('SELECT * FROM launches WHERE course_id = ? ORDER BY opened_at DESC, rowid DESC').all(courseId).map(summary);
     },
 
     /** Ne répond qu'au propriétaire : ni un autre enseignant ni l'admin ne peuvent savoir qu'un lancement existe (ANO-06). */

@@ -98,6 +98,18 @@ test('ENS-02 : un enseignant crée un cours, le retrouve et le modifie', async (
   assert.equal(list[0].draft, undefined, 'la liste ne transporte pas tout le contenu');
 });
 
+test('ENS-02 : des cours modifiés dans la même milliseconde : le dernier créé d’abord', async (t) => {
+  const { base, db } = await site(t);
+  const browser = await loggedIn(base);
+  const created = [];
+  for (let i = 0; i < 8; i++) created.unshift((await createCourse(browser)).id);
+  db.prepare('UPDATE courses SET updated_at = ?').run('2026-11-04T10:00:00.000Z');
+  assert.deepEqual(
+    (await browser.get('/api/courses')).json().map((course) => course.id),
+    created
+  );
+});
+
 test('ENS-02 : la liste commence par le dernier cours modifié', async (t) => {
   const { base, db } = await site(t);
   const browser = await loggedIn(base);

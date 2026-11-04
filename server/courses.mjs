@@ -44,7 +44,7 @@ export function createCourses(db) {
 
   return {
     list(accountId) {
-      return db.prepare('SELECT * FROM courses WHERE account_id = ? ORDER BY updated_at DESC').all(accountId).map(describe);
+      return db.prepare('SELECT * FROM courses WHERE account_id = ? ORDER BY updated_at DESC, rowid DESC').all(accountId).map(describe);
     },
 
     create(accountId, draft) {

@@ -419,6 +419,38 @@ test('COU-08 : un lancement n’expire pas tout seul', async (t) => {
 
 /* --- SUI-01, ANO-05, ANO-08 : suivre, et ne rien écrire dans les journaux --- */
 
+test('SUI-01 : des élèves entrés dans la même milliseconde restent dans leur ordre d’arrivée', async (t) => {
+  const { base, db } = await site(t);
+  const browser = await loggedIn(base);
+  const { launch } = await launched(browser);
+  const arrivals = ['Élève 1', 'Élève 2', 'Élève 3', 'Élève 4', 'Élève 5', 'Élève 6', 'Élève 7', 'Élève 8'];
+  for (const names of arrivals) await join(base, launch.code, names);
+  db.prepare('UPDATE participants SET joined_at = ?').run('2026-11-04T10:00:00.000Z');
+  const { participants } = (await browser.get(`/api/launches/${launch.id}`)).json();
+  assert.deepEqual(
+    participants.map((p) => p.names),
+    arrivals
+  );
+});
+
+test('HIS : deux lancements de la même milliseconde : le dernier d’abord', async (t) => {
+  const { base, db } = await site(t);
+  const browser = await loggedIn(base);
+  const course = await publishedCourse(browser);
+  const opened = [];
+  for (let i = 0; i < 8; i++) {
+    const launch = (await browser.post(`/api/courses/${course.id}/launches`)).json();
+    opened.unshift(launch.id);
+    assert.equal((await browser.post(`/api/launches/${launch.id}/end`)).status, 200);
+  }
+  db.prepare('UPDATE launches SET opened_at = ?').run('2026-11-04T10:00:00.000Z');
+  const list = (await browser.get(`/api/courses/${course.id}/launches`)).json();
+  assert.deepEqual(
+    list.map((launch) => launch.id),
+    opened
+  );
+});
+
 test('SUI-01, ANO-05 : l’enseignant voit les noms et l’état de ses élèves, avant et après la fin', async (t) => {
   const { base } = await site(t);
   const browser = await loggedIn(base);

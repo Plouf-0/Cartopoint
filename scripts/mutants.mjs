@@ -1185,6 +1185,13 @@ const MUTANTS = [
   ['CRG-11 : placement resté en cours', 'src/js/eleve/main.js', "  S.ui.placing = null;\n  if ($('#dlgRead')", "  if ($('#dlgRead')"],
   ['CRG-11 : figé mais toujours modifiable', 'src/js/eleve/main.js', 'autoClosed: true };\n  S.finished = true;', 'autoClosed: true };'],
   ['CRG-11 : gel non signalé au serveur', 'src/js/eleve/main.js', 'autoClosed: Boolean(autoClosed), ', ''],
+  [
+    'CRG-12 : la correction attend le contrôle suivant',
+    'src/js/eleve/main.js',
+    "  render();\n  // Le contrôle qui a appris la fin du cours a pu passer pendant cet envoi : la correction n'attend pas le suivant\n  if (courseEnded && sendState === 'received') await receiveCorrection();\n",
+    '  render();\n'
+  ],
+  ['CRG-12 : correction demandée deux fois', 'src/js/eleve/main.js', 'if (S.correction || receiving) return;', ''],
   ['CRG-12 : la correction n’arrive pas seule', 'src/js/eleve/main.js', "if (courseEnded && sendState === 'received') await receiveCorrection();", ''],
   ['CRG-08 : page fermée avant la fin corrigée quand même', 'src/js/eleve/main.js', 'if (!session.beforeEnd) return markForErasure(studentId);', ''],
   [

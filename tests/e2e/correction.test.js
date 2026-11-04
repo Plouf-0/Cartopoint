@@ -293,6 +293,37 @@ test('CRG-12 : un envoi qui échoue à la fin du cours repart, puis la correctio
   assert.equal(participant(site).auto_closed, 1);
 });
 
+test('CRG-12 : un envoi qui se finit juste après le contrôle : la correction n’attend pas le suivant, et n’est demandée qu’une fois', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launchedCourse(teacher);
+  const page = await newStudent(t, site, code);
+  await endCourse(teacher);
+  const asked = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/student/correction')) asked.push(request.url());
+  });
+  // L'envoi reste en route pendant que le contrôle apprend la fin du cours
+  let release;
+  const held = new Promise((resolve) => (release = resolve));
+  await page.route('**/api/student/answers', async (route) => {
+    await held;
+    await route.continue();
+  });
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Terminer', exact: true }).click();
+  await page.locator('.panel-foot').getByText('Envoi de vos réponses').waitFor();
+  const checked = page.waitForResponse('**/api/student/state');
+  await wakeUp(page);
+  await checked;
+  await page.waitForTimeout(150);
+  assert.equal(await page.locator('#seeCorrection').count(), 0);
+
+  release();
+  await correctionArrived(page);
+  await page.waitForTimeout(200);
+  assert.equal(asked.length, 1, asked.join(' | '));
+});
+
 test('CRG-06 : une fois la correction arrivée, la page cesse d’interroger le serveur', async (t) => {
   const { site, teacher } = await setup(t);
   const code = await launchedCourse(teacher);

@@ -446,7 +446,8 @@ test('COU-08 : terminer coupe le QR code et le code ; la liste reste, et l’él
   // L'élève déjà entré garde son travail, et l'apprend
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await page.locator('#courseBanner').getByText("L'enseignant a terminé ce cours").waitFor();
-  assert.equal(await page.locator('.pin').count(), 1);
+  // Seulement le sien : sur une machine rapide, les positions réelles de la correction sont déjà là
+  assert.equal(await page.locator('.pin[data-kind="student"]').count(), 1);
   await page.reload();
   await page.locator('.pin').first().waitFor();
 

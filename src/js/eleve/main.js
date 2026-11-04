@@ -57,6 +57,7 @@ let studentId = null;
 let studentNames = '';
 let sendState = 'sending';
 let sending = false;
+let receiving = false;
 
 function refusal(error) {
   const again = error.status === 0;
@@ -207,6 +208,8 @@ async function sendAnswers() {
   }
   sending = false;
   render();
+  // Le contrôle qui a appris la fin du cours a pu passer pendant cet envoi : la correction n'attend pas le suivant
+  if (courseEnded && sendState === 'received') await receiveCorrection();
 }
 
 const currentAnswers = () => Object.fromEntries(S.project.maps.map((map) => [map.id, S.progress[map.id]?.entries ?? {}]));
@@ -269,11 +272,15 @@ function showCourseState() {
 /** La correction, pour une page restée ouverte jusqu'à la fin. Les réponses sont arrivées : le serveur peut la donner. Une coupure se rattrape au contrôle suivant. */
 async function receiveCorrection() {
   if (!session.beforeEnd) return markForErasure(studentId);
+  if (S.correction || receiving) return;
+  receiving = true;
   let correction;
   try {
     correction = await api('GET', '/student/correction', undefined, token);
   } catch (e) {
     return serverAnswered(e);
+  } finally {
+    receiving = false;
   }
   session.correction = correction;
   saveSession(studentId, session);

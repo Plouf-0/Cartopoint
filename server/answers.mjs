@@ -2,11 +2,13 @@
  * Les réponses d'un élève : vérifiées une à une, puis corrigées ici, sur le serveur, avec la version de son lancement
  * (CRG-09). Le résultat reste en base : rien de ce qui est calculé ici ne repart chez l'élève avant la fin du cours.
  */
-import { MEASURES, evaluate, visibleFiches } from '../src/js/model.js';
+import { MEASURES, evaluate, hasRef, visibleFiches } from '../src/js/model.js';
 import { HttpError } from './http.mjs';
 
 export const MAX_ANSWERS_BYTES = 256 * 1024;
 export const MAX_MEASURE = 50;
+// Un peu plus que l'intervalle de contrôle de la page élève (eleve/main.js)
+export const AFTER_END_GRACE = 30000;
 const INVALID = 'Ces réponses ne correspondent pas à ce cours.';
 
 const refuse = () => {
@@ -21,6 +23,7 @@ function cleanEntry(raw) {
   // Ni un seul des deux, ni autre chose qu'une position : un placement est complet, ou il n'y en a pas
   if (!placed && (raw.x ?? raw.y ?? null) !== null) refuse();
   const entry = { x: placed ? raw.x : null, y: placed ? raw.y : null };
+  if (Number.isFinite(raw.at)) entry.at = raw.at;
   for (const [key] of MEASURES) {
     const value = raw[key] ?? '';
     if (typeof value !== 'string' || value.length > MAX_MEASURE) refuse();
@@ -70,4 +73,52 @@ export function computeResults(project, answers) {
     return [map.id, { fiches: Object.fromEntries(fiches), score }];
   });
   return { maps: Object.fromEntries(maps), score: total };
+}
+
+/**
+ * Remet l'heure de chaque réponse sur l'horloge du serveur (CRG-13) : celle d'un téléphone peut être fausse, et l'appareil donne son heure à
+ * l'envoi, qui permet de mesurer l'écart. Une indication et non une preuve : une horloge changée en cours de route la trompe.
+ */
+export function onServerClock(answers, sentAt, now) {
+  const offset = Number.isFinite(sentAt) ? now - sentAt : 0;
+  return {
+    offset,
+    answers: Object.fromEntries(
+      Object.entries(answers).map(([mapId, entries]) => [
+        mapId,
+        Object.fromEntries(
+          Object.entries(entries).map(([ficheId, entry]) => [ficheId, entry.at === undefined ? entry : { ...entry, at: Math.min(entry.at + offset, now) }])
+        )
+      ])
+    )
+  };
+}
+
+/** Les réponses faites après la fin. La page ne l'apprend qu'à son contrôle suivant : ce qui tombe dans ce délai ne compte pas (CRG-13). */
+export function countAfterEnd(answers, endedAt) {
+  const limit = endedAt + AFTER_END_GRACE;
+  return Object.values(answers)
+    .flatMap((entries) => Object.values(entries))
+    .filter((entry) => entry.at > limit).length;
+}
+
+/** La correction d'un élève : pour chaque fiche, la position réelle s'il y en a une, le résultat et l'écart, calculés par le serveur (CRG-06, CRG-09). */
+export function correctionOf(project, results) {
+  return {
+    score: results.score,
+    maps: Object.fromEntries(
+      project.maps.map((map) => [
+        map.id,
+        {
+          score: results.maps[map.id].score,
+          fiches: Object.fromEntries(
+            visibleFiches(map).map((fiche) => [
+              fiche.id,
+              { ...results.maps[map.id].fiches[fiche.id], ...(hasRef(fiche) ? { refX: fiche.refX, refY: fiche.refY } : {}) }
+            ])
+          )
+        }
+      ])
+    )
+  };
 }

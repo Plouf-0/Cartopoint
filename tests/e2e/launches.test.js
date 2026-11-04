@@ -382,7 +382,7 @@ test('SUI-01 : l’état « a fini » s’affiche, avec le rendu tardif signalé
   site.db.prepare("UPDATE participants SET submitted_at = '2026-01-01T00:00:00.000Z', late = 1 WHERE names = 'Tom Martin'").run();
   await teacher.reload();
   await teacher.locator('.participants li', { hasText: NAMES }).getByText('A fini', { exact: true }).waitFor();
-  await teacher.locator('.participants li', { hasText: 'Tom Martin' }).getByText('A fini, après la fin du cours').waitFor();
+  await teacher.locator('.participants li', { hasText: 'Tom Martin' }).getByText('A fini avant la fin, reçu après').waitFor();
 });
 
 test('un nom d’élève piégé reste du texte', async (t) => {
@@ -864,13 +864,18 @@ test('section 4 : si le serveur a perdu un rendu déjà confirmé, la page le re
   await placeFirstFiche(page);
   await finish(page);
   await received(page);
-  const first = JSON.parse(participantRow(site).answers);
+  const placements = (row) => JSON.parse(row.answers).m1.f1;
+  const { x, y } = placements(participantRow(site));
 
   site.db.exec('UPDATE participants SET submitted_at = NULL, answers = NULL, results = NULL');
   await wakeUp(page);
   await page.waitForFunction(() => document.querySelector('.panel-foot').textContent.includes('bien arrivées'));
   for (let i = 0; i < 50 && !participantRow(site).submitted_at; i++) await page.waitForTimeout(100);
-  assert.deepEqual(JSON.parse(participantRow(site).answers), first);
+  assert.deepEqual(
+    [placements(participantRow(site)).x, placements(participantRow(site)).y],
+    [x, y],
+    'le même travail, l’heure étant recalculée à chaque envoi'
+  );
 });
 
 test('si l’envoi a abouti sans que la page ait reçu la réponse, elle le découvre au contrôle suivant', async (t) => {
@@ -947,26 +952,6 @@ test('sans stockage, l’élève peut terminer quand même', async (t) => {
   await finish(page);
   await received(page);
   assert.equal(typeof JSON.parse(participantRow(site).answers).m1.f1.x, 'number');
-});
-
-test('HOR-07 : le cours terminé, l’élève est invité à rendre, et son rendu est signalé comme tardif', async (t) => {
-  const { site, teacher } = await setup(t);
-  const code = await launch(teacher, await publishedCourse(teacher));
-  const page = await student(t, site);
-  await enter(page, code);
-  await teacher.locator('.participants li', { hasText: NAMES }).waitFor({ timeout: 8000 });
-
-  teacher.once('dialog', (dialog) => dialog.accept());
-  await teacher.getByRole('button', { name: 'Terminer le cours' }).click();
-  await teacher.getByText(/^Terminé le /).waitFor();
-
-  await wakeUp(page);
-  await page.locator('#courseBanner').getByText('Cliquez sur Terminer pour lui envoyer votre travail').waitFor();
-  await finish(page);
-  await received(page);
-  await page.waitForFunction(() => !document.querySelector('#courseBanner').textContent.includes('Cliquez'));
-  assert.equal(participantRow(site).late, 1);
-  await teacher.locator('.participants li', { hasText: NAMES }).getByText('A fini, après la fin du cours').waitFor({ timeout: 8000 });
 });
 
 test('COU-10 : terminer le cours prévient s’il reste des élèves non finis, et pas sinon', async (t) => {

@@ -1,6 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { draftOf, normalizeProject, numberOf, evaluate, sortByRef, projectFromText, newProject, FORMAT, VERSION } from '../src/js/model.js';
+import {
+  draftOf,
+  normalizeProject,
+  normalizeProgress,
+  numberOf,
+  evaluate,
+  gradeOf,
+  sortByRef,
+  projectFromText,
+  newProject,
+  FORMAT,
+  VERSION
+} from '../src/js/model.js';
 import { ICONS, PRESETS, iconSVG, paletteOf } from '../src/js/themes.js';
 
 /** Projet au format 2 (fichiers « Inventaire botanique N.html » de 2026). */
@@ -143,4 +155,27 @@ test('EV-34 : les fichiers existants gardent leur nom, leur thème et leur icôn
   assert.equal(project.maps[0].name, 'Plan du parc');
   assert.equal(project.theme.icon, 'leaf');
   assert.ok(ICONS.leaf, 'l’icône reste au choix');
+});
+
+test('CRG-13 : l’heure d’une réponse survit à la relecture, et seul un vrai nombre compte', () => {
+  const { entries } = normalizeProgress({ entries: { a: { x: 1, y: 2, at: 1000 }, b: { x: 1, y: 2, at: 'hier' }, c: { x: 1, y: 2 } } });
+  assert.equal(entries.a.at, 1000);
+  assert.equal(entries.b.at, undefined);
+  assert.equal('at' in entries.c, false);
+});
+
+test('CRG-09 : un résultat se présente pareil, calculé ici ou reçu du serveur', () => {
+  const fiche = { refX: 50, refY: 50 };
+  for (const [entry, state] of [
+    [{ x: 50, y: 50 }, 'ok'],
+    [{ x: 57, y: 50 }, 'near'],
+    [{ x: 90, y: 50 }, 'far'],
+    [{ x: null, y: null }, 'unplaced']
+  ]) {
+    const result = evaluate(fiche, entry);
+    assert.equal(result.state, state);
+    assert.equal(result.label, gradeOf(state).label);
+    assert.equal(result.cls, gradeOf(state).cls);
+  }
+  assert.equal(evaluate({ refX: null, refY: null }, { x: 1, y: 1 }).label, gradeOf('noref').label);
 });

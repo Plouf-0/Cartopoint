@@ -3,7 +3,7 @@
  * l'application d'origine sont dans views/student-panel.js.
  */
 import { $, esc } from '../util.js';
-import { S, listed, verified, locked, posOf, progress } from '../store.js';
+import { S, listed, verified, locked, posOf, evaluationOf } from '../store.js';
 import { numberOf, titleOf, evaluate, matches } from '../model.js';
 import { render } from '../render.js';
 import { photoHTML, measuresHTML, bindMeasures, bindCards, bindSearch } from './cards.js';
@@ -19,7 +19,7 @@ export function studentListHTML() {
       const placed = !!posOf(f);
       let foot = `<span class="num ${placed ? 'on' : ''}">${numberOf(S.map, f)}</span>`;
       if (v) {
-        const ev = evaluate(f, progress().entries[f.id], { ratio: S.ratio, widthMeters: S.map.widthMeters });
+        const ev = evaluationOf(f);
         foot += `<span class="grade ${ev.cls}">${esc(ev.label)}</span>`;
       } else if (placed) foot += `<span class="state">Placée</span>`;
       else if (locked()) foot += `<span class="state">Non placée</span>`;
@@ -40,8 +40,8 @@ export function studentListHTML() {
   else if (!list.length) cards = `<div class="empty-box">Aucune fiche ne correspond à ce filtre.</div>`;
 
   return `<div class="panel-scroll">
-      <h2>Fiches à placer</h2>
-      <p class="sub">Notez vos mesures directement dans les cases de chaque fiche, ouvrez-la pour la lire, puis placez-la sur le plan.</p>
+      <h2>${S.finished ? 'Vos fiches' : 'Fiches à placer'}</h2>
+      <p class="sub">${S.finished ? (S.correction ? 'Votre travail est figé. En bleu sur le plan, les positions réelles.' : 'Votre travail est figé.') : 'Notez vos mesures directement dans les cases de chaque fiche, ouvrez-la pour la lire, puis placez-la sur le plan.'}</p>
       <input class="search" id="search" type="search" placeholder="Rechercher une fiche…" value="${esc(S.ui.query)}">
       <div class="chips">${chip('all', 'Toutes')}${chip('unplaced', 'À placer')}${chip('placed', 'Placées')}</div>
       <div class="labels">${cards}</div>

@@ -3,7 +3,7 @@
  * La fenêtre s'adapte à la forme de la photo (classes .portrait / .landscape).
  */
 import { $, esc, frDate } from '../util.js';
-import { S, byId, verified, locked, entryOf, posOf, progress, mediaURL, changedProgress } from '../store.js';
+import { S, byId, verified, locked, entryOf, stamped, posOf, evaluationOf, mediaURL, changedProgress } from '../store.js';
 import { NEEDS, MEASURES, numberOf, titleOf, thumbOf, evaluate } from '../model.js';
 import { render } from '../render.js';
 import { openPhoto } from './viewer.js';
@@ -20,7 +20,7 @@ export async function openReader(id) {
   const needs = NEEDS.filter(([k]) => f[k])
     .map(([k, icon, label]) => `<div class="need"><dt><span aria-hidden="true">${icon}</span>${label}</dt><dd>${esc(f[k])}</dd></div>`)
     .join('');
-  const ev = verified() ? evaluate(f, progress().entries[f.id], { ratio: S.ratio, widthMeters: S.map.widthMeters }) : null;
+  const ev = verified() ? evaluationOf(f) : null;
   const canPlace = !posOf(f) && !locked();
 
   box.innerHTML = `
@@ -68,7 +68,7 @@ export async function openReader(id) {
   let t;
   box.querySelectorAll('.measure-grid input').forEach((input) =>
     input.addEventListener('input', () => {
-      entryOf(f, true)[input.dataset.k] = input.value.trim();
+      stamped(entryOf(f, true))[input.dataset.k] = input.value.trim();
       changedProgress();
       clearTimeout(t);
       t = setTimeout(() => ($('#mSaved').textContent = '✓ Enregistré'), 300);

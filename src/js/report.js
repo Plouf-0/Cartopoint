@@ -3,11 +3,9 @@
  * (noms, plan, résultats, mesures), facile à rendre sur l'ENT ou à imprimer.
  */
 import { $, toast, download, safeFileName, loadImage, errorText } from './util.js';
-import { S, verified, progress } from './store.js';
-import { visibleFiches, numberOf, titleOf, hasRef, placedPos, evaluate, MEASURES } from './model.js';
+import { S, verified, progress, evaluationOf } from './store.js';
+import { visibleFiches, numberOf, titleOf, hasRef, placedPos, MEASURES } from './model.js';
 import { paletteOf } from './themes.js';
-import { studentNames } from './views/header.js';
-import { buildTeacherCsv } from './spreadsheet.js';
 
 const STUDENT = '#b3263e';
 const TRUTH = '#1d5fa6';
@@ -26,7 +24,7 @@ export function resultRows() {
     n: numberOf(S.map, fiche),
     fiche,
     entry: p.entries[fiche.id] || {},
-    ev: evaluate(fiche, p.entries[fiche.id], { ratio: S.ratio, widthMeters: S.map.widthMeters })
+    ev: evaluationOf(fiche)
   }));
 }
 
@@ -57,7 +55,8 @@ function drawTag(ctx, x, y, r, text, color, roundness) {
 }
 
 /** Le plan à sa taille réelle, avec les repères (et les positions réelles après vérification). */
-async function drawPlan() {
+/** @param showRefs dessiner les positions réelles et les écarts */
+async function drawPlan(showRefs) {
   const img = await loadImage(S.map.image);
   const c = document.createElement('canvas');
   c.width = img.naturalWidth;
@@ -67,7 +66,6 @@ async function drawPlan() {
   const W = c.width;
   const H = c.height;
   const r = Math.max(13, W * 0.014);
-  const showRefs = S.admin || verified();
   const rows = resultRows();
   if (showRefs) {
     ctx.setLineDash([r * 0.5, r * 0.4]);
@@ -132,7 +130,8 @@ async function drawReport(names) {
   const rows = resultRows();
   const showEv = S.admin || verified();
   const { ok, near, scored } = scoreOf(rows);
-  const plan = await drawPlan();
+  // Le compte rendu d'un élève garde ses placements et ses résultats, jamais les positions réelles (CRG-10)
+  const plan = await drawPlan(S.admin);
 
   const W = 1600;
   const P = 64;
@@ -201,7 +200,7 @@ async function drawReport(names) {
     x += 34 + ctx.measureText(label).width + 40;
   };
   legend((cx, cy) => drawTag(ctx, cx, cy, 12, '', STUDENT, 1), 'Placement des élèves');
-  if (showEv) {
+  if (S.admin) {
     legend((cx, cy) => drawTag(ctx, cx, cy, 12, '', TRUTH, 0.45), 'Position réelle');
     legend((cx, cy) => {
       ctx.setLineDash([7, 6]);
@@ -311,31 +310,16 @@ const toJpeg = (canvas) => new Promise((resolve) => canvas.toBlob(resolve, 'imag
 /* Téléchargements                                                      */
 /* ------------------------------------------------------------------ */
 
-export async function downloadPlanImage() {
+export async function downloadPlanImage(names) {
   try {
-    const names = studentNames();
-    const blob = await toJpeg(await drawPlan());
+    const blob = await toJpeg(await drawPlan(S.admin || verified()));
     download(blob, safeFileName(`Plan - ${S.map.name}${names ? ' - ' + names : ''}`) + '.jpg');
   } catch (e) {
     toast('⚠ Image impossible à créer : ' + errorText(e));
   }
 }
 
-/** Noms des élèves, ou null (avec un message) s'ils manquent hors gestion. */
-function requireNames() {
-  const names = studentNames();
-  if (!names && !S.admin) {
-    $('#dlgResults').open && $('#dlgResults').close();
-    toast('Indiquez vos noms en haut de la page avant de télécharger');
-    $('#studentNames').focus();
-    return null;
-  }
-  return names;
-}
-
-export async function downloadReport() {
-  const names = requireNames();
-  if (names === null) return;
+export async function downloadReport(names) {
   try {
     toast('Préparation du compte rendu…');
     const blob = await toJpeg(await drawReport(names));
@@ -344,12 +328,4 @@ export async function downloadReport() {
   } catch (e) {
     toast('⚠ Compte rendu impossible à créer : ' + errorText(e));
   }
-}
-
-export function downloadTeacherCsv() {
-  const names = requireNames();
-  if (names === null) return;
-  const csv = buildTeacherCsv(resultRows(), { names, widthMeters: S.map.widthMeters });
-  download(csv, safeFileName(`Rendu prof - ${names || S.map.name}`) + '.csv', 'text/csv;charset=utf-8');
-  toast('✓ Rendu prof téléchargé');
 }

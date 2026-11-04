@@ -2,7 +2,8 @@
  * Page d'un élève, à l'adresse /c/<code> : entrer avec ses noms, lire les fiches, les placer, puis terminer. Le jeton reste
  * dans ce navigateur : revenir sur le même QR code reprend le même élève. Le travail est rangé sous l'identifiant de l'élève,
  * donc propre à chaque lancement, y compris sur un appareil partagé (COU-09). Le cours y est gardé dès sa réception : une fois la page
- * récupérée, le réseau ne sert plus qu'à rendre (HOR-01, HOR-03).
+ * récupérée, le réseau ne sert plus qu'à rendre et à recevoir la correction (HOR-01, HOR-03). Dès que la page apprend la fin du cours, le travail
+ * est figé et envoyé, sans lui demander (CRG-11), puis la correction arrive d'elle-même (CRG-12).
  */
 import { api } from '../api.js';
 import { studentBackend } from '../backends/student.js';
@@ -13,13 +14,14 @@ import { normalizeProgress, normalizeProject, placedPos } from '../model.js';
 import { onRender, render } from '../render.js';
 import { S, activate, flush, listed, posOf, switchMap, useBackend } from '../store.js';
 import { applyTheme } from '../themes.js';
-import { $, errorText, fatal, prefs, toast } from '../util.js';
+import { $, errorText, esc, fatal, prefs, toast } from '../util.js';
 import { bindMap, renderMap } from '../views/map.js';
 import { fillPanel } from '../views/panel-frame.js';
 import { bindReader } from '../views/reader.js';
 import { bindStudentList, studentListHTML } from '../views/student-list.js';
 import { bindViewer } from '../views/viewer.js';
 import { bindNetworkIcon, serverAnswered, showPreparation } from './network-icon.js';
+import { applyCorrection, eraseClosedCourses, markForErasure, readSession, saveSession, scoreText, showCorrection } from './correction.js';
 import { prepareOffline, startWorker } from './offline.js';
 
 const code = decodeURIComponent(location.pathname.split('/').pop()).toUpperCase().replace(/[\s-]/g, '');
@@ -28,6 +30,9 @@ const STORAGE_KEY = `cartopoint.eleve.${code}`;
 const STATE_EVERY = 20000;
 
 const COURSE_GONE = "Ce cours n'existe plus. Votre travail reste dans ce navigateur.";
+const COURSE_ENDED = "L'enseignant a terminé ce cours : votre travail est figé et envoyé.";
+const COURSE_CORRECTED = "L'enseignant a terminé ce cours. Votre correction est arrivée.";
+const CLOSED_BEFORE_END = "Ce cours est terminé, et votre travail est envoyé. La correction n'est donnée qu'aux pages restées ouvertes jusqu'à la fin.";
 const SEND_STATES = {
   sending: 'Envoi de vos réponses…',
   waiting: "Envoi impossible pour l'instant. Vos réponses restent sur cet appareil : gardez cette page ouverte, ou rouvrez-la quand vous aurez du réseau.",
@@ -46,6 +51,10 @@ let courseEnded = false;
  * rendu déjà confirmé (section 4 de la feuille de route), et la page le renvoie alors.
  */
 let submission = null;
+/** Cet onglet : voir eleve/correction.js. */
+let session = null;
+let studentId = null;
+let studentNames = '';
 let sendState = 'sending';
 let sending = false;
 
@@ -130,11 +139,18 @@ function renderHeader() {
   $('#mapName').textContent = S.map.name;
   const list = listed();
   $('#progress').innerHTML = list.length ? `<b>${list.filter(posOf).length}</b> / ${list.length} fiche(s) placée(s)` : '';
+  $('#legendRef').hidden = !S.correction;
   $('#plan').hidden = !S.map.image;
   $('#planEmpty').hidden = !!S.map.image;
 }
 
 function footHTML() {
+  if (S.correction) {
+    return `<div class="panel-foot">
+      <div class="locked-note" role="status">🔒 Travail terminé.<br><b>${esc(scoreText(S.correction))}</b></div>
+      <button type="button" class="btn" id="seeCorrection">Voir ma correction</button>
+    </div>`;
+  }
   if (!submission) {
     return `<div class="panel-foot">
       <button type="button" class="btn" id="finishBtn">Terminer</button>
@@ -151,6 +167,7 @@ function bindPanel(panel) {
   bindStudentList(panel);
   $('#finishBtn')?.addEventListener('click', finish);
   $('#retrySend')?.addEventListener('click', sendAnswers);
+  $('#seeCorrection')?.addEventListener('click', () => showCorrection(studentNames));
 }
 
 function renderPanel() {
@@ -176,7 +193,9 @@ async function sendAnswers() {
   sendState = 'sending';
   render();
   try {
-    await api('PUT', '/student/answers', { answers: submission.answers }, token);
+    const { answers, finishedAt, autoClosed } = submission;
+    // Son heure à l'envoi permet au serveur de corriger une horloge fausse (CRG-13)
+    await api('PUT', '/student/answers', { answers, autoClosed: Boolean(autoClosed), finishedAt: Date.parse(finishedAt), sentAt: Date.now() }, token);
     sendState = 'received';
     serverAnswered();
   } catch (e) {
@@ -190,12 +209,24 @@ async function sendAnswers() {
   render();
 }
 
+const currentAnswers = () => Object.fromEntries(S.project.maps.map((map) => [map.id, S.progress[map.id]?.entries ?? {}]));
+
+/** La fin du cours fige le travail, sans lui demander : c'est écrit tout de suite, pour qu'un second contrôle n'en fasse pas un second envoi. */
+async function closeAtEnd() {
+  submission = { answers: currentAnswers(), finishedAt: new Date().toISOString(), autoClosed: true };
+  S.finished = true;
+  S.ui.placing = null;
+  if ($('#dlgRead').open) $('#dlgRead').close();
+  await flush();
+  await keepSubmission();
+}
+
 async function finish() {
   const missing = unplacedCount();
   const warning = missing ? `${missing} fiche(s) ne sont pas placée(s).\n\n` : '';
   if (!confirm(`${warning}Terminer ? Vos placements et vos mesures seront figés, puis envoyés à l'enseignant.`)) return;
   await flush();
-  submission = { answers: Object.fromEntries(S.project.maps.map((map) => [map.id, S.progress[map.id]?.entries ?? {}])), finishedAt: new Date().toISOString() };
+  submission = { answers: currentAnswers(), finishedAt: new Date().toISOString() };
   S.finished = true;
   S.ui.placing = null;
   await keepSubmission();
@@ -232,8 +263,25 @@ function courseGone() {
 }
 
 function showCourseState() {
-  if (courseEnded)
-    showBanner(submission ? "L'enseignant a terminé ce cours." : "L'enseignant a terminé ce cours. Cliquez sur Terminer pour lui envoyer votre travail.");
+  if (courseEnded) showBanner(S.correction ? COURSE_CORRECTED : session.beforeEnd ? COURSE_ENDED : CLOSED_BEFORE_END);
+}
+
+/** La correction, pour une page restée ouverte jusqu'à la fin. Les réponses sont arrivées : le serveur peut la donner. Une coupure se rattrape au contrôle suivant. */
+async function receiveCorrection() {
+  if (!session.beforeEnd) return markForErasure(studentId);
+  let correction;
+  try {
+    correction = await api('GET', '/student/correction', undefined, token);
+  } catch (e) {
+    return serverAnswered(e);
+  }
+  session.correction = correction;
+  saveSession(studentId, session);
+  await markForErasure(studentId);
+  applyCorrection(correction);
+  showCourseState();
+  render();
+  toast('✓ Votre correction est arrivée');
 }
 
 /** Le cours est-il terminé ? Le rendu est-il bien arrivé ? Rien de grave si le réseau manque : on réessaiera. */
@@ -252,7 +300,12 @@ async function checkState() {
     }
     return;
   }
+  if (!state.ended && !session.beforeEnd) {
+    session.beforeEnd = true;
+    saveSession(studentId, session);
+  }
   courseEnded = state.ended;
+  if (courseEnded && !submission) await closeAtEnd();
   showCourseState();
   if (!submission) return;
   if (!state.received) {
@@ -261,10 +314,11 @@ async function checkState() {
     sendState = 'received';
     render();
   }
+  if (courseEnded && sendState === 'received') await receiveCorrection();
 }
 
 function watchState() {
-  const check = () => document.visibilityState === 'visible' && navigator.onLine && checkState();
+  const check = () => !S.correction && document.visibilityState === 'visible' && navigator.onLine && checkState();
   setInterval(check, STATE_EVERY);
   document.addEventListener('visibilitychange', check);
   window.addEventListener('online', check);
@@ -320,6 +374,10 @@ async function openCourse(me) {
     kept = await keepCourse(me.id, course);
   }
   token = me.token;
+  studentId = me.id;
+  studentNames = me.names;
+  session = readSession(me.id) ?? { beforeEnd: false, correction: null };
+  saveSession(me.id, session);
   const project = normalizeProject({ ...course, id: me.id });
   const work = await loadWork(project);
   if (submission && !navigator.onLine) sendState = 'waiting';
@@ -328,6 +386,13 @@ async function openCourse(me) {
   $('#course').hidden = false;
   activate(project, work, { dirty: false, baseRevision: null, lastExport: null });
   useBackend(studentBackend);
+  S.stampAnswers = true;
+  if (session.correction) {
+    applyCorrection(session.correction);
+    courseEnded = true;
+    sendState = 'received';
+    showCourseState();
+  }
   onRender(() => applyTheme(S.project.theme));
   onRender(renderHeader);
   onRender(renderMap);
@@ -349,6 +414,8 @@ async function openCourse(me) {
 }
 
 startWorker();
-const me = remembered();
-if (me) openCourse(me);
-else showJoin();
+eraseClosedCourses().then(() => {
+  const me = remembered();
+  if (me) openCourse(me);
+  else showJoin();
+});

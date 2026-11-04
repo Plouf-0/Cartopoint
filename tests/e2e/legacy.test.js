@@ -321,3 +321,114 @@ test('ouvrir un projet remplace celui du navigateur, et un mauvais fichier s’e
   await page.locator('#pageTitle', { hasText: 'Projet ouvert' }).waitFor();
   await toast(page, '✓ Projet ouvert');
 });
+
+/* --- L'application d'origine : vérifier ses placements et télécharger --- */
+
+const CHECKED_PROJECT = {
+  format: 'inventaire-botanique',
+  version: 3,
+  title: 'Exercice',
+  theme: {},
+  maps: [
+    {
+      id: 'm1',
+      name: 'Plan',
+      image: 'data:image/png;base64,' + PNG.toString('base64'),
+      fiches: [
+        { id: 'f1', common: 'Noisetier', visible: true, refX: 50, refY: 50, media: [] },
+        { id: 'f2', common: 'Sureau', visible: true, refX: 5, refY: 5, media: [] }
+      ]
+    }
+  ]
+};
+
+/** Note ce que dessine un compte rendu : une image ne se relit pas facilement. */
+const WATCH_DRAWING = `
+  window.drawn = [];
+  const { fillText } = CanvasRenderingContext2D.prototype;
+  CanvasRenderingContext2D.prototype.fillText = function (text, ...rest) {
+    window.drawn.push(String(text));
+    return fillText.call(this, text, ...rest);
+  };`;
+
+async function openExercise(t) {
+  const { page } = await openApp(t, { init: WATCH_DRAWING });
+  await enterManagement(page);
+  await page.getByRole('tab', { name: 'Projet' }).click();
+  page.once('dialog', (dialog) => dialog.accept());
+  await page
+    .locator('#openProject')
+    .setInputFiles({ name: 'exercice.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(CHECKED_PROJECT)) });
+  await toast(page, '✓ Projet ouvert');
+  return page;
+}
+
+async function placeAndVerify(page) {
+  await page.locator('#modeBtn').click();
+  await page.locator('[data-place]').first().click();
+  const box = await page.locator('#plan').boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.locator('.pin').first().waitFor();
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.locator('#verifyBtn').click();
+  await page.locator('#dlgResults[open]').waitFor();
+}
+
+const saved = async (page, button) => {
+  const file = page.waitForEvent('download');
+  await page.locator(button).click();
+  return file;
+};
+
+test('une fois vérifié, sans noms, télécharger le compte rendu ou le fichier pour l’enseignant les demande d’abord', async (t) => {
+  const page = await openExercise(t);
+  await placeAndVerify(page);
+  await page.locator('#resReport').click();
+  await toast(page, 'Indiquez vos noms en haut de la page');
+  await page.locator('#dlgResults[open]').waitFor({ state: 'detached' });
+  assert.equal(await page.locator('#studentNames').evaluate((input) => input === document.activeElement), true);
+
+  await page.locator('#showResults').click();
+  await page.locator('#resTeacher').click();
+  await page.locator('#dlgResults[open]').waitFor({ state: 'detached' });
+});
+
+test('une fois vérifié, l’image, le compte rendu et le fichier pour l’enseignant se téléchargent, à ses noms', async (t) => {
+  const page = await openExercise(t);
+  await page.locator('#modeBtn').click();
+  await page.locator('#studentNames').fill('Léa Dupont');
+  const before = await saved(page, '#dlImage');
+  assert.equal(before.suggestedFilename(), 'Plan - Plan - Léa Dupont.jpg');
+  await page.locator('[data-place]').first().click();
+  const box = await page.locator('#plan').boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.locator('.pin').first().waitFor();
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.locator('#verifyBtn').click();
+  await page.locator('#dlgResults[open]').waitFor();
+
+  assert.equal((await saved(page, '#resImg')).suggestedFilename(), 'Plan - Plan - Léa Dupont.jpg');
+  const report = await saved(page, '#resReport');
+  assert.equal(report.suggestedFilename(), 'Compte rendu - Léa Dupont.jpg');
+  await toast(page, '✓ Compte rendu téléchargé');
+  assert.ok(!(await page.evaluate(() => window.drawn)).includes('Position réelle'), 'CRG-10 : le compte rendu d’un élève ne les montre pas');
+
+  const csv = await saved(page, '#resTeacher');
+  assert.equal(csv.suggestedFilename(), 'Rendu prof - Léa Dupont.csv');
+  assert.match(await readFile(await csv.path(), 'utf8'), /Noisetier/);
+  await toast(page, '✓ Rendu prof téléchargé');
+
+  await page.locator('#dlgResults [data-close]').click();
+  assert.equal((await saved(page, '#dlReport')).suggestedFilename(), 'Compte rendu - Léa Dupont.jpg');
+});
+
+test('en gestion, le compte rendu de l’enseignant montre les positions réelles, et n’a pas besoin de noms', async (t) => {
+  const page = await openExercise(t);
+  await page.getByRole('tab', { name: 'Fiches' }).click();
+  await page.locator('#compare').click();
+  await page.locator('#dlgResults[open]').waitFor();
+  const report = await saved(page, '#resReport');
+  assert.equal(report.suggestedFilename(), 'Compte rendu - Plan.jpg');
+  await toast(page, '✓ Compte rendu téléchargé');
+  assert.ok((await page.evaluate(() => window.drawn)).includes('Position réelle'));
+});

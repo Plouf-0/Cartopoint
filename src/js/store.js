@@ -8,7 +8,7 @@
 import { Meta, Maps, Files, Progress } from './db.js';
 import { localBackend } from './backends/local.js';
 import { debounce, uid, blobToDataURL, dataURLToBlob, toast, errorText } from './util.js';
-import { normalizeProject, normalizeProgress, emptyProgress, placedPos, VERSION, FORMAT } from './model.js';
+import { normalizeProject, normalizeProgress, emptyProgress, placedPos, evaluate, gradeOf, VERSION, FORMAT } from './model.js';
 
 export const S = {
   /** Projet affiché (métadonnées + cartes + fiches). */
@@ -25,6 +25,10 @@ export const S = {
   teacherSpace: false,
   /** Page d'un élève : il a cliqué sur Terminer, son travail est figé (HOR-06). */
   finished: false,
+  /** Page d'un élève : chaque réponse garde son heure (CRG-13). */
+  stampAnswers: false,
+  /** Page d'un élève : la correction reçue du serveur, le temps de la page (CRG-08). */
+  correction: null,
   /** État d'interface qui n'est pas enregistré. */
   ui: { filter: 'all', query: '', adminQuery: '', tab: 'fiches', placing: null },
   /** Rapport largeur / hauteur de l'image du plan affiché. */
@@ -54,6 +58,17 @@ export function entryOf(fiche, create = false) {
   return p.entries[fiche.id] || null;
 }
 export const posOf = (fiche) => placedPos(entryOf(fiche));
+/** Note l'heure d'une réponse qui vient de changer, sur la page d'un élève. */
+export function stamped(entry) {
+  if (S.stampAnswers) entry.at = Date.now();
+  return entry;
+}
+/** Le résultat d'une fiche : celui du serveur une fois la correction reçue (CRG-09), sinon calculé ici (application d'origine). */
+export function evaluationOf(fiche) {
+  const result = S.correction?.maps[S.map.id]?.fiches[fiche.id];
+  if (result) return { ...gradeOf(result.state), ...result };
+  return evaluate(fiche, progress().entries[fiche.id], { ratio: S.ratio, widthMeters: S.map.widthMeters });
+}
 
 /* ------------------------------------------------------------------ */
 /* Enregistrement (regroupé pour ne pas écrire à chaque frappe)         */

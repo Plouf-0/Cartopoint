@@ -5,7 +5,7 @@ import { $ } from '../util.js';
 import { listed, verified, posOf } from '../store.js';
 import { studentListHTML, bindStudentList } from './student-list.js';
 import { verifyExercise, showResults } from './results.js';
-import { downloadPlanImage, downloadReport } from '../report.js';
+import { savePlanImage, saveReport } from './report-actions.js';
 
 export function studentPanelHTML() {
   const foot = verified()
@@ -22,7 +22,7 @@ export function studentPanelHTML() {
 export function bindStudentPanel(panel) {
   bindStudentList(panel);
   $('#verifyBtn')?.addEventListener('click', verifyExercise);
-  $('#dlImage')?.addEventListener('click', downloadPlanImage);
+  $('#dlImage')?.addEventListener('click', savePlanImage);
   $('#showResults')?.addEventListener('click', showResults);
-  $('#dlReport')?.addEventListener('click', downloadReport);
+  $('#dlReport')?.addEventListener('click', saveReport);
 }

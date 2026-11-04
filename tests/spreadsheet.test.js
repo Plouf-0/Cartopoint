@@ -42,6 +42,19 @@ test('import : complète par réf. photo, même quand une réf. est en double', 
   assert.equal(plan.ops[1].existing, existing[0], 'le romarin sur celle du romarin');
 });
 
+test('TAB-10 : exporter puis réimporter garde toutes les positions réelles, y compris pour une fiche qui n’en a qu’une partie', () => {
+  const fiches = [
+    normalizeFiche({ id: 'a', common: 'Noisetier', refX: 12.3456, refY: 65.4321 }),
+    normalizeFiche({ id: 'b', common: 'Sureau', refX: 0, refY: 100 }),
+    normalizeFiche({ id: 'c', common: 'Sans position' })
+  ];
+  const { ops } = planImport(parseCSV(buildCsv(fiches)), []);
+  const positions = Object.fromEntries(ops.map(({ data }) => [data.common, [data.refX, data.refY]]));
+  assert.deepEqual(positions['Noisetier'], [12.35, 65.43], 'à deux décimales : un millième de la largeur du plan environ');
+  assert.deepEqual(positions['Sureau'], [0, 100], 'zéro est une position');
+  assert.deepEqual(positions['Sans position'], [undefined, undefined]);
+});
+
 test('export CSV puis relecture : mêmes valeurs', () => {
   const f = normalizeFiche({ id: 'x', ref: '5a', common: 'Olivier ; arbre', exposure: '☀️☀️ Soleil', visible: false, refX: 12.345, refY: 50 });
   const csv = buildCsv([f], { entries: { x: { temperature: '21,5' } } });

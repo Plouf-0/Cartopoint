@@ -44,8 +44,21 @@ function qrDialog(code) {
   return dialog;
 }
 
+/** Avant ou après la fin : comment il a fini, puis combien de réponses ont été faites après la fin (CRG-11, CRG-13). */
+function participantState(participant) {
+  if (!participant.submittedAt) return 'A commencé';
+  const finished = participant.autoClosed
+    ? 'Figé à la fin du cours'
+    : !participant.late
+      ? 'A fini'
+      : participant.finishedAfterEnd
+        ? 'A fini après la fin du cours'
+        : 'A fini avant la fin, reçu après';
+  return participant.answersAfterEnd ? `${finished} · ${participant.answersAfterEnd} réponse(s) après la fin` : finished;
+}
+
 function participantRow(participant) {
-  const state = participant.submittedAt ? (participant.late ? 'A fini, après la fin du cours' : 'A fini') : 'A commencé';
+  const state = participantState(participant);
   return el('li', {}, el('span', {}, participant.names), el('span', { className: `participant-state ${participant.submittedAt ? 'done' : ''}` }, state));
 }
 

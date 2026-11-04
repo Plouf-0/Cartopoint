@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.22** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.24** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -74,8 +74,9 @@ trace.
 | EV-36   | 04/11/2026 | Sur la page élève, une petite icône qui dit si l'on est en ligne ou hors ligne, avec le détail en passant le doigt dessus, plutôt qu'un bandeau qui reste. | HOR-10 | Moyenne | Fait dans la branche |
 | EV-37   | 04/11/2026 | Quand le site casse chez quelqu'un, un `.log` pour voir pourquoi, avec la signature de sa machine, des informations utiles et la raison. Pour récupérer par exemple les erreurs de chez le premier enseignant. | INC-01 à INC-07 | Haute | Fait dans la branche |
 | EV-38   | 04/11/2026 | Vérifier qu'un cours fonctionne avec au moins 30 élèves, 50 au plus. | QUA-09 | Haute | Fait dans la branche |
-| EV-39   | 04/11/2026 | Bloquer l'élève dès que le cours est fini, au lieu d'un simple message qui le laisse continuer. | CRG-11 | Haute | Déjà prévu pour l'étape 7 |
-| EV-40   | 04/11/2026 | Hors ligne, horodater chaque réponse pour voir lesquelles ont été faites avant et après la fin du cours. | CRG-13, Q-19 | Moyenne | Étape 7 |
+| EV-39   | 04/11/2026 | Bloquer l'élève dès que le cours est fini, au lieu d'un simple message qui le laisse continuer. | CRG-11 | Haute | Fait dans la branche |
+| EV-40   | 04/11/2026 | Hors ligne, horodater chaque réponse pour voir lesquelles ont été faites avant et après la fin du cours. | CRG-13, Q-19 | Moyenne | Fait dans la branche |
+| EV-41   | 04/11/2026 | Le premier enseignant dit perdre « la localisation sur l'image de la fiche » quand il exporte. L'ajouter si l'export ne la prend pas. | TAB-10 | Moyenne | Vérifié : voir Q-20 |
 
 - **Exigence concernée :** son identifiant (`PLA-03`, `E-01`…), ou rien pour un besoin nouveau.
 - **Priorité :** Haute (empêche une séance), Moyenne (gêne réelle), Basse (confort).
@@ -797,6 +798,11 @@ Ces choix ne se déduisent pas du code. Les pistes sont des suggestions.
 - **Q-19 — Les réponses faites après la fin du cours comptent-elles dans le score ?** **Tranchée le 4 novembre 2026 :** oui, et l'enseignant voit combien
   il y en a (`CRG-13`). Un élève sans réseau ne peut pas savoir que le cours est fini, et l'heure d'un téléphone n'est qu'une indication.
 
+- **Q-20 — De quel export parle le premier enseignant (EV-41) ?** Sur ses fichiers, le CSV garde les positions réelles (19 sur 19 après un aller-retour, à 0,004 % du plan) et le
+  fichier de projet aussi. Ce qui les perd : l'image du plan en vue élève, voulu ; le fichier « rendu prof », qui donne l'écart et non les coordonnées. Le CSV ne contient
+  ni le plan ni les photos (`TAB-08`, `TAB-10`). Les données GPS des photos disparaissent dès leur ajout à une fiche quand elles sont réduites : ses 16 photos n'en ont plus. À demander au premier enseignant : sur quel
+  bouton il clique, et ce qu'il s'attendait à voir.
+
 ### Décisions prises
 
 Toutes le 1er novembre 2026.
@@ -1012,7 +1018,8 @@ Demandes : EV-08
 - **CRG-07** Un élève ne rend qu'une fois, et le serveur le vérifie : il ne peut plus modifier ses réponses.
 - **CRG-08** La correction reste sur le téléphone le temps de la page. Elle résiste à un rechargement, puis
   disparaît avec les données de l'élève quand il ferme ou supprime la page. Un élève qui a fermé la page avant la
-  fin du cours ne reçoit pas la correction.
+  fin du cours ne reçoit pas la correction. Son travail part quand même. C'est la page qui s'en charge : le serveur ne sait pas si une page a été
+  fermée, et un jeton gardé permettrait de la redemander.
 - **CRG-09** Le résultat est calculé par le serveur à partir des positions réelles, pas par l'appareil de l'élève.
   Les proportions du plan sont mesurées par le navigateur de l'enseignant à la publication, telles que les élèves le verront :
   le serveur n'ouvre pas les images. Publier est refusé si un plan ne se charge pas.
@@ -1023,7 +1030,8 @@ Demandes : EV-08
   pas que le cours est fini.
 - **CRG-13** Chaque placement et chaque mesure garde son heure. L'enseignant voit combien de réponses ont été faites après la fin du cours. Une
   horloge de téléphone peut être fausse : à l'envoi, l'appareil donne aussi son heure, et le serveur en déduit l'écart avec la sienne. C'est une
-  indication et non une preuve : une horloge changée exprès en cours de route la trompe. Ces réponses comptent dans le score (Q-19).
+  indication et non une preuve : une horloge changée exprès en cours de route la trompe. Ces réponses comptent dans le score (Q-19). Ce qui tombe dans
+  les 30 secondes suivant la fin ne compte pas : la page ne l'apprend qu'à son contrôle suivant, toutes les 20 secondes.
 - **CRG-12** La page ouverte reçoit la correction d'elle-même, sans action de l'élève, y compris si le réseau ne
   revient qu'après la fin du cours.
 
@@ -1158,3 +1166,5 @@ fichier `.log` : le journal arrive sans rien demander à la personne, et l'admin
 | 0.20    | 4 novembre 2026   | Étape 6 : page élève disponible sans réseau, polices servies par le site ; HOR-10, HOR-11 |
 | 0.21    | 4 novembre 2026   | Icône du réseau sur la page élève (EV-36, HOR-10) ; journal des problèmes (EV-37, INC-01 à INC-07) |
 | 0.22    | 4 novembre 2026   | Journal téléchargeable en `.log` ; charge de 30 à 50 élèves (EV-38, QUA-09) ; bloquer à la fin du cours et horodater les réponses (EV-39, EV-40, CRG-13, Q-19) |
+| 0.23    | 4 novembre 2026   | Étape 7 : le travail se fige à la fin du cours, correction sur la page restée ouverte, compte rendu sans positions réelles, heure de chaque réponse (Q-19 tranchée) |
+| 0.24    | 4 novembre 2026   | EV-04 : symptôme disparu sans cause établie ; EV-41 : export et localisation vérifiés, Q-20 ouverte |

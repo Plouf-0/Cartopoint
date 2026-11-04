@@ -52,6 +52,7 @@
         <div class="progress" id="progress"></div>
         <div class="legend">
           <span><i class="lg-student"></i>Votre placement</span>
+          <span id="legendRef" hidden><i class="lg-ref"></i>Position réelle</span>
         </div>
       </div>
       <div class="map-frame" id="mapFrame">
@@ -65,6 +66,9 @@
     <aside class="panel" id="panel" aria-label="Fiches"></aside>
   </div>
 </div>
+
+<!-- La correction, une fois le cours terminé -->
+<dialog id="dlgCorrection"><div class="dlg" id="correctionBox"></div></dialog>
 
 <!-- Lecture d'une fiche -->
 <dialog id="dlgRead"><div class="dlg" id="readBox"></div></dialog>

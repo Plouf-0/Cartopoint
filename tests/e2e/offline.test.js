@@ -297,6 +297,55 @@ test('HOR-04 : le téléphone se croit en ligne alors que rien ne répond : la p
   assert.equal(await page.evaluate(() => navigator.onLine), true);
 });
 
+test('CRG-12 : sans réseau à la fin du cours, la page continue et recharge ; au retour du réseau, tout part et la correction arrive', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await fieldCourse(teacher));
+  const page = await fieldStudent(t, site, code);
+  await page.context().setOffline(true);
+  await forgetHttpCache(page);
+  teacher.once('dialog', (dialog) => dialog.accept());
+  await teacher.getByRole('button', { name: 'Terminer le cours' }).click();
+  await teacher.getByText(/^Terminé le /).waitFor();
+
+  await page.reload();
+  await page.locator('.label').first().waitFor();
+  await placeFirstFiche(page);
+  assert.equal(await page.locator('.pin[data-kind="ref"]').count(), 0, 'la page ne sait encore rien');
+
+  await page.context().setOffline(false);
+  await page.locator('#seeCorrection').waitFor({ timeout: 25000 });
+  assert.equal(participant(site).auto_closed, 1);
+  assert.equal(typeof JSON.parse(participant(site).answers).m1.f1.x, 'number');
+  assert.equal(await page.locator('.pin[data-kind="ref"]').count(), 2);
+  await page.reload();
+  await page.locator('#seeCorrection').waitFor();
+});
+
+test('CRG-11 : figé à la fin du cours, puis plus de réseau : le rechargement garde le gel, et les réponses partent au retour', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await fieldCourse(teacher));
+  const page = await fieldStudent(t, site, code);
+  await placeFirstFiche(page);
+  await page.route('**/api/student/answers', (route) => route.abort());
+  teacher.once('dialog', (dialog) => dialog.accept());
+  await teacher.getByRole('button', { name: 'Terminer le cours' }).click();
+  await teacher.getByText(/^Terminé le /).waitFor();
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await footer(page, 'Vos réponses restent sur cet appareil');
+
+  await page.context().setOffline(true);
+  await forgetHttpCache(page);
+  await page.reload();
+  await footer(page, 'Vos réponses restent sur cet appareil');
+  assert.equal(await page.locator('[data-place]').count(), 0, 'toujours figé');
+
+  await page.unroute('**/api/student/answers');
+  await page.context().setOffline(false);
+  await page.locator('#seeCorrection').waitFor({ timeout: 25000 });
+  assert.equal(participant(site).auto_closed, 1);
+  assert.equal(typeof JSON.parse(participant(site).answers).m1.f1.x, 'number');
+});
+
 test('une page qui n’a pas encore de cours, sans réseau, dit pourquoi au lieu de rester blanche', async (t) => {
   const { site, teacher } = await setup(t);
   const code = await launch(teacher, await fieldCourse(teacher));

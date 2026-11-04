@@ -343,3 +343,15 @@ Ce qui échoue dans un navigateur arrive tout seul à l'admin, avec la machine e
   Cloudflare, des inconnus partagent la même adresse (section 10 de la feuille de route). `GET /api/admin/incidents` et
   `POST /api/admin/incidents/clear` sont réservées à l'admin. La purge passe par `app.purge()`, chaque heure.
 - **Pour lire le journal depuis le serveur,** sans passer par la page : la table `incidents` de `app.db`.
+
+## Fin du cours
+
+Dès que la page apprend la fin du cours, par `GET /api/student/state`, elle fige le travail et l'envoie, sans lui demander (`CRG-11`). Sans réseau, elle ne peut rien savoir : l'élève continue, et chaque réponse garde son heure (`CRG-13`).
+
+- **La correction** vient de `GET /api/student/correction`, seulement une fois le cours terminé et les réponses reçues : positions réelles, résultats et score du serveur, en `no-store`. Les vues ne recalculent rien : `evaluationOf()` (`store.js`) lit le résultat reçu.
+- **Elle reste le temps de la page** (`eleve/correction.js`). Elle n'existe que dans `sessionStorage`, qui survit à un rechargement et disparaît avec l'onglet, et en mémoire pour les positions réelles : jamais dans IndexedDB ni dans un cache. Rien ne s'exécute de façon fiable à la fermeture : le cours est marqué `efface/<participant>` dès que c'est fini, puis effacé au prochain chargement d'une page qui n'a plus son onglet. Les fichiers qui servent à un autre cours de l'appareil restent.
+- **Une page fermée avant la fin** ne reçoit pas la correction. `beforeEnd`, dans `sessionStorage`, dit si cet onglet a vu le cours en marche. Le serveur ne peut pas le savoir : c'est une règle de la page, pas une protection.
+- **L'heure des réponses :** `entries[fiche].at`, noté par `stamped()` sur la page d'un élève seulement. À l'envoi, l'appareil donne son heure (`sentAt`) : le serveur en déduit l'écart avec la sienne, remet les heures à la sienne, et compte dans `answers_after_end` celles d'après la fin, au-delà de 30 secondes. Elles comptent dans le score.
+- **Ce que voit l'enseignant :** « A fini », « Figé à la fin du cours », « A fini avant la fin, reçu après » ou « A fini après la fin du cours », puis le nombre de réponses faites après la fin.
+- **Le compte rendu d'un élève** (`report.js`) garde ses placements et ses résultats, jamais les positions réelles (`CRG-10`). `report.js` ne dépend plus du code de gestion : `views/report-actions.js` garde ce qui n'existe que dans l'application d'origine.
+

@@ -103,6 +103,7 @@ export function normalizeProgress(raw) {
   for (const [id, e] of Object.entries(raw.entries || {})) {
     const entry = { x: num(e.x), y: num(e.y) };
     if (entry.x === null || entry.y === null) entry.x = entry.y = null;
+    if (Number.isFinite(e.at)) entry.at = e.at;
     for (const [k] of MEASURES) entry[k] = str(e[k]);
     p.entries[id] = entry;
   }
@@ -224,21 +225,30 @@ export function placedPos(entry) {
   return entry && entry.x !== null && entry.y !== null && entry.x !== undefined ? { x: entry.x, y: entry.y } : null;
 }
 
+const GRADES = {
+  noref: { label: 'Pas de position réelle', cls: 'none' },
+  unplaced: { label: 'Non placée', cls: 'none' },
+  ok: { label: 'Bien placée', cls: 'ok' },
+  near: { label: 'Proche', cls: 'near' },
+  far: { label: 'À revoir', cls: 'far' }
+};
+/** Comment présenter un résultat : calculé ici ou reçu du serveur, il se lit pareil. */
+export const gradeOf = (state) => GRADES[state];
+
 /**
  * Écart entre le placement de l'élève et la position réelle.
  * La distance est mesurée en % de la largeur du plan (`ratio` = largeur / hauteur de l'image),
  * puis convertie en mètres si la largeur réelle du terrain est connue.
  */
 export function evaluate(fiche, entry, { ratio = 1, widthMeters = null } = {}) {
-  if (!hasRef(fiche)) return { state: 'noref', label: 'Pas de position réelle', cls: 'none' };
+  if (!hasRef(fiche)) return { state: 'noref', ...gradeOf('noref') };
   const p = placedPos(entry);
-  if (!p) return { state: 'unplaced', label: 'Non placée', cls: 'none' };
+  if (!p) return { state: 'unplaced', ...gradeOf('unplaced') };
   const d = Math.hypot(p.x - fiche.refX, (p.y - fiche.refY) / ratio);
   const meters = widthMeters ? (d / 100) * widthMeters : null;
   const dist = meters !== null ? `${meters < 10 ? meters.toFixed(1) : Math.round(meters)} m` : `${d.toFixed(1)} % du plan`;
-  if (d <= THRESHOLDS.ok) return { state: 'ok', label: 'Bien placée', cls: 'ok', d, dist };
-  if (d <= THRESHOLDS.near) return { state: 'near', label: 'Proche', cls: 'near', d, dist };
-  return { state: 'far', label: 'À revoir', cls: 'far', d, dist };
+  const state = d <= THRESHOLDS.ok ? 'ok' : d <= THRESHOLDS.near ? 'near' : 'far';
+  return { state, ...gradeOf(state), d, dist };
 }
 
 /** Range les fiches par réf. photo (1, 2, 5a, 5b, 10…), celles sans réf. à la fin. */

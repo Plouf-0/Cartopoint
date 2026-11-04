@@ -5,7 +5,8 @@ import { $, esc } from '../util.js';
 import { S, listed, posOf, progress, changedProgress } from '../store.js';
 import { titleOf, THRESHOLDS } from '../model.js';
 import { render } from '../render.js';
-import { resultRows, scoreOf, downloadPlanImage, downloadReport, downloadTeacherCsv } from '../report.js';
+import { resultRows, scoreOf } from '../report.js';
+import { savePlanImage, saveReport, saveTeacherCsv } from './report-actions.js';
 import { studentNames } from './header.js';
 
 export function verifyExercise() {
@@ -52,8 +53,8 @@ export function showResults() {
       <button class="btn" type="button" id="resReport">Télécharger le compte rendu (JPG)</button>
     </div>`;
   $('#resultsBox [data-close]').onclick = () => $('#dlgResults').close();
-  $('#resImg').onclick = downloadPlanImage;
-  $('#resReport').onclick = downloadReport;
-  $('#resTeacher').onclick = downloadTeacherCsv;
+  $('#resImg').onclick = savePlanImage;
+  $('#resReport').onclick = saveReport;
+  $('#resTeacher').onclick = saveTeacherCsv;
   $('#dlgResults').showModal();
 }

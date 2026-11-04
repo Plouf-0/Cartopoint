@@ -2,6 +2,7 @@
  * Lancements d'un cours et élèves qui les rejoignent. Un lancement fige la dernière version publiée (COU-11) et a son
  * propre code (COU-06). Un élève n'a pas de compte : un jeton, gardé par son navigateur, le reconnaît.
  */
+import { AFTER_END_GRACE } from './answers.mjs';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { hashToken } from './auth.mjs';
 import { HttpError } from './http.mjs';
@@ -101,7 +102,10 @@ export function createLaunches(db, { makeCode = newCode } = {}) {
           names: p.names,
           joinedAt: p.joined_at,
           submittedAt: p.submitted_at,
-          late: Boolean(p.late)
+          late: Boolean(p.late),
+          autoClosed: Boolean(p.auto_closed),
+          answersAfterEnd: p.answers_after_end,
+          finishedAfterEnd: Boolean(row.ended_at && p.finished_at && Date.parse(p.finished_at) > Date.parse(row.ended_at) + AFTER_END_GRACE)
         }))
       };
     },
@@ -139,15 +143,22 @@ export function createLaunches(db, { makeCode = newCode } = {}) {
 
     /**
      * Le premier envoi fait foi (CRG-07) : la condition est dans la requête, deux envois simultanés n'en font donc qu'un.
-     * Un rendu reçu après la fin du cours est signalé à l'enseignant (HOR-07).
+     * Un rendu reçu après la fin du cours est signalé à l'enseignant (HOR-07), sauf s'il a été figé par cette fin : la page l'envoie dès qu'elle
+     * l'apprend (CRG-11). Figer n'a pas de sens avant la fin : le dire alors ne compte pas.
      * @returns la date du rendu gardé
      */
-    submit(participant, answers, results) {
-      db.prepare('UPDATE participants SET answers = ?, results = ?, submitted_at = ?, late = ? WHERE id = ? AND submitted_at IS NULL').run(
+    submit(participant, answers, results, { autoClosed = false, finishedAt = null, afterEnd = 0 } = {}) {
+      const closedByEnd = autoClosed && Boolean(participant.ended_at);
+      db.prepare(
+        'UPDATE participants SET answers = ?, results = ?, submitted_at = ?, late = ?, auto_closed = ?, answers_after_end = ?, finished_at = ? WHERE id = ? AND submitted_at IS NULL'
+      ).run(
         JSON.stringify(answers),
         JSON.stringify(results),
         iso(),
-        participant.ended_at ? 1 : 0,
+        participant.ended_at && !closedByEnd ? 1 : 0,
+        closedByEnd ? 1 : 0,
+        afterEnd,
+        finishedAt,
         participant.id
       );
       return db.prepare('SELECT submitted_at FROM participants WHERE id = ?').get(participant.id).submitted_at;
@@ -157,7 +168,7 @@ export function createLaunches(db, { makeCode = newCode } = {}) {
     participant(token) {
       return db
         .prepare(
-          `SELECT participants.id, participants.names, participants.submitted_at, launches.ended_at, course_versions.content FROM participants
+          `SELECT participants.id, participants.names, participants.submitted_at, participants.results, launches.ended_at, course_versions.content FROM participants
            JOIN launches ON launches.id = participants.launch_id JOIN course_versions ON course_versions.id = launches.version_id
            WHERE participants.token_hash = ?`
         )

@@ -6,7 +6,7 @@
  * de la taille de l'écran.
  */
 import { $, toast } from '../util.js';
-import { S, listed, byId, verified, locked, posOf, entryOf, changedMap, changedProgress } from '../store.js';
+import { S, listed, byId, verified, locked, posOf, entryOf, stamped, changedMap, changedProgress } from '../store.js';
 import { hasRef, numberOf, titleOf } from '../model.js';
 import { render } from '../render.js';
 import { openFiche } from './fiche.js';
@@ -120,7 +120,7 @@ export function setPosition(f, kind, p) {
     toast(`✓ Position réelle de « ${titleOf(f)} » enregistrée`);
   } else {
     if (locked()) return;
-    Object.assign(entryOf(f, true), { x, y });
+    stamped(Object.assign(entryOf(f, true), { x, y }));
     changedProgress();
     toast(`✓ « ${titleOf(f)} » placée`);
   }

@@ -3,7 +3,7 @@
  * vignette, cases de mesures, clics sur une fiche.
  */
 import { esc, $$ } from '../util.js';
-import { S, byId, entryOf, mediaURL, changedProgress } from '../store.js';
+import { S, byId, entryOf, stamped, mediaURL, changedProgress } from '../store.js';
 import { MEASURES, thumbOf, titleOf } from '../model.js';
 import { iconSVG } from '../themes.js';
 import { openFiche } from './fiche.js';
@@ -48,7 +48,7 @@ export function bindMeasures(root) {
     input.addEventListener('input', () => {
       const f = byId(input.dataset.id);
       if (!f) return;
-      entryOf(f, true)[input.dataset.measure] = input.value.trim();
+      stamped(entryOf(f, true))[input.dataset.measure] = input.value.trim();
       changedProgress();
     });
     input.addEventListener('keydown', (e) => e.key === 'Enter' && input.blur());

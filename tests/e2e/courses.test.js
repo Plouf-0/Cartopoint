@@ -829,6 +829,44 @@ test('un cours se télécharge avec ses photos, et se réimporte à l’identiqu
   assert.equal(typeof draft.maps[0].fiches[0].refX, 'number');
 });
 
+test('le fichier d’un cours se suffit à lui-même : sur un autre site, sans aucun de ses fichiers, le plan et les photos reviennent', async (t) => {
+  const { page } = await setup(t);
+  await createCourse(page, 'À déménager');
+  await choosePlan(page);
+  await addFiche(page, 'Olivier', { photo: true });
+  await saved(page);
+  await tab(page, 'Cours');
+  const download = page.waitForEvent('download');
+  await page.locator('#exportJson').click();
+  const text = await readFile(await (await download).path(), 'utf8');
+  assert.doesNotMatch(text, /\/media\//, 'aucune adresse du premier site : rien ne dépend de lui');
+
+  const other = await setup(t);
+  assert.equal(other.site.db.prepare('SELECT COUNT(*) AS n FROM media').get().n, 0, 'un site qui n’a encore aucun fichier');
+  await other.page.goto('/prof');
+  await importFile(other.page, 'À déménager.json', text);
+  await other.page.locator('.course-row', { hasText: 'À déménager' }).waitFor();
+  // Le plan et la photo de ce test sont la même image, donc un seul fichier : le site n'en garde pas deux copies
+  assert.equal(other.site.db.prepare('SELECT COUNT(*) AS n FROM media').get().n, 1, 'repartis du fichier téléchargé');
+  const draft = JSON.parse(onlyCourse(other.site).draft);
+  const shown = await other.page.evaluate(
+    async (urls) =>
+      Promise.all(
+        urls.map(async (url) => {
+          const image = new Image();
+          image.src = url;
+          await image.decode();
+          return image.naturalWidth;
+        })
+      ),
+    [draft.maps[0].image, draft.maps[0].fiches[0].media[0].data]
+  );
+  assert.ok(
+    shown.every((width) => width > 0),
+    shown.join(', ')
+  );
+});
+
 test('un fichier disparu du serveur s’explique au téléchargement', async (t) => {
   const { page } = await setup(t);
   await createCourse(page);

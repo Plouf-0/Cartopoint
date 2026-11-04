@@ -540,13 +540,15 @@ test('la barre du compte tient dans un téléphone, même avec une très longue 
   assert.ok(box.x >= 0 && box.x + box.width <= 390, `de ${box.x} à ${box.x + box.width}`);
 });
 
-for (const width of [1280, 1040, 1001, 800]) {
+for (const width of [1280, 1040, 1001, 1000, 800]) {
   test(`sur un écran de ${width} px, le tableau tient : aucun bouton n’est coupé, même avec une très longue adresse`, async (t) => {
     const site = await startSite(t);
     addTeacher(site, UNBREAKABLE_EMAIL);
     addAccount(site.db, { email: 'desactive@example.org', hash: HASH, disabledAt: '2026-01-01T00:00:00.000Z' });
     const admin = await adminPage(t, site, { viewport: { width, height: 800 } });
     await deleteButton(admin).waitFor();
+    // Plein de colonnes : en dessous, même si tout tient en largeur, elles deviendraient illisibles à force de se serrer
+    assert.equal(await admin.locator('table.teachers thead').first().isVisible(), width > 1000, 'une liste à partir de 1000 px, un tableau au-delà');
     const wrap = await admin
       .locator('.table-wrap')
       .first()

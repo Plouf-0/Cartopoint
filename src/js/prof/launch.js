@@ -9,7 +9,8 @@ import { qrSvg } from './qr.js';
 const launchId = decodeURIComponent(location.pathname.split('/').pop());
 /** L'adresse à taper avec le code. Elle deviendra la racine du site à l'étape 10. */
 const HOME_PATH = '/accueil';
-const READY_ADVICE = 'Avant de quitter le réseau, attendez de voir « ✓ Prêt pour le terrain » sur votre écran.';
+const READY_ADVICE =
+  'Avant de quitter le réseau, attendez le message « ✓ Prêt pour le terrain » : l’icône du réseau, en haut de votre écran, garde ensuite une coche.';
 const REFRESH_EVERY = 5000;
 
 function button(label, className, onClick) {

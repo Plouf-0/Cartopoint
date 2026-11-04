@@ -396,9 +396,9 @@ test('une image qui manque : le message le dit, « Prêt » n’apparaît pas, e
   assert.equal(await page.locator('#offlineStatus', { hasText: READY }).count(), 0);
 
   await rename(mediaFile(site, missing) + '.absent', mediaFile(site, missing));
-  await page.locator('#offlineStatus').getByRole('button', { name: 'Réessayer' }).click();
+  await page.locator('#netRetry').click();
   await offlineStatus(page, READY);
-  assert.equal(await page.locator('#offlineStatus button').count(), 0, 'plus rien à réessayer');
+  assert.equal(await page.locator('#netRetry').isVisible(), false, 'plus rien à réessayer');
 });
 
 async function publishedPlan(teacher, course) {
@@ -708,10 +708,171 @@ test('la page de l’enseignant demande d’attendre le message que l’élève 
   const code = await launch(teacher, await fieldCourse(teacher));
   await teacher.getByRole('button', { name: 'Afficher le QR code' }).click();
   await teacher.locator('dialog[open]').getByText(`« ${READY} »`).waitFor();
-  await fieldStudent(t, site, code);
+  const page = await fieldStudent(t, site, code);
+  await page.locator('#toast', { hasText: READY }).waitFor();
 });
 
-test('sur un petit téléphone, l’état du téléchargement et son bouton tiennent dans la largeur', async (t) => {
+/* --- HOR-10 : l'icône du réseau --- */
+
+const netIcon = (page) => page.locator('#netButton');
+const netInfo = (page) => page.locator('#netInfo');
+const iconLooks = (page, className) => page.locator(`#netButton.${className}`).waitFor();
+
+test('HOR-10 : plus de bandeau : une icône, et le détail d’un appui dessus', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await fieldCourse(teacher));
+  const page = await fieldStudent(t, site, code);
+  await page.mouse.move(0, 0);
+
+  await iconLooks(page, 'ready');
+  assert.equal(await page.locator('#netBadge').textContent(), '✓');
+  assert.equal(await netInfo(page).isVisible(), false, 'rien d’ouvert tant que tout va bien');
+  const status = await page.locator('#offlineStatus').boundingBox();
+  assert.ok(status.height <= 1, 'le texte reste pour les lecteurs d’écran, sans occuper de place');
+  assert.match(await netIcon(page).getAttribute('aria-label'), /^En ligne\. ✓ Prêt pour le terrain/);
+  const box = await netIcon(page).boundingBox();
+  assert.ok(box.width >= 40 && box.height >= 40, 'assez grande pour un doigt');
+
+  await netIcon(page).focus();
+  await page.keyboard.press('Enter');
+  await netInfo(page).getByText('Prêt pour le terrain').waitFor();
+  assert.equal(await netIcon(page).getAttribute('aria-expanded'), 'true');
+  await page.keyboard.press('Escape');
+  await netInfo(page).waitFor({ state: 'hidden' });
+  assert.equal(await netIcon(page).getAttribute('aria-expanded'), 'false');
+});
+
+test('HOR-10 : au doigt, un appui ouvre le détail, un autre le ferme, et un appui ailleurs aussi', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await fieldCourse(teacher));
+  const page = await openPage(t, browser, { base: site.base, touch: true, viewport: { width: 390, height: 780 } });
+  await enter(page, code);
+  await offlineStatus(page, READY);
+  assert.equal(await netInfo(page).isVisible(), false);
+
+  await netIcon(page).tap();
+  await netInfo(page).getByText('En ligne').waitFor();
+  await netInfo(page).getByText('Prêt pour le terrain').waitFor();
+  await netIcon(page).tap();
+  await netInfo(page).waitFor({ state: 'hidden' });
+
+  await netIcon(page).tap();
+  await netInfo(page).waitFor();
+  await page.locator('#pageTitle').tap();
+  await netInfo(page).waitFor({ state: 'hidden' });
+});
+
+test('HOR-10 : à la souris, passer sur l’icône suffit', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await fieldCourse(teacher));
+  const page = await fieldStudent(t, site, code);
+  await page.mouse.move(0, 0);
+  await netInfo(page).waitFor({ state: 'hidden' });
+  await netIcon(page).hover();
+  await netInfo(page).waitFor();
+  await page.mouse.move(0, 0);
+  await netInfo(page).waitFor({ state: 'hidden' });
+});
+
+test('HOR-10 : « prêt » s’annonce par un message qui repart', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await fieldCourse(teacher));
+  const page = await fieldStudent(t, site, code);
+  await page.locator('#toast.show', { hasText: READY }).waitFor();
+  await page.locator('#toast.show').waitFor({ state: 'detached', timeout: 6000 });
+});
+
+test('HOR-10 : l’icône suit le réseau, dans les deux sens, et rassure une fois hors ligne', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await fieldCourse(teacher));
+  const page = await fieldStudent(t, site, code);
+  await iconLooks(page, 'ready');
+  assert.equal(await page.locator('#netButton.offline').count(), 0);
+
+  await page.context().setOffline(true);
+  await iconLooks(page, 'offline');
+  assert.equal(await page.locator('#netBadge').textContent(), '✓', 'hors ligne, mais le cours est là');
+  assert.match(await netIcon(page).getAttribute('aria-label'), /^Hors ligne\./);
+  assert.equal(await netInfo(page).isVisible(), false, 'rien d’alarmant : l’icône suffit');
+  await netIcon(page).click();
+  await netInfo(page).getByText('Hors ligne').waitFor();
+  await netInfo(page).getByText('Vos réponses partiront au retour du réseau').waitFor();
+
+  await page.context().setOffline(false);
+  await page.locator('#netButton:not(.offline)').waitFor();
+  await netInfo(page).getByText('En ligne').waitFor();
+  assert.equal(await netInfo(page).getByText('Vos réponses partiront').count(), 0);
+});
+
+test('HOR-10 : le téléphone se croit en ligne alors que rien ne répond : l’icône dit la vérité, puis se rétablit', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await fieldCourse(teacher));
+  const page = await fieldStudent(t, site, code);
+  await new Promise((resolve) => {
+    site.app.server.close(resolve);
+    site.app.server.closeAllConnections();
+  });
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await iconLooks(page, 'offline');
+  assert.equal(await page.evaluate(() => navigator.onLine), true);
+
+  await new Promise((resolve) => site.app.server.listen(new URL(site.base).port, '127.0.0.1', resolve));
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await page.locator('#netButton:not(.offline)').waitFor();
+});
+
+test('HOR-10 : un refus du serveur n’est pas une coupure : l’icône reste en ligne', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await fieldCourse(teacher));
+  const page = await fieldStudent(t, site, code);
+  site.db.exec('DELETE FROM participants');
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await page
+    .locator('#courseBanner', { hasText: 'n’existe plus' })
+    .or(page.locator('#courseBanner', { hasText: "n'existe plus" }))
+    .waitFor();
+  assert.equal(await page.locator('#netButton.offline').count(), 0);
+});
+
+test('HOR-10 : ce qui demande d’agir s’ouvre de soi-même, avant de quitter le réseau', async (t) => {
+  const { site, teacher } = await setup(t);
+  const course = await fieldCourse(teacher);
+  const code = await launch(teacher, course);
+  const missing = await publishedPlan(teacher, course);
+  await rename(mediaFile(site, missing), mediaFile(site, missing) + '.absent');
+  const page = await openPage(t, browser, { base: site.base });
+  await enter(page, code);
+  await netInfo(page).getByText('Téléchargement incomplet').waitFor();
+  await iconLooks(page, 'warning');
+  assert.equal(await page.locator('#netBadge').textContent(), '!');
+
+  await rename(mediaFile(site, missing) + '.absent', mediaFile(site, missing));
+  await page.locator('#netRetry').click();
+  await offlineStatus(page, READY);
+  await iconLooks(page, 'ready');
+  await page.mouse.move(0, 0);
+  await netInfo(page).waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('#netButton.warning').count(), 0);
+});
+
+test('sur un téléphone, un nom long ne casse pas l’en-tête : le titre garde sa largeur, et le détail du réseau reste à l’écran', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await fieldCourse(teacher));
+  const page = await openPage(t, browser, { base: site.base, touch: true, viewport: { width: 375, height: 700 } });
+  await enter(page, code, 'Léa Dupont-Martin de la Fontaine');
+  await offlineStatus(page, READY);
+  const title = await page.locator('#pageTitle').boundingBox();
+  assert.ok(title.height < 40, `le titre tient sur une ligne, pas sur ${title.height} px de haut`);
+  await netIcon(page).tap();
+  await netInfo(page).waitFor();
+  const button = await netIcon(page).boundingBox();
+  assert.ok(button.x + button.width > 320, 'l’icône reste à droite');
+  const info = await netInfo(page).boundingBox();
+  assert.ok(info.x >= 0 && info.x + info.width <= 375, `détail de ${info.x} à ${info.x + info.width} px`);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
+});
+
+test('sur un petit téléphone, le détail du réseau et son bouton tiennent dans la largeur', async (t) => {
   const { site, teacher } = await setup(t);
   const course = await fieldCourse(teacher);
   const code = await launch(teacher, course);
@@ -720,9 +881,12 @@ test('sur un petit téléphone, l’état du téléchargement et son bouton tien
   const page = await openPage(t, browser, { base: site.base, viewport: { width: 320, height: 640 } });
   await enter(page, code);
   await offlineStatus(page, '⚠ Téléchargement incomplet');
+  await page.locator('#netRetry').waitFor();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
-  const box = await page.locator('#offlineStatus button').boundingBox();
-  assert.ok(box.x + box.width <= 320, `${box.x + box.width} px`);
+  for (const selector of ['#netInfo', '#netRetry', '#netButton']) {
+    const box = await page.locator(selector).boundingBox();
+    assert.ok(box.x >= 0 && box.x + box.width <= 320, `${selector} : de ${box.x} à ${box.x + box.width} px`);
+  }
 });
 
 /* --- HOR-05 : aucun service tiers --- */
@@ -740,6 +904,23 @@ test('HOR-05 : aucune page ne demande quoi que ce soit à un autre site, et tout
     assert.ok((await loadedFonts(page)).includes('Atkinson Hyperlegible'), address);
   }
   assert.deepEqual(elsewhere, []);
+});
+
+test('INC-01 : le fichier autonome, sans serveur, ne signale rien à personne', async (t) => {
+  const page = await openPage(t, browser, { expectErrors: true });
+  const reports = [];
+  page.on('request', (request) => {
+    if (request.url().includes('incidents')) reports.push(request.url());
+  });
+  await page.goto('file://' + path.join(dist, 'index.html'));
+  await page.locator('#modeBtn').waitFor();
+  await page.evaluate(() => {
+    const script = document.createElement('script');
+    script.textContent = "throw new Error('panne sans serveur')";
+    document.head.append(script);
+  });
+  await page.waitForTimeout(300);
+  assert.deepEqual(reports, []);
 });
 
 test('HOR-05 : le fichier autonome, ouvert d’un double-clic, a ses polices sans aucun serveur', async (t) => {

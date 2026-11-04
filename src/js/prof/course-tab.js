@@ -2,6 +2,7 @@
  * Onglet « Cours » : nom, publication, export. Remplace l'onglet Projet de l'application hors ligne.
  */
 import { api } from '../api.js';
+import { reportIncident } from '../incident.js';
 import { DEFAULT_TITLE, hasRef } from '../model.js';
 import { render } from '../render.js';
 import { S, changedMap, changedMeta, flush, hasUnsentChanges } from '../store.js';
@@ -53,6 +54,7 @@ async function launchCourse() {
     const launch = await api('POST', `/courses/${course.id}/launches`);
     location.href = `/prof/lancements/${launch.id}`;
   } catch (e) {
+    reportIncident('Lancement', e);
     error.textContent = `Lancement impossible : ${errorText(e)}`;
     error.hidden = false;
   }
@@ -113,6 +115,7 @@ export async function publishCourse() {
   try {
     await measurePlans();
   } catch (e) {
+    reportIncident('Publication', e);
     publishError = `Publication impossible : ${errorText(e)}`;
     return renderPublishState();
   }
@@ -125,6 +128,8 @@ export async function publishCourse() {
     Object.assign(course, await api('POST', `/courses/${course.id}/publish`, { revision: course.revision }));
     toast(`✓ Version ${course.published.number} publiée`);
   } catch (e) {
+    // Un cours modifié ailleurs n'est pas une panne : le message suffit
+    if (e.status !== 409) reportIncident('Publication', e);
     publishError = `Publication impossible : ${errorText(e)}`;
   }
   renderPublishState();

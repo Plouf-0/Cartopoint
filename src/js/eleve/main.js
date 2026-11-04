@@ -8,6 +8,7 @@ import { api } from '../api.js';
 import { studentBackend } from '../backends/student.js';
 import { card, el, field, onSubmit, show } from '../compte/ui.js';
 import { Progress, openDb } from '../db.js';
+import { reportIncident } from '../incident.js';
 import { normalizeProgress, normalizeProject, placedPos } from '../model.js';
 import { onRender, render } from '../render.js';
 import { S, activate, flush, listed, posOf, switchMap, useBackend } from '../store.js';
@@ -18,6 +19,7 @@ import { fillPanel } from '../views/panel-frame.js';
 import { bindReader } from '../views/reader.js';
 import { bindStudentList, studentListHTML } from '../views/student-list.js';
 import { bindViewer } from '../views/viewer.js';
+import { bindNetworkIcon, serverAnswered, showPreparation } from './network-icon.js';
 import { prepareOffline, startWorker } from './offline.js';
 
 const code = decodeURIComponent(location.pathname.split('/').pop()).toUpperCase().replace(/[\s-]/g, '');
@@ -176,9 +178,12 @@ async function sendAnswers() {
   try {
     await api('PUT', '/student/answers', { answers: submission.answers }, token);
     sendState = 'received';
+    serverAnswered();
   } catch (e) {
+    serverAnswered(e);
     // Une réponse du serveur qui refuse ne changera pas d'elle-même. Tout le reste se réessaie
     sendState = e.status === 400 || e.status === 413 ? 'refused' : 'waiting';
+    if (e.status === 400) reportIncident('Envoi des réponses', `refus du serveur : ${e.message}`, '');
     if (e.status === 401) courseGone();
   }
   sending = false;
@@ -236,7 +241,9 @@ async function checkState() {
   let state;
   try {
     state = await api('GET', '/student/state', undefined, token);
+    serverAnswered();
   } catch (e) {
+    serverAnswered(e);
     if (e.status === 401) courseGone();
     // Le réseau peut être annoncé alors qu'il ne répond pas : ne pas laisser croire qu'un envoi est en cours
     if (submission && sendState === 'sending' && !sending) {
@@ -264,26 +271,15 @@ function watchState() {
   check();
 }
 
-const OFFLINE_STATES = {
-  downloading: ({ done, total }) => `Téléchargement pour le terrain… ${total ? `${done} / ${total}` : ''}`,
-  ready: () => '✓ Prêt pour le terrain : le cours reste disponible sans réseau.',
-  incomplete: ({ failed }) => `⚠ Téléchargement incomplet : ${failed} image(s) manqueront sans réseau. Restez connecté.`,
-  unavailable: () => '⚠ Ce navigateur ne gardera pas le cours sans réseau : restez connecté et ne fermez pas cette page.'
-};
-const OFFLINE_LOOK = { downloading: '', ready: 'ready', incomplete: 'warning', unavailable: 'warning' };
-
 let offlineState = null;
 let preparing = false;
 
 function showOfflineState(status) {
   offlineState = status.state;
-  const line = $('#offlineStatus');
-  line.className = `offline-status ${OFFLINE_LOOK[status.state]}`;
-  line.textContent = OFFLINE_STATES[status.state](status);
-  if (status.state !== 'incomplete') return;
-  const retry = el('button', { className: 'btn sm soft', type: 'button' }, 'Réessayer');
-  retry.onclick = () => prepare(S.project);
-  line.append(retry);
+  showPreparation(status);
+  // Ce que le navigateur a répondu, et rien sur l'élève
+  if (status.state === 'incomplete') reportIncident('Préparation pour le terrain', `${status.failed} image(s) non téléchargée(s) : ${status.why}`, '');
+  if (status.state === 'unavailable') reportIncident('Préparation pour le terrain', status.why, '');
 }
 
 async function prepare(project) {
@@ -337,6 +333,8 @@ async function openCourse(me) {
   onRender(renderMap);
   onRender(renderPanel);
   bindHeader(me);
+  bindNetworkIcon();
+  $('#netRetry').onclick = () => prepare(S.project);
   bindMap();
   bindReader();
   bindViewer();
@@ -345,7 +343,7 @@ async function openCourse(me) {
   window.addEventListener('pagehide', () => flush());
   document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && flush());
   watchState();
-  if (!kept) return showOfflineState({ state: 'unavailable' });
+  if (!kept) return showOfflineState({ state: 'unavailable', why: 'le cours ne peut pas être écrit sur cet appareil' });
   window.addEventListener('online', () => offlineState !== 'ready' && prepare(project));
   prepare(project);
 }

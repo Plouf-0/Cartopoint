@@ -315,6 +315,9 @@ Une fois sa page préparée, un élève n'a plus besoin du réseau que pour entr
 - **Le cours n'est demandé qu'une fois :** la version d'un lancement est figée (`COU-11`). Pour la même raison, un fichier déjà gardé n'est
   jamais redemandé. Si le cours a été effacé, `GET /api/student/state` répond 401 : la page le dit, garde le travail à l'écran et oublie le
   nom de l'élève.
+- **L'icône du réseau** (`eleve/network-icon.js`) montre tout cela sans bandeau : en ligne ou non, et où en est la préparation. Le texte reste
+  dans `#offlineStatus`, invisible, pour les lecteurs d'écran. « Hors ligne » vient de `navigator.onLine` **et** de la dernière réponse du
+  serveur : un téléphone peut annoncer un réseau qui ne répond pas.
 - **« ✓ Prêt pour le terrain »** ne s'affiche que si le cours est gardé, le service worker actif et tous les fichiers présents. Sinon la page
   dit ce qui manque : elle propose de réessayer, reprend au retour du réseau, ou prévient que ce navigateur ne peut pas garder le cours. Un
   service worker dont l'installation échoue ne prévient de rien : au bout de 20 secondes, la page considère que c'est le cas.
@@ -326,3 +329,17 @@ Une fois sa page préparée, un élève n'a plus besoin du réseau que pour entr
 **Polices :** `src/assets/fonts/`, avec leurs licences. Toutes les pages les demandent à `/assets/fonts/` ; le fichier autonome, qui n'a pas de
 serveur, les contient. Aucune page ne demande plus rien à un autre site (`HOR-05`).
 
+## Journal des problèmes
+
+Ce qui échoue dans un navigateur arrive tout seul à l'admin, avec la machine et la raison (`INC-01` à `INC-07`).
+
+- **Côté navigateur, `incident.js`.** Il écoute les erreurs du programme et les promesses perdues. `api.js` lui signale les erreurs du serveur et
+  les écritures perdues. `util.js` lui signale les messages d'erreur affichés, par `onProblem()`, car ce fichier sert aussi au serveur et ne peut
+  pas l'importer. Le reste appelle `reportIncident(action, erreur)`. **Ne jamais y mettre de nom, de réponse ou de contenu de cours.**
+- **Sans réseau,** le message attend dans `localStorage`, sous `cartopoint.incidents`. Il n'emploie pas `api()` : un signalement raté ne se
+  signale pas lui-même.
+- **Côté serveur, `server/incidents.mjs`.** `POST /api/incidents` est ouverte à tous, puisqu'un problème peut arriver avant toute connexion :
+  seuls les champs prévus entrent, et le nombre de lignes et d'envois est limité. La limite vaut pour tout le site et non par adresse : derrière
+  Cloudflare, des inconnus partagent la même adresse (section 10 de la feuille de route). `GET /api/admin/incidents` et
+  `POST /api/admin/incidents/clear` sont réservées à l'admin. La purge passe par `app.purge()`, chaque heure.
+- **Pour lire le journal depuis le serveur,** sans passer par la page : la table `incidents` de `app.db`.

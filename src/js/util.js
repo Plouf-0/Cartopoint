@@ -161,9 +161,14 @@ export const prefs = {
   }
 };
 
+/** Qui veut savoir qu'une erreur s'affiche (voir incident.js, que ce fichier ne peut pas importer : il sert aussi au serveur). */
+let problemListener = null;
+export const onProblem = (listener) => (problemListener = listener);
+
 /** Petite notification en bas de l'écran. */
 let toastTimer;
 export function toast(message) {
+  if (message.startsWith('⚠')) problemListener?.(message);
   const el = $('#toast');
   if (!el) return;
   el.textContent = message;
@@ -175,6 +180,7 @@ export function toast(message) {
 
 /** Bandeau d'erreur permanent en haut de la page. */
 export function fatal(message) {
+  problemListener?.(message);
   const el = $('#fatal');
   el.textContent = message;
   el.hidden = false;

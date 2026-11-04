@@ -54,8 +54,8 @@ export async function startSite(t, { root = path.resolve('src'), password = '' }
 }
 
 /** Une page dans un navigateur vierge : sans cookie, comme une autre personne sur un autre appareil. */
-export async function openPage(t, browser, { base, permissions = [], viewport = { width: 1280, height: 800 } } = {}) {
-  const context = await browser.newContext({ baseURL: base, permissions, viewport, locale: 'fr-FR' });
+export async function openPage(t, browser, { base, permissions = [], viewport = { width: 1280, height: 800 }, touch = false, expectErrors = false } = {}) {
+  const context = await browser.newContext({ baseURL: base, permissions, viewport, locale: 'fr-FR', hasTouch: touch, isMobile: touch });
   context.setDefaultTimeout(5000);
   const page = await context.newPage();
   // Une erreur JavaScript fait toujours échouer le test, même si l'écran a l'air correct
@@ -69,7 +69,7 @@ export async function openPage(t, browser, { base, permissions = [], viewport = 
       await writeFile(path.join(process.env.BROWSER_COVERAGE_DIR, randomUUID() + '.json'), JSON.stringify(summarize(entries)));
     }
     await context.close();
-    if (errors.length) throw new Error('Erreurs JavaScript dans la page : ' + errors.join(' | '));
+    if (errors.length && !expectErrors) throw new Error('Erreurs JavaScript dans la page : ' + errors.join(' | '));
   });
   return page;
 }

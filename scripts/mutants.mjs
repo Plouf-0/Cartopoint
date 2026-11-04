@@ -795,8 +795,8 @@ const MUTANTS = [
   [
     'élève : cours disparu non annoncé',
     'src/js/eleve/main.js',
-    "state = await api('GET', '/student/state', undefined, token);\n  } catch (e) {\n    if (e.status === 401) courseGone();",
-    "state = await api('GET', '/student/state', undefined, token);\n  } catch (e) {"
+    'serverAnswered(e);\n    if (e.status === 401) courseGone();\n    // Le réseau',
+    'serverAnswered(e);\n    // Le réseau'
   ],
   ['élève : jeton mort gardé', 'src/js/eleve/main.js', 'prefs.del(STORAGE_KEY);\n    show([', 'show(['],
   [
@@ -903,6 +903,233 @@ const MUTANTS = [
   ['hors ligne : la page ouverte ne passe pas par lui', 'src/sw.js', '.then(() => self.clients.claim())', ''],
   ['hors ligne : anciennes versions jamais effacées', 'src/sw.js', 'name.startsWith(PAGE_CACHE_PREFIX) && name !== PAGE_CACHE', 'false'],
   ['hors ligne : photos effacées à chaque mise à jour', 'src/sw.js', 'name.startsWith(PAGE_CACHE_PREFIX) && ', ''],
+  // Icône du réseau
+  ['réseau : se fie à ce qu’annonce le téléphone', 'src/js/eleve/network-icon.js', 'navigator.onLine && serverReached', 'navigator.onLine'],
+  ['réseau : un refus pris pour une coupure', 'src/js/eleve/network-icon.js', '!error || (error.status !== 0 && error.status < 500)', '!error'],
+  ['réseau : coupure non vue', 'src/js/eleve/network-icon.js', "window.addEventListener('offline', refresh);", ''],
+  ['réseau : retour non vu', 'src/js/eleve/network-icon.js', 'serverReached = true;\n    refresh();', 'serverReached = true;'],
+  [
+    'réseau : le serveur revenu ne rétablit pas l’icône',
+    'src/js/eleve/main.js',
+    "state = await api('GET', '/student/state', undefined, token);\n    serverAnswered();",
+    "state = await api('GET', '/student/state', undefined, token);"
+  ],
+  [
+    'réseau : le silence du serveur n’est pas vu',
+    'src/js/eleve/main.js',
+    'serverAnswered(e);\n    if (e.status === 401) courseGone();\n    // Le réseau',
+    'if (e.status === 401) courseGone();\n    // Le réseau'
+  ],
+  ['réseau : l’alerte ne s’ouvre pas d’elle-même', 'src/js/eleve/network-icon.js', 'if (attention && !wasAttention) setOpen(true);', ''],
+  ['réseau : l’alerte se rouvre sans cesse', 'src/js/eleve/network-icon.js', 'if (attention && !wasAttention) setOpen(true);', 'setOpen(attention);'],
+  [
+    'réseau : l’alerte reste affichée une fois prêt',
+    'src/js/eleve/network-icon.js',
+    '  setOpen(false);\n  toast(SENTENCES.ready());',
+    '  toast(SENTENCES.ready());'
+  ],
+  ['réseau : « prêt » jamais annoncé', 'src/js/eleve/network-icon.js', '  toast(SENTENCES.ready());', ''],
+  ['réseau : l’appui n’ouvre rien', 'src/js/eleve/network-icon.js', "$('#netButton').onclick = () => setOpen(!$('#netInfo').classList.contains('open'));", ''],
+  ['réseau : un second appui ne ferme pas', 'src/js/eleve/network-icon.js', "setOpen(!$('#netInfo').classList.contains('open'))", 'setOpen(true)'],
+  ['réseau : un appui ailleurs ne ferme pas', 'src/js/eleve/network-icon.js', "if (!event.target.closest('#net')) setOpen(false);", ''],
+  ['réseau : Échap ne ferme pas', 'src/js/eleve/network-icon.js', "if (event.key === 'Escape') setOpen(false);", ''],
+  ['réseau : aria-expanded figé', 'src/js/eleve/network-icon.js', "$('#netButton').setAttribute('aria-expanded', String(open));", ''],
+  ['réseau : icône muette pour un lecteur d’écran', 'src/js/eleve/network-icon.js', "button.setAttribute('aria-label', `${title}. ${sentence}`);", ''],
+  ['réseau : pas de coche une fois prêt', 'src/js/eleve/network-icon.js', "ready: '✓'", "ready: ''"],
+  ['réseau : pas de marque d’alerte', 'src/js/eleve/network-icon.js', "attention ? '!' : (BADGES[state] ?? '')", "BADGES[state] ?? ''"],
+  [
+    'réseau : rien ne rassure hors ligne',
+    'src/js/eleve/network-icon.js',
+    "!online && state === 'ready' ? `${sentence} ${OFFLINE_NOTE}` : sentence",
+    'sentence'
+  ],
+  [
+    'réseau : rassure aussi en ligne',
+    'src/js/eleve/network-icon.js',
+    "!online && state === 'ready' ? `${sentence} ${OFFLINE_NOTE}` : sentence",
+    '`${sentence} ${OFFLINE_NOTE}`'
+  ],
+  ['réseau : Réessayer toujours affiché', 'src/js/eleve/network-icon.js', "$('#netRetry').hidden = state !== 'incomplete';", "$('#netRetry').hidden = false;"],
+  ['réseau : bandeau revenu', 'src/eleve.html', '<p id="offlineStatus" class="visually-hidden" role="status"></p>', '<p id="offlineStatus" role="status"></p>'],
+  ['réseau : pas de survol', 'src/css/app.css', '@media (hover: hover) { .net:hover .net-info { display: block; } }', ''],
+  ['réseau : en-tête cassé par un nom long', 'src/css/app.css', '.student-who { order: 3; width: 100%; margin-left: 0; }', ''],
+  // Journal des problèmes : ce que le serveur accepte
+  [
+    'INC-02 : journal lisible par tous',
+    'server/routes/incidents.mjs',
+    "auth.requireRole(req, 'admin');\n      sendJson(req, res, incidents.list(), PRIVATE);",
+    'sendJson(req, res, incidents.list(), PRIVATE);'
+  ],
+  ['INC-02 : journal effaçable par tous', 'server/routes/incidents.mjs', "auth.requireRole(req, 'admin');\n        incidents.clear();", 'incidents.clear();'],
+  [
+    'INC-02 : signalement accepté d’un autre site',
+    'server/routes/incidents.mjs',
+    "'/api/incidents',\n      sameOriginOnly(async (req, res) => {",
+    "'/api/incidents',\n      (async (req, res) => {"
+  ],
+  [
+    'INC-02 : effacement accepté d’un autre site',
+    'server/routes/incidents.mjs',
+    "'/api/admin/incidents/clear',\n      sameOriginOnly((req, res) => {",
+    "'/api/admin/incidents/clear',\n      ((req, res) => {"
+  ],
+  ['INC-01 : compte non noté', 'server/routes/incidents.mjs', 'auth.currentAccount(req)?.id ?? null', 'null'],
+  [
+    'INC-03 : tout ce qu’envoie le navigateur est gardé',
+    'server/incidents.mjs',
+    'const machine = cleanMachine(report.machine);',
+    'const machine = report.machine ?? {};'
+  ],
+  [
+    'INC-03 : un nombre accepté sous n’importe quelle forme',
+    'server/incidents.mjs',
+    'if (Number.isFinite(machine[key])) clean[key]',
+    'if (machine[key] !== undefined) clean[key]'
+  ],
+  [
+    'INC-03 : un oui/non accepté sous n’importe quelle forme',
+    'server/incidents.mjs',
+    "if (typeof machine[key] === 'boolean') clean[key]",
+    'if (machine[key] !== undefined) clean[key]'
+  ],
+  ['INC-04 : message sans raison accepté', 'server/incidents.mjs', "if (!action || !reason) throw new HttpError(400, 'Message illisible.');", ''],
+  ['INC-04 : textes sans limite', 'server/incidents.mjs', '.trim().slice(0, limit)', '.trim()'],
+  ['INC-04 : limite de la raison retirée', 'server/incidents.mjs', 'reason: 1000', 'reason: 1000000'],
+  ['INC-04 : limite du détail retirée', 'server/incidents.mjs', 'details: 2000', 'details: 2000000'],
+  ['INC-04 : limite de l’envoi retirée', 'server/routes/incidents.mjs', 'const MAX_BODY = 16 * 1024;', 'const MAX_BODY = 1024 * 1024;'],
+  [
+    'INC-05 : chaque répétition fait une ligne',
+    'server/incidents.mjs',
+    '.update(JSON.stringify([accountId, page, action, reason, machine.browser]))',
+    '.update(JSON.stringify([accountId, page, action, reason, machine.browser, Math.random()]))'
+  ],
+  ['INC-05 : compteur figé', 'server/incidents.mjs', 'count = count + 1, ', ''],
+  ['INC-05 : date de la répétition non notée', 'server/incidents.mjs', 'last_at = excluded.last_at, ', ''],
+  ['INC-05 : détail de la répétition non noté', 'server/incidents.mjs', ', details = excluded.details', ''],
+  ['INC-05 : navigateurs confondus', 'server/incidents.mjs', '[accountId, page, action, reason, machine.browser]', '[accountId, page, action, reason]'],
+  ['INC-05 : comptes confondus', 'server/incidents.mjs', '[accountId, page, action, reason, machine.browser]', '[page, action, reason, machine.browser]'],
+  ['INC-06 : date de l’envoi au lieu de celle du problème', 'server/incidents.mjs', 'new Date(now() - waited)', 'new Date(now())'],
+  ['INC-06 : un âge négatif date du futur', 'server/incidents.mjs', 'Math.max(report.ageMs, 0)', 'report.ageMs'],
+  ['INC-06 : un âge sans limite', 'server/incidents.mjs', 'Math.min(Math.max(report.ageMs, 0), KEEP_DAYS * DAY)', 'Math.max(report.ageMs, 0)'],
+  ['INC-07 : gardé trop longtemps', 'server/incidents.mjs', 'export const KEEP_DAYS = 90;', 'export const KEEP_DAYS = 900;'],
+  ['INC-07 : jamais purgé', 'server/incidents.mjs', "db.prepare('DELETE FROM incidents WHERE last_at < ?').run(cutoff());", ''],
+  ['INC-07 : nettoyage horaire oublié', 'server/app.mjs', '      incidents.purge();\n', ''],
+  ['INC-07 : lignes sans limite', 'server/incidents.mjs', 'const MAX_ROWS = 500;', 'const MAX_ROWS = 500000;'],
+  [
+    'INC-07 : les nouvelles lignes partent d’abord',
+    'server/incidents.mjs',
+    'SELECT id FROM incidents ORDER BY last_at DESC, id DESC LIMIT ?',
+    'SELECT id FROM incidents ORDER BY last_at, id LIMIT ?'
+  ],
+  ['INC-07 : envois sans limite', 'server/incidents.mjs', "if (tooMany()) throw new HttpError(429, 'Trop de messages pour le moment.');", ''],
+  ['INC-07 : limite jamais rouverte', 'server/incidents.mjs', 'if (now() - windowStart >= 60000) {', 'if (windowStart === 0) {'],
+  ['INC-02 : liste sans limite', 'server/incidents.mjs', 'const SHOWN = 200;', 'const SHOWN = 2000;'],
+  ['INC-02 : anciens d’abord', 'server/incidents.mjs', 'ORDER BY last_at DESC, incidents.id DESC LIMIT ?', 'ORDER BY last_at, incidents.id LIMIT ?'],
+  // Journal des problèmes : ce que le navigateur signale
+  ['INC-01 : erreur du programme non signalée', 'src/js/incident.js', "reportIncident('Erreur du programme', event.error ?? event.message);", ''],
+  [
+    'INC-01 : promesse perdue non signalée',
+    'src/js/incident.js',
+    "window.addEventListener('unhandledrejection', (event) => reportIncident('Erreur du programme', event.reason));",
+    ''
+  ],
+  ['INC-01 : bruit du navigateur signalé', 'src/js/incident.js', 'if (NOISE.test(event.message)) return;', ''],
+  ['INC-01 : erreurs d’extensions signalées', 'src/js/incident.js', 'if (event.filename && !event.filename.startsWith(location.origin)) return;', ''],
+  ['INC-01 : le fichier autonome signale', 'src/js/incident.js', '/^https?:$/.test(location.protocol)', 'true'],
+  ['INC-01 : message d’erreur non signalé', 'src/js/util.js', "if (message.startsWith('⚠')) problemListener?.(message);", ''],
+  ['INC-01 : tout message signalé', 'src/js/util.js', "if (message.startsWith('⚠')) problemListener?.(message);", 'problemListener?.(message);'],
+  [
+    'INC-01 : bandeau d’erreur non signalé',
+    'src/js/util.js',
+    'export function fatal(message) {\n  problemListener?.(message);',
+    'export function fatal(message) {'
+  ],
+  ['INC-01 : erreur du serveur non signalée', 'src/js/api.js', 'response.status >= 500 || response.status === 413', 'response.status === 413'],
+  ['INC-01 : envoi trop gros non signalé', 'src/js/api.js', 'response.status >= 500 || response.status === 413', 'response.status >= 500'],
+  ['INC-01 : refus ordinaire signalé', 'src/js/api.js', 'response.status >= 500 || response.status === 413', 'response.status >= 400'],
+  [
+    'INC-01 : écriture perdue non signalée',
+    'src/js/api.js',
+    "if (options.method !== 'GET' && navigator.onLine) reportIncident('Serveur injoignable', `${options.method} ${path}`);",
+    ''
+  ],
+  ['INC-01 : lecture perdue signalée', 'src/js/api.js', "options.method !== 'GET' && navigator.onLine", 'navigator.onLine'],
+  ['INC-01 : coupure signalée', 'src/js/api.js', "options.method !== 'GET' && navigator.onLine", "options.method !== 'GET'"],
+  ['INC-01 : publication ratée non signalée', 'src/js/prof/course-tab.js', "if (e.status !== 409) reportIncident('Publication', e);", ''],
+  ['INC-01 : conflit signalé', 'src/js/prof/course-tab.js', "if (e.status !== 409) reportIncident('Publication', e);", "reportIncident('Publication', e);"],
+  [
+    'INC-01 : plan illisible non signalé',
+    'src/js/prof/course-tab.js',
+    "await measurePlans();\n  } catch (e) {\n    reportIncident('Publication', e);",
+    'await measurePlans();\n  } catch (e) {'
+  ],
+  ['INC-01 : lancement raté non signalé', 'src/js/prof/course-tab.js', "reportIncident('Lancement', e);", ''],
+  ['INC-01 : enregistrement raté non signalé', 'src/js/prof/course.js', "if (!reload && !expired) reportIncident('Enregistrement du cours', error);", ''],
+  [
+    'INC-01 : conflit d’enregistrement signalé',
+    'src/js/prof/course.js',
+    "if (!reload && !expired) reportIncident('Enregistrement du cours', error);",
+    "if (!expired) reportIncident('Enregistrement du cours', error);"
+  ],
+  [
+    'INC-01 : session expirée signalée',
+    'src/js/prof/course.js',
+    "if (!reload && !expired) reportIncident('Enregistrement du cours', error);",
+    "if (!reload) reportIncident('Enregistrement du cours', error);"
+  ],
+  ['INC-01 : image manquante non signalée', 'src/js/eleve/main.js', "if (status.state === 'incomplete') reportIncident(", 'if (false) reportIncident('],
+  ['INC-01 : navigateur incapable non signalé', 'src/js/eleve/main.js', "if (status.state === 'unavailable') reportIncident(", 'if (false) reportIncident('],
+  ['INC-01 : raison de l’image manquante perdue', 'src/js/eleve/offline.js', '        why = describeError(e);\n', ''],
+  ['INC-01 : raison du refus d’installation perdue', 'src/js/eleve/offline.js', '    return describeError(e);\n  }\n}', "    return 'refusé';\n  }\n}"],
+  [
+    'INC-01 : refus des réponses non signalé',
+    'src/js/eleve/main.js',
+    "if (e.status === 400) reportIncident('Envoi des réponses', `refus du serveur : ${e.message}`, '');",
+    ''
+  ],
+  ['INC-01 : événement d’IndexedDB sans raison', 'src/js/incident.js', 'error?.target?.error ?? error', 'error'],
+  ['INC-01 : « undefined » possible', 'src/js/incident.js', "String(inner ?? 'aucun détail')", 'String(inner)'],
+  ['INC-01 : place sur le disque oubliée', 'src/js/incident.js', 'storageQuota: estimate?.quota', 'storageQuota: undefined'],
+  ['INC-01 : navigateur non noté', 'src/js/incident.js', 'browser: navigator.userAgent,', ''],
+  ['INC-01 : page historique sans journal', 'src/js/main.js', "import './incident.js';\n", ''],
+  ['INC-03 : le secret d’un lien part dans le journal', 'src/js/incident.js', 'page: location.pathname', 'page: location.href'],
+  [
+    'INC-06 : pas d’attente sans réseau',
+    'src/js/incident.js',
+    'if (!(await deliver(report))) keepForLater(report);\n  } catch {',
+    'await deliver(report);\n  } catch {'
+  ],
+  ['INC-06 : rien ne part au retour du réseau', 'src/js/incident.js', "window.addEventListener('online', sendWaiting);", ''],
+  ['INC-06 : une réponse du serveur ne vide pas la file', 'src/js/api.js', '  sendWaiting();\n', ''],
+  ['INC-06 : rien ne part à l’ouverture', 'src/js/incident.js', '  sendWaiting();\n}', '}'],
+  ['INC-06 : renvoyé sans fin après un refus', 'src/js/incident.js', 'return response.status < 500;', 'return response.ok;'],
+  ['INC-06 : perdu si le serveur est en panne', 'src/js/incident.js', 'return response.status < 500;', 'return true;'],
+  ['INC-06 : âge non transmis', 'src/js/incident.js', 'ageMs: Date.now() - at', 'ageMs: 0'],
+  ['INC-07 : file sans limite sur l’appareil', 'src/js/incident.js', '.slice(-QUEUE_MAX)', ''],
+  [
+    'INC-07 : file illisible qui casse la page',
+    'src/js/incident.js',
+    'return Array.isArray(queue) ? queue : [];\n  } catch {\n    return [];\n  }',
+    'return queue;\n  } catch (e) {\n    throw e;\n  }'
+  ],
+  ['INC-07 : une page s’emballe sans fin', 'src/js/incident.js', 'reported >= PER_PAGE_MAX', 'false'],
+  // Journal des problèmes : ce que lit l'admin
+  ['INC-02 : carte absente du tableau de bord', 'src/js/admin/main.js', 'incidentsCard(), ', ''],
+  ['INC-02 : effacer sans confirmation', 'src/js/admin/incidents.js', "if (!confirm('Effacer tout le journal ?')) return;", ''],
+  ['INC-02 : Effacer proposé sans rien à effacer', 'src/js/admin/incidents.js', 'clear.hidden = !incidents.length;', 'clear.hidden = false;'],
+  ['INC-02 : journal vide non annoncé', 'src/js/admin/incidents.js', 'empty.hidden = incidents.length > 0;', 'empty.hidden = true;'],
+  ['INC-02 : Android pris pour Linux', 'src/js/admin/incidents.js', "  [/Android/, 'Android'],\n", ''],
+  ['INC-02 : iPhone pris pour un Mac', 'src/js/admin/incidents.js', "  [/iPhone|iPad/, 'iOS'],\n", ''],
+  ['INC-02 : Edge pris pour Chrome', 'src/js/admin/incidents.js', "  [/Edg\\w*\\/(\\d+)/, 'Edge'],\n", ''],
+  ['INC-02 : Opera pris pour Chrome', 'src/js/admin/incidents.js', "  [/OPR\\/(\\d+)/, 'Opera'],\n", ''],
+  ['INC-02 : Samsung pris pour Chrome', 'src/js/admin/incidents.js', "  [/SamsungBrowser\\/(\\d+)/, 'Samsung Internet'],\n", ''],
+  ['INC-02 : place sur le disque non affichée', 'src/js/admin/incidents.js', 'if (machine.storageQuota) parts.push(', 'if (false) parts.push('],
+  ['INC-02 : tailles en Mo même au-delà du Go', 'src/js/admin/incidents.js', 'bytes >= 1e9 ?', 'false ?'],
+  ['INC-02 : mémoire plafonnée présentée comme exacte', 'src/js/admin/incidents.js', "machine.memoryGb >= 8 ? '8 Go de mémoire ou plus' : ", ''],
+  ['INC-02 : répétitions non affichées', 'src/js/admin/incidents.js', 'incident.count > 1 ? ', 'false ? '],
+  ['INC-02 : compteur à 1 affiché', 'src/js/admin/incidents.js', 'incident.count > 1 ? ', 'true ? '],
+  ['INC-02 : qui n’est pas dit', 'src/js/admin/incidents.js', "incident.account ?? 'sans compte'", "'sans compte'"],
+  ['INC-02 : pile cachée', 'src/js/admin/incidents.js', ', incident.details]', ']'],
   // Hors ligne : la préparation
   ['hors ligne : plan non téléchargé', 'src/js/eleve/offline.js', 'files.add(map.image);', ''],
   ['hors ligne : photos non téléchargées', 'src/js/eleve/offline.js', 'files.add(media.data);', ''],
@@ -917,7 +1144,7 @@ const MUTANTS = [
   [
     'hors ligne : « Prêt » malgré une image manquante',
     'src/js/eleve/offline.js',
-    "failed ? { state: 'incomplete', failed } : { state: 'ready' }",
+    "failed ? { state: 'incomplete', failed, why } : { state: 'ready' }",
     "{ state: 'ready' }"
   ],
   [
@@ -930,8 +1157,8 @@ const MUTANTS = [
   [
     'hors ligne : installation refusée passée sous silence',
     'src/js/eleve/offline.js',
-    "if (!(await startWorker()) || !(await workerReady())) return report({ state: 'unavailable' });",
-    'await startWorker();'
+    "if (refused) return report({ state: 'unavailable', why: refused });",
+    ''
   ],
   ['hors ligne : attente sans fin d’une installation', 'src/js/eleve/offline.js', 'setTimeout(() => resolve(false), WORKER_WAIT)', 'void resolve'],
   // Hors ligne : la page élève
@@ -950,7 +1177,7 @@ const MUTANTS = [
     "window.addEventListener('online', () => offlineState !== 'ready' && prepare(project));",
     ''
   ],
-  ['hors ligne : pas de bouton pour réessayer', 'src/js/eleve/main.js', 'retry.onclick = () => prepare(S.project);', ''],
+  ['hors ligne : pas de bouton pour réessayer', 'src/js/eleve/main.js', "$('#netRetry').onclick = () => prepare(S.project);", ''],
   ['hors ligne : envoi affiché alors que rien ne répond', 'src/js/eleve/main.js', "if (submission && sendState === 'sending' && !sending) {", 'if (false) {'],
   ['hors ligne : lecteur vide à la place de la vidéo', 'src/js/views/reader.js', "fig.querySelector('video').onerror", "fig.querySelector('video').onabort"],
   [
@@ -1099,8 +1326,15 @@ const TESTS_FOR = {
   'src/js/prof/qr.js': ['e2e/launches'],
   'src/js/prof/launch.js': ['e2e/offline', 'e2e/launches'],
   'src/js/accueil.js': ['e2e/launches'],
-  'src/js/eleve/main.js': ['e2e/offline', 'e2e/launches'],
-  'src/js/eleve/offline.js': ['e2e/offline'],
+  'src/js/eleve/main.js': ['e2e/offline', 'e2e/launches', 'e2e/incidents'],
+  'src/js/eleve/network-icon.js': ['e2e/offline'],
+  'src/eleve.html': ['e2e/offline'],
+  'src/js/incident.js': ['incidents', 'e2e/incidents', 'e2e/offline'],
+  'src/js/main.js': ['e2e/incidents'],
+  'src/js/admin/incidents.js': ['e2e/incidents'],
+  'server/incidents.mjs': ['incidents'],
+  'server/routes/incidents.mjs': ['incidents'],
+  'src/js/eleve/offline.js': ['e2e/offline', 'e2e/incidents'],
   'src/sw.js': ['e2e/offline'],
   'src/index.html': ['offline-site', 'e2e/offline'],
   'scripts/build.mjs': ['offline-site', 'build'],
@@ -1116,13 +1350,13 @@ const TESTS_FOR = {
   'server/migrations/001-initial.sql': ['db'],
   'server/routes/legacy.mjs': ['routes-legacy', 'server'],
   'server/index.mjs': ['server-start'],
-  'server/app.mjs': ['server-start', 'courses'],
+  'server/app.mjs': ['server-start', 'courses', 'incidents'],
   'src/js/model.js': ['model', 'e2e/courses', 'e2e/legacy'],
   'src/js/themes.js': ['model', 'e2e/courses'],
   'src/js/views/reader.js': ['wording', 'e2e/offline', 'e2e/launches'],
   'src/prof-cours.html': ['wording', 'e2e/courses'],
   'src/js/spreadsheet.js': ['spreadsheet', 'e2e/courses'],
-  'src/js/util.js': ['util', 'e2e/legacy', 'e2e/courses'],
+  'src/js/util.js': ['util', 'e2e/legacy', 'e2e/courses', 'e2e/incidents'],
   'src/js/db.js': ['e2e/legacy'],
   'src/js/store.js': ['e2e/legacy', 'e2e/courses', 'e2e/launches'],
   'src/js/project-io.js': ['e2e/legacy'],
@@ -1130,17 +1364,17 @@ const TESTS_FOR = {
   'src/js/views/admin/fiches.js': ['e2e/courses'],
   'src/js/views/admin/settings.js': ['e2e/courses', 'e2e/legacy'],
   'src/js/views/admin/maps.js': ['e2e/courses', 'e2e/legacy'],
-  'src/js/prof/course.js': ['e2e/courses'],
+  'src/js/prof/course.js': ['e2e/courses', 'e2e/incidents'],
   'src/js/prof/course-backend.js': ['e2e/courses'],
   'src/js/prof/course-io.js': ['e2e/courses'],
-  'src/js/prof/course-tab.js': ['e2e/courses', 'e2e/launches'],
+  'src/js/prof/course-tab.js': ['e2e/courses', 'e2e/launches', 'e2e/incidents'],
   'src/js/prof/main.js': ['e2e/courses', 'e2e/launches'],
-  'src/js/api.js': ['e2e/courses'],
+  'src/js/api.js': ['e2e/courses', 'e2e/incidents'],
   'src/js/ai.js': ['e2e/legacy'],
-  'src/js/admin/main.js': ['e2e/accounts', 'e2e/courses', 'e2e/launches'],
+  'src/js/admin/main.js': ['e2e/accounts', 'e2e/courses', 'e2e/launches', 'e2e/incidents'],
   'src/js/compte/main.js': ['e2e/accounts'],
   'src/js/compte/ui.js': ['e2e/accounts'],
-  'src/css/app.css': ['offline-site', 'e2e/accounts', 'e2e/courses', 'e2e/launches']
+  'src/css/app.css': ['offline-site', 'e2e/accounts', 'e2e/courses', 'e2e/launches', 'e2e/offline']
 };
 const testsFor = (file) => (TESTS_FOR[file] ?? []).map((name) => `tests/${name}.test.js`);
 

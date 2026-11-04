@@ -5,6 +5,7 @@
 import { api, currentAccount } from '../api.js';
 import { accountBar, card, changePasswordForm, dateAndTime, el, errorLine, linkBox, loginForm, shortDate, show, showError } from '../compte/ui.js';
 import { formatSize } from '../util.js';
+import { incidentsCard } from './incidents.js';
 
 function showLogin() {
   show([
@@ -214,7 +215,7 @@ function inviteCard() {
 }
 
 function showDashboard(account) {
-  show([accountBar(account, showLogin), inviteCard(), teachersCard(), card('Mon mot de passe', changePasswordForm())], { wide: true });
+  show([accountBar(account, showLogin), inviteCard(), teachersCard(), incidentsCard(), card('Mon mot de passe', changePasswordForm())], { wide: true });
 }
 
 async function start() {

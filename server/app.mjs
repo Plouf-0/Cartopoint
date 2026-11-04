@@ -9,11 +9,13 @@ import { createAuth } from './auth.mjs';
 import { createCourses } from './courses.mjs';
 import { backupDatabase, openDatabase } from './db.mjs';
 import { createHandler, createRouter, staticFiles } from './http.mjs';
+import { createIncidents } from './incidents.mjs';
 import { createLaunches } from './launches.mjs';
 import { createMedia } from './media.mjs';
 import { adminRoutes } from './routes/admin.mjs';
 import { authRoutes } from './routes/auth.mjs';
 import { courseRoutes } from './routes/courses.mjs';
+import { incidentRoutes } from './routes/incidents.mjs';
 import { launchRoutes } from './routes/launches.mjs';
 import { legacyRoutes } from './routes/legacy.mjs';
 import { pageRoutes } from './routes/pages.mjs';
@@ -26,9 +28,11 @@ export function createApp({ root, data, password = '', maxBody = 100 * 1024 * 10
   const courses = createCourses(db);
   const launches = createLaunches(db);
   const media = createMedia(db, path.join(data, 'media'));
+  const incidents = createIncidents(db);
   const router = createRouter();
   authRoutes(router, auth, { trustProxy });
   adminRoutes(router, auth, courses);
+  incidentRoutes(router, { auth, incidents });
   courseRoutes(router, { auth, courses, media, maxBody });
   launchRoutes(router, { auth, courses, launches });
   studentRoutes(router, { launches, trustProxy });
@@ -43,6 +47,7 @@ export function createApp({ root, data, password = '', maxBody = 100 * 1024 * 10
       // Dans cet ordre : un compte effacé libère ses fichiers
       auth.purge();
       media.purge();
+      incidents.purge();
     },
     close() {
       return new Promise((resolve) => {

@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.20** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.21** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -71,6 +71,8 @@ trace.
 | EV-33   | 02/11/2026 | Enlever l'identification par IA des réglages d'un cours. | IAI-01 | Basse | Fait pour l'espace enseignant ; l'application d'origine la garde jusqu'à l'étape 10 |
 | EV-34   | 02/11/2026 | Rendre le site générique : des valeurs par défaut liées à Cartopoint plutôt qu'à « Inventaire botanique », en gardant le vert comme couleur par défaut. | Q-01 | Moyenne | Fait pour le nom, les valeurs par défaut et les textes. Voir Q-01 |
 | EV-35   | 02/11/2026 | Plus aucune donnée d'utilisateur sur GitHub à partir de maintenant. L'historique sera réécrit plus tard si besoin. | Dépôt | Haute | Fait dans la branche : plan d'exemple inventé, captures retirées, `tests/repo.test.js`. Ce qui est déjà public le reste |
+| EV-36   | 04/11/2026 | Sur la page élève, une petite icône qui dit si l'on est en ligne ou hors ligne, avec le détail en passant le doigt dessus, plutôt qu'un bandeau qui reste. | HOR-10 | Moyenne | Fait dans la branche |
+| EV-37   | 04/11/2026 | Quand quelque chose échoue chez quelqu'un, un journal avec la signature de sa machine, des informations utiles et la raison. | INC-01 à INC-07 | Haute | Fait dans la branche. Lecture de la demande à confirmer : voir INC |
 
 - **Exigence concernée :** son identifiant (`PLA-03`, `E-01`…), ou rien pour un besoin nouveau.
 - **Priorité :** Haute (empêche une séance), Moyenne (gêne réelle), Basse (confort).
@@ -975,8 +977,11 @@ Demandes : EV-06, EV-10
   correction.
 - **HOR-04** Un envoi impossible faute de réseau ne perd rien : les réponses partent dès que le réseau revient.
 - **HOR-05** L'application n'a besoin d'aucun service tiers pour s'afficher : elle sert elle-même ses polices.
-- **HOR-10** La page dit à l'élève où en est sa préparation : le décompte du téléchargement, puis « ✓ Prêt pour le terrain » une fois tout
-  gardé, ou ce qui manque. L'enseignant est invité à attendre ce message avant de quitter le réseau.
+- **HOR-10** Une icône, en haut de la page, dit à l'élève s'il est en ligne et où en est sa préparation. Le détail s'affiche d'un appui
+  dessus ou au survol : le décompte du téléchargement, « ✓ Prêt pour le terrain » une fois tout gardé, ou ce qui manque. « Prêt » s'annonce par
+  un message qui repart. Ce qui demande d'agir (image manquante, navigateur incapable) s'ouvre de soi-même, car il sera trop tard une fois le
+  réseau quitté. « Hors ligne » veut dire que rien ne répond, même si le téléphone annonce du réseau. L'enseignant est invité à attendre le
+  message avant de quitter le réseau.
 - **HOR-11** Les vidéos ne sont pas gardées sur l'appareil (section 9 de la feuille de route). Sans réseau, la fiche l'explique.
 - **HOR-06** Dès que l'élève clique sur Terminer, ses placements et ses mesures sont figés.
 - **HOR-07** Un élève peut rendre après la fin du cours : son rendu est accepté et signalé à l'enseignant.
@@ -1090,6 +1095,29 @@ Demande : EV-28
 
 ---
 
+### 12.13 Journal des problèmes — `INC`
+
+Demande : EV-37. Lue comme un journal du site, parce que la cause de EV-04 reste inconnue faute de savoir ce qui s'est passé sur la machine du premier enseignant. Si l'utilisateur parlait des tests du laptop, c'est un ajout de plus, à faire à part.
+
+- **INC-01** Ce qui échoue dans un navigateur arrive tout seul au serveur, avec ce que la personne faisait, la raison exacte et sa machine :
+  navigateur et système, langue, écran, mémoire, cœurs, réseau, et la place que le navigateur pense pouvoir utiliser sur le disque. Sont
+  signalés les erreurs du programme, les messages d'erreur affichés, les erreurs du serveur (5xx, 413), une écriture perdue alors que le réseau
+  semble là, et une préparation pour le terrain incomplète. Un refus ordinaire (mot de passe, conflit, session expirée) et une lecture perdue ne
+  sont pas des pannes. Le fichier autonome, sans serveur, ne signale rien.
+- **INC-02** Seul l'admin lit le journal et l'efface, dans son tableau de bord. Les 200 derniers problèmes s'y affichent, en clair sur ordinateur
+  comme sur téléphone. Ces textes viennent de n'importe quel navigateur : ils s'affichent comme du texte, jamais comme du code.
+- **INC-03** Ni nom d'élève, ni réponse, ni contenu de cours, ni adresse IP. Le compte est noté pour un enseignant. L'adresse de la page s'arrête
+  au chemin : un lien d'invitation porte son secret après. Le serveur ne garde que les champs prévus, quoi que le navigateur envoie. La machine
+  d'un élève est notée, sans rien qui dise de qui il s'agit (`ANO-08`). À mentionner dans l'information aux utilisateurs (étape 10).
+- **INC-04** Un message illisible est refusé. Les textes trop longs sont coupés, et un envoi de plus de 16 Ko refusé.
+- **INC-05** Le même problème, sur le même navigateur et le même compte, ne fait qu'augmenter un compteur. Sa première date reste.
+- **INC-06** Sans réseau, le message attend sur l'appareil. Il part dès que le réseau revient ou que le serveur répond de nouveau, ou à la prochaine ouverture d'une page, daté du problème
+  et non de l'envoi, sans se fier à l'horloge de l'appareil. Un refus du serveur l'oublie, une panne du serveur le garde.
+- **INC-07** Le journal ne peut pas se laisser remplir : gardé 90 jours, 500 lignes au plus, 60 messages par minute pour tout le site, 20 messages
+  en attente sur un appareil, 30 par ouverture de page. Il ne doit jamais gêner la page : un signalement qui échoue reste silencieux.
+
+---
+
 ## 13. Historique
 
 | Version | Date              | Changement                                                                |
@@ -1114,3 +1142,4 @@ Demande : EV-28
 | 0.18    | 3 novembre 2026   | Étape 5 : terminer, envoi et renvoi des réponses, résultat calculé par le serveur ; COU-10 fait en avance ; proportions du plan mesurées à la publication |
 | 0.19    | 3 novembre 2026   | EV-04 : constats sur le poste du premier enseignant |
 | 0.20    | 4 novembre 2026   | Étape 6 : page élève disponible sans réseau, polices servies par le site ; HOR-10, HOR-11 |
+| 0.21    | 4 novembre 2026   | Icône du réseau sur la page élève (EV-36, HOR-10) ; journal des problèmes (EV-37, INC-01 à INC-07) |

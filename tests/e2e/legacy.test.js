@@ -190,6 +190,24 @@ for (const [kind, init] of Object.entries(REFUSED_WRITES)) {
     await page.locator('.row', { hasText: 'Olivier' }).waitFor();
     await page.locator('.row', { hasText: 'Laurier' }).waitFor();
   });
+
+  test(`EV-04 : après ${kind}, une fiche non écrite repart même si la modification suivante ne touche pas sa carte`, async (t) => {
+    const { page } = await openApp(t, { init });
+    await enterManagement(page);
+    await page.evaluate(() => (window.__fail = true));
+    await addFiche(page, 'Noisetier');
+    await toast(page, '⚠ Enregistrement impossible');
+
+    await page.evaluate(() => (window.__fail = false));
+    // Seul le nom du projet change : rien d'autre ne fait repasser la carte par l'écriture
+    await page.getByRole('tab', { name: 'Projet' }).click();
+    await page.locator('#projName').fill('Autre nom');
+    await page.locator('#saveName').click();
+    await written(page);
+    await page.reload();
+    await enterManagement(page);
+    await page.locator('.row', { hasText: 'Noisetier' }).waitFor();
+  });
 }
 
 test('EV-04 : une publication reste possible quand le navigateur refuse d’écrire', async (t) => {

@@ -7,6 +7,7 @@
  *   3. ouvrir le stockage du navigateur et choisir le projet à afficher ;
  *   4. appliquer le thème et dessiner.
  */
+import './incident.js';
 import { $, fatal, errorText } from './util.js';
 import { S, flush } from './store.js';
 import { openDb } from './db.js';

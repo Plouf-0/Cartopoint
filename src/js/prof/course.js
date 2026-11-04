@@ -3,6 +3,7 @@
  * `S.admin` y vaut toujours true : il n'y a ni bouton Gestion ni vue élèves ici.
  */
 import { api } from '../api.js';
+import { reportIncident } from '../incident.js';
 import { draftOf, hasRef, normalizeProject } from '../model.js';
 import { onRender, render } from '../render.js';
 import { S, activate, changedMap, fiches, flush, hasPendingChanges, hasUnsentChanges, storeMapImage, useBackend } from '../store.js';
@@ -42,6 +43,7 @@ function showSaveState(reported, error) {
 
   const reload = error.status === 409;
   const expired = error.status === 401;
+  if (!reload && !expired) reportIncident('Enregistrement du cours', error);
   $('#saveBannerText').textContent = reload
     ? `${errorText(error)} Rechargez la page pour retrouver la dernière version enregistrée.`
     : expired

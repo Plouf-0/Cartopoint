@@ -16,13 +16,53 @@ test('E-04 : avec TRUST_PROXY, seule la dernière valeur compte : celle ajoutée
   assert.equal(clientIp(fakeRequest('1.2.3.4'), true), '1.2.3.4');
   assert.equal(clientIp(fakeRequest('6.6.6.6, 1.2.3.4'), true), '1.2.3.4');
   assert.equal(clientIp(fakeRequest('6.6.6.6,7.7.7.7,  1.2.3.4  '), true), '1.2.3.4');
-  assert.equal(clientIp(fakeRequest('2001:db8::1'), true), '2001:db8::1');
 });
 
 test('E-04 : avec TRUST_PROXY mais sans valeur utilisable, on revient à l’adresse du socket', () => {
   assert.equal(clientIp(fakeRequest(undefined), true), '10.0.0.1');
   assert.equal(clientIp(fakeRequest(''), true), '10.0.0.1');
   assert.equal(clientIp(fakeRequest('1.2.3.4, '), true), '10.0.0.1');
+});
+
+const throughProxy = (lastHop, visitor) => ({
+  headers: { 'x-forwarded-for': lastHop, ...(visitor === undefined ? {} : { 'cf-connecting-ip': visitor }) },
+  socket: { remoteAddress: '10.0.0.1' }
+});
+
+test('E-04 : derrière Cloudflare, le client est le visiteur qu’il nomme : deux inconnus ne partagent plus un compteur', () => {
+  assert.equal(clientIp(throughProxy('162.158.1.1', '203.0.113.5'), true), '203.0.113.5');
+  assert.equal(clientIp(throughProxy('162.158.1.1', '198.51.100.7'), true), '198.51.100.7');
+  assert.equal(clientIp(throughProxy('172.71.255.254', '198.51.100.7'), true), '198.51.100.7', 'la fin d’une plage');
+  assert.equal(clientIp(throughProxy('2400:cb00:2048::1', '203.0.113.5'), true), '203.0.113.5', 'un serveur en IPv6');
+  assert.equal(clientIp(throughProxy('2a06:98c7:ffff::1', '203.0.113.5'), true), '203.0.113.5', 'une plage en /29');
+});
+
+test('E-04 : venu d’ailleurs que Cloudflare, cet en-tête ne vaut rien : n’importe qui peut l’écrire', () => {
+  assert.equal(clientIp(throughProxy('6.6.6.6', '203.0.113.5'), true), '6.6.6.6');
+  assert.equal(clientIp(throughProxy('162.160.0.1', '203.0.113.5'), true), '162.160.0.1', 'juste après une plage');
+  assert.equal(clientIp(throughProxy('162.157.255.255', '203.0.113.5'), true), '162.157.255.255', 'juste avant');
+  assert.equal(clientIp(throughProxy('2400:cb01::1', '203.0.113.5'), true), '2400:cb01:0:0');
+  assert.equal(clientIp(throughProxy('pas une adresse', '203.0.113.5'), true), 'pas une adresse');
+  assert.equal(clientIp(throughProxy('162.158.1.1', '203.0.113.5'), false), '10.0.0.1', 'sans TRUST_PROXY, rien n’est cru');
+});
+
+test('E-04 : un visiteur illisible laisse le serveur de Cloudflare : mieux vaut un compteur partagé qu’un nom inventé', () => {
+  for (const visitor of [undefined, '', 'pas une adresse', '203.0.113.5, 198.51.100.7']) {
+    assert.equal(clientIp(throughProxy('162.158.1.1', visitor), true), '162.158.1.1', String(visitor));
+  }
+});
+
+test('E-04 : en IPv6, tout un bloc /64 compte pour un seul client : il pourrait sinon changer d’adresse à chaque essai', () => {
+  const key = (visitor) => clientIp(throughProxy('162.158.1.1', visitor), true);
+  assert.equal(key('2001:db8:1:2:3:4:5:6'), '2001:db8:1:2');
+  assert.equal(key('2001:db8:1:2:ffff:ffff:ffff:ffff'), '2001:db8:1:2', 'le même abonné');
+  assert.notEqual(key('2001:db8:1:3::1'), key('2001:db8:1:2::1'), 'un autre abonné');
+  assert.equal(key('2001:db8::1'), '2001:db8:0:0', 'l’écriture courte');
+  assert.equal(key('2001:DB8::1'), '2001:db8:0:0', 'la casse');
+  assert.equal(key('2001:db8::'), '2001:db8:0:0');
+  assert.equal(key('::1'), '0:0:0:0');
+  assert.equal(key('::ffff:203.0.113.5'), '203.0.113.5', 'une adresse IPv4 écrite en IPv6 reste elle-même');
+  assert.equal(clientIp(throughProxy('2001:db8:1:2:3:4:5:6'), true), '2001:db8:1:2', 'sans Cloudflare aussi');
 });
 
 function limiter(max = 3, windowMs = 1000) {

@@ -27,6 +27,37 @@ const RUN_TIMEOUT = 420000;
 const MUTANTS = [
   ['E-04 : première valeur de X-Forwarded-For au lieu de la dernière', 'server/security.mjs', ".split(',').pop().trim()", ".split(',').shift().trim()"],
   ['E-04 : X-Forwarded-For lu même sans TRUST_PROXY', 'server/security.mjs', 'if (trustProxy) {', 'if (true) {'],
+  [
+    'E-04 : visiteur cru sans vérifier Cloudflare',
+    'server/security.mjs',
+    'fromCloudflare(last) && isIP(visitor) ? visitor : last',
+    'isIP(visitor) ? visitor : last'
+  ],
+  [
+    'E-04 : visiteur illisible cru',
+    'server/security.mjs',
+    'fromCloudflare(last) && isIP(visitor) ? visitor : last',
+    'fromCloudflare(last) && visitor ? visitor : last'
+  ],
+  ['E-04 : Cloudflare ignoré', 'server/security.mjs', 'fromCloudflare(last) && isIP(visitor) ? visitor : last', 'last'],
+  ['E-04 : serveurs IPv6 de Cloudflare non reconnus', 'server/security.mjs', "family === 6 ? 'ipv6' : 'ipv4'", "'ipv4'"],
+  [
+    'E-04 : plages de Cloudflare trop larges',
+    'server/security.mjs',
+    'CLOUDFLARE.addSubnet(network, Number(prefix), family);',
+    'CLOUDFLARE.addSubnet(network, Number(prefix) - 2, family);'
+  ],
+  [
+    'E-04 : plages de Cloudflare trop étroites',
+    'server/security.mjs',
+    'CLOUDFLARE.addSubnet(network, Number(prefix), family);',
+    'CLOUDFLARE.addSubnet(network, Number(prefix) + 2, family);'
+  ],
+  ['E-04 : IPv6 comptée adresse par adresse', 'server/security.mjs', 'if (isIP(ip) !== 6) return ip;', 'return ip;'],
+  ['E-04 : IPv4 écrite en IPv6 comptée pour tous', 'server/security.mjs', 'if (/^::ffff:/i.test(ip)) return ip.slice(7);', ''],
+  ['E-04 : IPv6 sensible à la casse', 'server/security.mjs', 'ip.toLowerCase().split', 'ip.split'],
+  ['E-04 : IPv6 courte mal lue', 'server/security.mjs', "...Array(8 - start.length - end.length).fill('0'), ", ''],
+  ['E-04 : un bloc plus large qu’un abonné', 'server/security.mjs', '.slice(0, 4).join', '.slice(0, 3).join'],
   ['E-04 : TRUST_PROXY ignoré par la publication', 'server/routes/legacy.mjs', 'clientIp(req, trustProxy)', 'clientIp(req, false)'],
   ['E-04 : variable TRUST_PROXY toujours active', 'server/index.mjs', "process.env.TRUST_PROXY === '1'", 'true'],
   ['limite : bloque un essai trop tôt', 'server/security.mjs', 'entry.count >= max', 'entry.count >= max - 1'],

@@ -250,6 +250,27 @@ test('une adresse qui essaie beaucoup de comptes finit bloquée, sans gêner les
   assert.equal((await browser.post('/api/auth/login', { email: TEACHER, password: PASSWORD }, { 'X-Forwarded-For': '1.1.1.1' })).status, 200);
 });
 
+test('E-04 : derrière Cloudflare, les échecs d’un visiteur ne bloquent pas ceux qui passent par le même serveur', async (t) => {
+  const { base } = await site(t, { trustProxy: true });
+  const browser = client(base);
+  const from = (visitor) => ({ 'X-Forwarded-For': '162.158.10.20', 'CF-Connecting-IP': visitor });
+  for (let i = 0; i < 10; i++) {
+    assert.equal((await browser.post('/api/auth/login', { email: TEACHER, password: 'mauvais-mot-de-passe' }, from('203.0.113.5'))).status, 401);
+  }
+  assert.equal((await browser.post('/api/auth/login', { email: TEACHER, password: PASSWORD }, from('203.0.113.5'))).status, 429);
+  assert.equal((await browser.post('/api/auth/login', { email: TEACHER, password: PASSWORD }, from('198.51.100.7'))).status, 200);
+});
+
+test('E-04 : sans passer par Cloudflare, inventer un visiteur à chaque essai ne sort pas du blocage', async (t) => {
+  const { base } = await site(t, { trustProxy: true });
+  const browser = client(base);
+  const forged = (i) => ({ 'X-Forwarded-For': '6.6.6.6', 'CF-Connecting-IP': `203.0.113.${i}` });
+  for (let i = 0; i < 10; i++) {
+    assert.equal((await browser.post('/api/auth/login', { email: TEACHER, password: 'mauvais-mot-de-passe' }, forged(i))).status, 401);
+  }
+  assert.equal((await browser.post('/api/auth/login', { email: TEACHER, password: PASSWORD }, forged(99))).status, 429);
+});
+
 test('E-04 : les connexions réussies d’un établissement ne comptent pas comme des échecs', async (t) => {
   const { base, db } = await site(t, { trustProxy: true });
   const school = { 'X-Forwarded-For': '1.1.1.1' };

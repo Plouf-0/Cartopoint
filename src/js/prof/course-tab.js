@@ -8,6 +8,7 @@ import { render } from '../render.js';
 import { S, changedMap, changedMeta, flush, hasUnsentChanges } from '../store.js';
 import { $, download, errorText, esc, loadImage, safeFileName, toast } from '../util.js';
 import { exportCourse } from './course-io.js';
+import { askFallbackPassword, fallbackPage } from './fallback-file.js';
 
 /** Le cours lu sur le serveur, tenu à jour par course-backend.js. */
 let course = null;
@@ -165,6 +166,8 @@ export function html() {
       <h3>Télécharger</h3>
       <p>Un fichier .json avec les fiches, les photos et les positions, pour garder une copie ou importer ce cours ailleurs.</p>
       <button type="button" class="btn ghost" id="exportJson">Télécharger le cours (.json)</button>
+      <p>Un fichier de secours, en cas de panne un jour de sortie : un seul fichier .html, à ouvrir d'un double-clic, sans serveur ni réseau. Chacun y vérifie ses placements lui-même. Il contient les positions réelles : ne le donnez aux élèves que si le site ne répond pas.</p>
+      <button type="button" class="btn ghost" id="exportFallback">Télécharger le fichier de secours (.html)</button>
     </div>`;
 }
 
@@ -179,6 +182,17 @@ export function bind() {
   $('#publishBtn').onclick = publishCourse;
   $('#launchBtn').onclick = launchCourse;
   showLaunches();
+  $('#exportFallback').onclick = async () => {
+    const password = await askFallbackPassword();
+    if (password === null) return;
+    toast('Préparation du fichier…');
+    try {
+      download(await fallbackPage(S.project, password), `${safeFileName(`${S.project.title} - secours`)}.html`, 'text/html;charset=utf-8');
+      toast('✓ Fichier de secours téléchargé');
+    } catch (e) {
+      toast('⚠ Fichier de secours impossible : ' + errorText(e));
+    }
+  };
   $('#exportJson').onclick = async () => {
     toast('Préparation du fichier…');
     try {

@@ -5,7 +5,7 @@
  *   - hébergé sur un serveur (avec project.json à côté) ;
  *   - ouvert directement depuis l'ordinateur (double-clic), sans connexion.
  * Les pages des espaces (enseignant, admin, liens) sont aussi d'un seul tenant, chacune avec son seul code. Elles trouvent leurs
- * polices dans assets/fonts/, à côté d'elles, et le service worker de la page élève dans sw.js.
+ * polices dans assets/fonts/, à côté d'elles, et le service worker de la page élève dans sw.js. secours.html est la base du fichier de secours d'un cours.
  *
  *   npm run build                                   → dist/index.html et les pages des espaces
  *   node scripts/build.mjs --outdir autre/dossier   → la même chose ailleurs
@@ -39,7 +39,8 @@ function commitLabel() {
 const { version: number } = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
 const version = `${number} (${commitLabel()})`;
 
-async function bundle(entry) {
+/** @param fallback le fichier de secours : sans aucun lien avec un serveur (voir project-io.js) */
+async function bundle(entry, { fallback = false } = {}) {
   const { outputFiles } = await build({
     entryPoints: [path.join(src, entry)],
     bundle: true,
@@ -48,7 +49,7 @@ async function bundle(entry) {
     write: false,
     legalComments: 'none',
     charset: 'utf8',
-    define: { __APP_VERSION__: JSON.stringify(version) }
+    define: { __APP_VERSION__: JSON.stringify(version), __FALLBACK__: String(fallback) }
   });
   // Dans un <script> en ligne, « </script » fermerait la balise : on l'échappe.
   return outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
@@ -93,6 +94,12 @@ await fs.writeFile(out, html);
 console.log(`✓ ${path.relative(root, out)} (${(html.length / 1e6).toFixed(2)} Mo)`);
 
 if (!args.out) {
+  // La base du fichier de secours d'un cours (prof/fallback-file.js) : la même page, mais qui ne cherche aucun serveur
+  const fallbackJs = await bundle('js/main.js', { fallback: true });
+  await fs.writeFile(
+    path.join(outDir, 'secours.html'),
+    html.replace(js, () => fallbackJs)
+  );
   await fs.cp(path.join(src, 'assets/fonts'), path.join(outDir, 'assets/fonts'), { recursive: true });
   await fs.copyFile(path.join(src, 'sw.js'), path.join(outDir, 'sw.js'));
   for (const page of SPACE_PAGES) {

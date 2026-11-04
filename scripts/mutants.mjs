@@ -1278,7 +1278,7 @@ const MUTANTS = [
   ['EV-42 : pas de version à l’écran', 'src/js/version.js', '  document.body.append(label);\n', ''],
   ['EV-44 : numéro de version oublié', 'scripts/build.mjs', 'const version = `${number} (${commitLabel()})`;', 'const version = commitLabel();'],
   ['démarrage : port annoncé faux', 'server/index.mjs', 'http://localhost:${app.server.address().port}', 'http://localhost:${PORT}'],
-  ['EV-42 : pages construites sans version', 'scripts/build.mjs', 'define: { __APP_VERSION__: JSON.stringify(version) }', 'define: {}'],
+  ['EV-42 : pages construites sans version', 'scripts/build.mjs', '__APP_VERSION__: JSON.stringify(version), ', ''],
   ['EV-42 : version demandée ignorée', 'scripts/build.mjs', 'if (process.env.APP_VERSION) return process.env.APP_VERSION;', ''],
   ['EV-42 : la version empêche d’appuyer', 'src/css/app.css', 'font-size: 11px; pointer-events: none; }', 'font-size: 11px; }'],
   ['EV-42 : journal sans version', 'src/js/incident.js', '    version: APP_VERSION,\n', ''],
@@ -1463,6 +1463,64 @@ const MUTANTS = [
   ],
   ['placement : bandeau hors de l’écran', 'src/css/app.css', 'position: sticky; bottom: 8px; z-index: 5;', 'z-index: 5;'],
   ['placement : bandeau de retour dans le plan', 'src/eleve.html', '</div>\n      <div class="place-hint"', '<div class="place-hint"'],
+  // Fichier de secours
+  ['EXP-01 : pas de fichier de secours', 'scripts/build.mjs', "path.join(outDir, 'secours.html')", "path.join(outDir, 'autre.html')"],
+  [
+    'EXP-01 : le fichier de secours cherche un serveur',
+    'src/js/project-io.js',
+    'if (IS_FALLBACK || !location.protocol.startsWith',
+    'if (!location.protocol.startsWith'
+  ],
+  [
+    'EXP-01 : la page d’origine ne cherche plus de serveur',
+    'src/js/project-io.js',
+    "const IS_FALLBACK = typeof __FALLBACK__ !== 'undefined' && __FALLBACK__;",
+    'const IS_FALLBACK = true;'
+  ],
+  ['EXP-01 : fiches masquées dans le fichier', 'src/js/prof/fallback-file.js', 'map.fiches.filter((fiche) => fiche.visible)', 'map.fiches'],
+  [
+    'EXP-01 : cours absent du fichier',
+    'src/js/prof/fallback-file.js',
+    'return template.replace(/(<script id="embedded-project" type="application\\/json">)[\\s\\S]*?(<\\/script>)/, (_, open, close) => open + json + close);',
+    'return template;'
+  ],
+  ['EXP-01 : balise fermée par un titre', 'src/js/prof/fallback-file.js', ".replace(/</g, '\\\\u003c')", ''],
+  [
+    'EXP-01 : panne du serveur non expliquée',
+    'src/js/prof/fallback-file.js',
+    'if (!response.ok) throw new Error(`fichier de secours indisponible sur ce serveur (${response.status})`);',
+    ''
+  ],
+  ['E-03 : mot de passe par défaut gardé', 'src/js/prof/fallback-file.js', ', passwordHash: await hashPassword(password) }', ' }'],
+  [
+    'E-03 : mot de passe trop court accepté',
+    'src/js/prof/fallback-file.js',
+    'if (input.value.length >= MIN_PASSWORD) return done(input.value);',
+    'return done(input.value);'
+  ],
+  ['E-03 : renoncer télécharge quand même', 'src/js/prof/course-tab.js', 'if (password === null) return;', ''],
+  ['E-03 : Annuler sans effet', 'src/js/prof/fallback-file.js', "cancel.addEventListener('click', () => done(null));", ''],
+  [
+    'EXP-01 : pas de bouton',
+    'src/js/prof/course-tab.js',
+    "$('#exportFallback').onclick = async () => {",
+    "$('#exportFallback').onclick = async () => {\n    return;"
+  ],
+  ['EXP-01 : panne muette', 'src/js/prof/course-tab.js', "toast('⚠ Fichier de secours impossible : ' + errorText(e));", ''],
+  ['export : photo manquante passée sous silence', 'src/js/store.js', 'if (missing) onMissing(missing);', ''],
+  ['export : photo manquante non comptée', 'src/js/store.js', 'missing += f.media.length - kept.length;', ''],
+  [
+    'export : photo manquante non annoncée à l’enregistrement',
+    'src/js/project-io.js',
+    'exportProject({ onMissing: (count) => (missing = count) })',
+    'exportProject()'
+  ],
+  [
+    'export : photo manquante non annoncée à la publication',
+    'src/js/project-io.js',
+    'exportProject({ withProgress: false, onMissing: (count) => (missing = count) })',
+    'exportProject({ withProgress: false })'
+  ],
   // Hors ligne : la préparation
   ['hors ligne : plan non téléchargé', 'src/js/eleve/offline.js', 'files.add(map.image);', ''],
   ['hors ligne : photos non téléchargées', 'src/js/eleve/offline.js', 'files.add(media.data);', ''],
@@ -1677,10 +1735,11 @@ const TESTS_FOR = {
   'src/js/xlsx-write.js': ['results-workbook'],
   'src/js/zip.js': ['results-workbook', 'e2e/history'],
   'server/routes/launches.mjs': ['history', 'launches'],
+  'src/js/prof/fallback-file.js': ['e2e/fallback'],
   'src/js/eleve/offline.js': ['e2e/offline', 'e2e/incidents'],
   'src/sw.js': ['e2e/offline'],
   'src/index.html': ['offline-site', 'e2e/offline'],
-  'scripts/build.mjs': ['offline-site', 'build'],
+  'scripts/build.mjs': ['offline-site', 'build', 'e2e/fallback'],
   'src/js/views/cards.js': ['e2e/launches', 'e2e/correction'],
   'src/js/views/student-list.js': ['e2e/launches', 'e2e/correction'],
   'src/js/views/map.js': ['e2e/launches', 'e2e/correction'],
@@ -1702,7 +1761,7 @@ const TESTS_FOR = {
   'src/js/util.js': ['util', 'e2e/legacy', 'e2e/courses', 'e2e/incidents'],
   'src/js/db.js': ['e2e/legacy'],
   'src/js/store.js': ['e2e/legacy', 'e2e/courses', 'e2e/launches', 'e2e/correction'],
-  'src/js/project-io.js': ['e2e/legacy'],
+  'src/js/project-io.js': ['e2e/legacy', 'e2e/fallback'],
   'src/js/views/editor.js': ['e2e/courses'],
   'src/js/views/admin/fiches.js': ['e2e/courses'],
   'src/js/views/admin/settings.js': ['e2e/courses', 'e2e/legacy'],
@@ -1710,7 +1769,7 @@ const TESTS_FOR = {
   'src/js/prof/course.js': ['e2e/courses', 'e2e/incidents'],
   'src/js/prof/course-backend.js': ['e2e/courses'],
   'src/js/prof/course-io.js': ['e2e/courses'],
-  'src/js/prof/course-tab.js': ['e2e/courses', 'e2e/launches', 'e2e/incidents'],
+  'src/js/prof/course-tab.js': ['e2e/courses', 'e2e/launches', 'e2e/incidents', 'e2e/fallback'],
   'src/js/prof/main.js': ['e2e/courses', 'e2e/launches'],
   'src/js/api.js': ['e2e/courses', 'e2e/incidents'],
   'src/js/ai.js': ['e2e/legacy'],

@@ -370,3 +370,7 @@ La page d'un lancement (`prof/launch.js`, `prof/launch-results.js`) reste celle 
 - **Le fichier de réponses** (`format: cartopoint-reponses`) est proposé à l'élève quand l'envoi n'aboutit pas. `POST /api/launches/:id/answers-file` suit le même chemin qu'un envoi : le premier rendu reçu fait foi (`HIS-07`). Sans signature : un enseignant qui importe un fichier fait confiance à celui qui le lui donne.
 - **La purge** (`launches.purge()`, chaque heure, avant celle des fichiers) efface un lancement un an après sa fin ou, s'il n'a jamais été terminé, après sa dernière activité.
 
+## Fichier de secours
+
+`scripts/build.mjs` produit `secours.html` : la page de l'application d'origine, construite avec `__FALLBACK__`, qui ne cherche aucun serveur. `prof/fallback-file.js` la télécharge, y écrit le cours (photos en base64, sans les fiches masquées) et le mot de passe de gestion choisi par l'enseignant, puis donne le tout à enregistrer. Le fichier est ensuite autonome : le travail reste dans le navigateur, et c'est la page qui corrige (`EXP-02`).
+

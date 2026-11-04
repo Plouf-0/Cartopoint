@@ -297,10 +297,12 @@ export async function installProject(project, { progress = 'seed', dirty = false
  * @param o.withProgress   inclure le travail des élèves
  * @param o.keepPositions / o.keepMeasures   filtre de la progression incluse
  */
-export async function exportProject({ studentsOnly = false, withProgress = true, keepPositions = true, keepMeasures = true } = {}) {
+/** @param onMissing reçoit le nombre de photos retirées faute d'avoir encore leur fichier dans ce navigateur : l'appelant doit le dire */
+export async function exportProject({ studentsOnly = false, withProgress = true, keepPositions = true, keepMeasures = true, onMissing = () => {} } = {}) {
   await flush();
   const revision = uid();
   const maps = [];
+  let missing = 0;
   for (const m of S.project.maps) {
     const copy = structuredClone(m);
     if (studentsOnly) copy.fiches = copy.fiches.filter((f) => f.visible);
@@ -312,10 +314,13 @@ export async function exportProject({ studentsOnly = false, withProgress = true,
           delete md.key;
         }
       }
-      f.media = f.media.filter((md) => md.data);
+      const kept = f.media.filter((md) => md.data);
+      missing += f.media.length - kept.length;
+      f.media = kept;
     }
     maps.push(copy);
   }
+  if (missing) onMissing(missing);
   const progressOut = {};
   if (withProgress) {
     for (const m of maps) {

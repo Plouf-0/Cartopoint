@@ -41,13 +41,23 @@ test('l’image Docker embarque le code que le serveur partage avec le navigateu
   for (const name of [...shared, 'util.js']) assert.ok(dockerfile.includes(`src/js/${name}`), name);
 });
 
+test('EXP-01 : le fichier de secours se construit en un seul fichier, avec sa place pour le cours', async (t) => {
+  const out = await tempDir(t);
+  assert.equal(spawnSync(process.execPath, ['scripts/build.mjs', '--outdir', out], { cwd: ROOT, encoding: 'utf8' }).status, 0);
+  const page = readFileSync(path.join(out, 'secours.html'), 'utf8');
+  assert.doesNotMatch(page, /<script type="module"|<link rel="stylesheet" href="\/?css/);
+  assert.match(page, /<script id="embedded-project" type="application\/json">null<\/script>/);
+  assert.doesNotMatch(page, /__FALLBACK__/);
+  assert.doesNotMatch(readFileSync(path.join(out, 'index.html'), 'utf8'), /__FALLBACK__/);
+});
+
 test('EV-42, EV-44 : le numéro de version et le commit entrent dans chaque page ; sans commit donné, c’est celui du dépôt', async (t) => {
   const { version: number } = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   const run = (out, version) =>
     spawnSync(process.execPath, ['scripts/build.mjs', '--outdir', out], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, APP_VERSION: version } });
   const given = await tempDir(t);
   assert.equal(run(given, 'essai-42').status, 0);
-  for (const page of PAGES) {
+  for (const page of [...PAGES, 'secours.html']) {
     const text = readFileSync(path.join(given, page), 'utf8');
     assert.ok(text.includes(`${number} (essai-42)`), `${page} : le numéro de version, puis le commit`);
     assert.doesNotMatch(text, /__APP_VERSION__/, page);

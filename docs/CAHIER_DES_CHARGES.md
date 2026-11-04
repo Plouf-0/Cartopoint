@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.29** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.30** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -1062,6 +1062,9 @@ Demande : EV-11
   principal.
 - **EXP-02** Il contient les positions réelles, sans quoi la vérification serait impossible sans serveur : les
   exigences de la section 12.6 ne s'y appliquent pas.
+- **EXP-03** L'enseignant le télécharge depuis l'onglet « Cours » : un seul fichier `.html`, qui marche d'un double-clic, sans serveur ni réseau. Il emporte le plan et les photos, sans les
+  fiches masquées, et ne cherche jamais aucun serveur, même déposé sur un site.
+- **EXP-04** L'enseignant choisit à ce moment le mot de passe de gestion du fichier, 4 caractères au moins : `admin` n'y ouvre plus rien (E-03). Le site ne le garde pas.
 
 ### 12.9 Publication des fiches
 
@@ -1179,3 +1182,4 @@ fichier `.log` : le journal arrive sans rien demander à la personne, et l'admin
 | 0.27    | 4 novembre 2026   | Étape 8 : résultats par élève, note, détail, comptes rendus à imprimer, Excel, fichier de réponses, suppression et purge d'un lancement |
 | 0.28    | 4 novembre 2026   | Pas de note par élève ; le compte rendu porte le jour du cours ; le bandeau de placement passe sous le plan |
 | 0.29    | 4 novembre 2026   | Numérotation du projet en x.y.z (EV-44). Attention : ce numéro-ci est celui du cahier des charges, pas celui du logiciel |
+| 0.30    | 4 novembre 2026   | Étape 9 : fichier de secours d'un cours (EXP-03, EXP-04) ; une photo manquante à l'enregistrement est annoncée |

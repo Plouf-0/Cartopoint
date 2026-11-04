@@ -17,6 +17,9 @@ import { render } from './render.js';
 /* Modèle de page autonome                                              */
 /* ------------------------------------------------------------------ */
 
+/** Vrai dans le fichier de secours d'un cours (voir scripts/build.mjs). */
+const IS_FALLBACK = typeof __FALLBACK__ !== 'undefined' && __FALLBACK__;
+
 let template = null;
 
 /**
@@ -68,7 +71,8 @@ export async function defaultMapImage() {
  */
 async function readConfig() {
   const cfg = { projectUrl: null, publishUrl: null, projectName: null };
-  if (!location.protocol.startsWith('http')) return cfg;
+  // Un fichier de secours ne cherche aucun serveur, même si quelqu'un le dépose sur un site
+  if (IS_FALLBACK || !location.protocol.startsWith('http')) return cfg;
   try {
     const r = await fetch('config.json', { cache: 'no-store' });
     if (r.ok) Object.assign(cfg, await r.json());
@@ -161,14 +165,15 @@ export async function saveProject(kind = 'html', fixedName = null) {
   if (name === null) return;
   toast('Préparation du fichier…');
   try {
-    const bundle = await exportProject();
+    let missing = 0;
+    const bundle = await exportProject({ onMissing: (count) => (missing = count) });
     const base = safeFileName(name) || DEFAULT_TITLE;
     if (kind === 'html') download(pageWithProject(bundle), base + '.html', 'text/html;charset=utf-8');
     else download(JSON.stringify(bundle), base + '.json', 'application/json');
     S.project.savedAt = bundle.savedAt;
     await markExported(bundle.revision);
     render();
-    toast('✓ Projet enregistré');
+    toast(missing ? `⚠ Projet enregistré, mais sans ${missing} photo(s) dont le fichier manque dans ce navigateur.` : '✓ Projet enregistré');
   } catch (e) {
     toast('⚠ Enregistrement impossible : ' + errorText(e));
   }
@@ -181,11 +186,17 @@ export async function exportStudentVersion({ clearPositions = true, clearMeasure
   if (name === null) return;
   toast('Préparation de la version élèves…');
   try {
-    const bundle = await exportProject({ studentsOnly: true, keepPositions: !clearPositions, keepMeasures: !clearMeasures });
+    let missing = 0;
+    const bundle = await exportProject({
+      studentsOnly: true,
+      keepPositions: !clearPositions,
+      keepMeasures: !clearMeasures,
+      onMissing: (count) => (missing = count)
+    });
     const base = safeFileName(name) || `${DEFAULT_TITLE} - élèves`;
     if (kind === 'html') download(pageWithProject(bundle), base + '.html', 'text/html;charset=utf-8');
     else download(JSON.stringify(bundle), base + '.json', 'application/json');
-    toast('✓ Version élèves téléchargée');
+    toast(missing ? `⚠ Version élèves téléchargée, mais sans ${missing} photo(s) dont le fichier manque dans ce navigateur.` : '✓ Version élèves téléchargée');
   } catch (e) {
     toast('⚠ Export impossible : ' + errorText(e));
   }
@@ -265,7 +276,8 @@ export async function publish() {
   }
   toast('Publication…');
   try {
-    const bundle = await exportProject({ withProgress: false });
+    let missing = 0;
+    const bundle = await exportProject({ withProgress: false, onMissing: (count) => (missing = count) });
     const r = await fetch(S.source.publishUrl, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + password },
@@ -281,7 +293,11 @@ export async function publish() {
     S.source.remoteRevision = bundle.revision;
     await markExported(bundle.revision);
     render();
-    toast('✓ Publié : les élèves verront cette version en rechargeant la page');
+    toast(
+      missing
+        ? `⚠ Publié, mais sans ${missing} photo(s) dont le fichier manque dans ce navigateur.`
+        : '✓ Publié : les élèves verront cette version en rechargeant la page'
+    );
   } catch (e) {
     toast('⚠ Publication impossible : ' + errorText(e));
   }

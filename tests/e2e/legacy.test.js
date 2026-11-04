@@ -432,3 +432,32 @@ test('en gestion, le compte rendu de l’enseignant montre les positions réelle
   await toast(page, '✓ Compte rendu téléchargé');
   assert.ok((await page.evaluate(() => window.drawn)).includes('Position réelle'));
 });
+
+test('une photo dont le fichier manque dans le navigateur : l’enregistrement le dit, au lieu de la retirer sans rien dire', async (t) => {
+  const { page } = await openApp(t);
+  await enterManagement(page);
+  await page.locator('#newFiche').click();
+  await page.locator('#eCommon').fill('Noisetier');
+  await page.locator('#eFiles').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
+  await page.locator('#eGallery img').waitFor();
+  await page.locator('#eSave').click();
+  await page.locator('#dlgEdit').waitFor({ state: 'hidden' });
+  await written(page);
+  await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const open = indexedDB.open('inventaire-botanique');
+        open.onsuccess = () => {
+          const transaction = open.result.transaction('files', 'readwrite');
+          transaction.objectStore('files').clear();
+          transaction.oncomplete = () => {
+            open.result.close();
+            resolve();
+          };
+        };
+      })
+  );
+  const saved = await downloadJson(page);
+  assert.deepEqual(saved.maps[0].fiches[0].media, [], 'le fichier ne peut pas l’emporter');
+  await toast(page, '⚠ Projet enregistré, mais sans 1 photo(s) dont le fichier manque dans ce navigateur.');
+});

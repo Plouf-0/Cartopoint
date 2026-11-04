@@ -6,6 +6,7 @@
  * l'appareil. Rien ici ne doit pouvoir gêner la page : un signalement qui échoue reste silencieux, et ne se signale pas lui-même.
  */
 import { onProblem, prefs } from './util.js';
+import { APP_VERSION } from './version.js';
 
 const QUEUE_KEY = 'cartopoint.incidents';
 const QUEUE_MAX = 20;
@@ -29,6 +30,7 @@ export function describeError(error) {
 async function describeMachine() {
   const estimate = await navigator.storage?.estimate?.().catch(() => null);
   return {
+    version: APP_VERSION,
     browser: navigator.userAgent,
     language: navigator.language,
     screen: `${screen.width}×${screen.height}`,

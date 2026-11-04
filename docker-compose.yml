@@ -1,6 +1,10 @@
 services:
   inventaire:
-    build: .
+    build:
+      context: .
+      args:
+        # La version affichée sur les pages : APP_VERSION=$(git rev-parse --short HEAD) docker compose up -d --build
+        APP_VERSION: ${APP_VERSION:-}
     restart: unless-stopped
     user: "1001:1001" #changer selon l'utilisateur et le groupe souhaités
     # ports:

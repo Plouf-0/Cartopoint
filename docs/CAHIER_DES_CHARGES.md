@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.24** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.25** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -77,6 +77,7 @@ trace.
 | EV-39   | 04/11/2026 | Bloquer l'élève dès que le cours est fini, au lieu d'un simple message qui le laisse continuer. | CRG-11 | Haute | Fait dans la branche |
 | EV-40   | 04/11/2026 | Hors ligne, horodater chaque réponse pour voir lesquelles ont été faites avant et après la fin du cours. | CRG-13, Q-19 | Moyenne | Fait dans la branche |
 | EV-41   | 04/11/2026 | Le premier enseignant dit perdre « la localisation sur l'image de la fiche » quand il exporte. L'ajouter si l'export ne la prend pas. | TAB-10 | Moyenne | Vérifié : voir Q-20 |
+| EV-42   | 04/11/2026 | Un petit indicateur de version en bas de page, pour savoir si le navigateur a la bonne. | INC-01 | Basse | Fait dans la branche |
 
 - **Exigence concernée :** son identifiant (`PLA-03`, `E-01`…), ou rien pour un besoin nouveau.
 - **Priorité :** Haute (empêche une séance), Moyenne (gêne réelle), Basse (confort).
@@ -1122,7 +1123,7 @@ Demande : EV-37, parce que la cause de EV-04 reste inconnue faute de savoir ce q
 fichier `.log` : le journal arrive sans rien demander à la personne, et l'admin le télécharge en `.log` (`INC-02`).
 
 - **INC-01** Ce qui échoue dans un navigateur arrive tout seul au serveur, avec ce que la personne faisait, la raison exacte et sa machine :
-  navigateur et système, langue, écran, mémoire, cœurs, réseau, et la place que le navigateur pense pouvoir utiliser sur le disque. Sont
+  version de la page, navigateur et système, langue, écran, mémoire, cœurs, réseau, et la place que le navigateur pense pouvoir utiliser sur le disque. Sont
   signalés les erreurs du programme, les messages d'erreur affichés, les erreurs du serveur (5xx, 413), une écriture perdue alors que le réseau
   semble là, et une préparation pour le terrain incomplète. Un refus ordinaire (mot de passe, conflit, session expirée) et une lecture perdue ne
   sont pas des pannes. Le fichier autonome, sans serveur, ne signale rien.
@@ -1168,3 +1169,4 @@ fichier `.log` : le journal arrive sans rien demander à la personne, et l'admin
 | 0.22    | 4 novembre 2026   | Journal téléchargeable en `.log` ; charge de 30 à 50 élèves (EV-38, QUA-09) ; bloquer à la fin du cours et horodater les réponses (EV-39, EV-40, CRG-13, Q-19) |
 | 0.23    | 4 novembre 2026   | Étape 7 : le travail se fige à la fin du cours, correction sur la page restée ouverte, compte rendu sans positions réelles, heure de chaque réponse (Q-19 tranchée) |
 | 0.24    | 4 novembre 2026   | EV-04 : symptôme disparu sans cause établie ; EV-41 : export et localisation vérifiés, Q-20 ouverte |
+| 0.25    | 4 novembre 2026   | Version affichée sur chaque page et notée dans le journal (EV-42) |

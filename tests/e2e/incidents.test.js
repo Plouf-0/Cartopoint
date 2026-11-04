@@ -156,6 +156,7 @@ test('INC-01 : la signature de la machine : navigateur, écran, mémoire, et sur
   const { site, teacher } = await teacherSite(t);
   await report(teacher, 'Essai', 'une raison');
   const { machine } = await waitForRow(site, /^une raison$/);
+  assert.equal(machine.version, 'dev', 'EV-42 : sur quelle version c’est arrivé');
   assert.match(machine.browser, /Chrome/);
   assert.equal(machine.language, 'fr-FR');
   assert.match(machine.screen, /^\d+×\d+$/);
@@ -571,6 +572,7 @@ test('INC-02 : l’admin lit ce qui s’est passé, chez qui, et sur quelle mach
       lastAt: '2026-11-04T10:00:00.000Z',
       machine: {
         browser: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        version: '4ac0a38',
         cores: 12,
         memoryGb: 8,
         screen: '1920×1080',
@@ -589,7 +591,7 @@ test('INC-02 : l’admin lit ce qui s’est passé, chez qui, et sur quelle mach
   assert.match(when, /prof@example\.org/);
   assert.match(when, /\/prof\/cours\/abc/);
   const summary = await item.locator('.hint').textContent();
-  assert.match(summary, /^Chrome 120 sur Windows/);
+  assert.match(summary, /^Chrome 120 sur Windows · version 4ac0a38/);
   assert.match(summary, /12 cœurs/);
   assert.match(summary, /8 Go de mémoire ou plus/);
   assert.match(summary, /place pour ce site : 1,2 Mo utilisés sur 85 Go/);

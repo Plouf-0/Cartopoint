@@ -35,6 +35,7 @@ const diskSize = (bytes) => (bytes >= 1e9 ? `${(bytes / 1e9).toLocaleString('fr-
 /** Ce qu'il faut lire d'un coup d'œil. Le texte complet reste dans « Tout voir ». */
 function machineSummary(machine) {
   const parts = [browserName(machine.browser)];
+  if (machine.version) parts.push(`version ${machine.version}`);
   if (machine.cores) parts.push(`${machine.cores} cœurs`);
   // Chrome ne dit jamais plus que 8
   if (machine.memoryGb) parts.push(machine.memoryGb >= 8 ? '8 Go de mémoire ou plus' : `${machine.memoryGb} Go de mémoire`);

@@ -11,7 +11,11 @@
  *   node scripts/build.mjs --outdir autre/dossier   → la même chose ailleurs
  *   node scripts/build.mjs --embed data/project.json --out "dist/Mon projet.html"
  *                                                   → fichier autonome contenant un projet
+ *
+ * La version affichée sur chaque page est le commit, suivi de « + » s'il reste des modifications. APP_VERSION la donne quand git n'est pas là,
+ * comme dans une image Docker : docker build --build-arg APP_VERSION=$(git rev-parse --short HEAD) .
  */
+import { spawnSync } from 'node:child_process';
 import { build } from 'esbuild';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -25,6 +29,15 @@ const outDir = path.resolve(root, args.outdir || 'dist');
 const out = args.out ? path.resolve(root, args.out) : path.join(outDir, 'index.html');
 const SPACE_PAGES = ['prof.html', 'prof-cours.html', 'prof-lancement.html', 'admin.html', 'compte.html', 'accueil.html', 'eleve.html'];
 
+function appVersion() {
+  if (process.env.APP_VERSION) return process.env.APP_VERSION;
+  const git = (...command) => spawnSync('git', command, { cwd: root, encoding: 'utf8' });
+  const commit = git('rev-parse', '--short', 'HEAD');
+  if (commit.status !== 0) return 'inconnue';
+  return commit.stdout.trim() + (git('status', '--porcelain').stdout.trim() ? '+' : '');
+}
+const version = appVersion();
+
 async function bundle(entry) {
   const { outputFiles } = await build({
     entryPoints: [path.join(src, entry)],
@@ -33,7 +46,8 @@ async function bundle(entry) {
     target: ['es2022', 'chrome100', 'firefox100', 'safari15.4'],
     write: false,
     legalComments: 'none',
-    charset: 'utf8'
+    charset: 'utf8',
+    define: { __APP_VERSION__: JSON.stringify(version) }
   });
   // Dans un <script> en ligne, « </script » fermerait la balise : on l'échappe.
   return outputFiles[0].text.replace(/<\/script/gi, '<\\/script');

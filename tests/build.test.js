@@ -40,3 +40,22 @@ test('l’image Docker embarque le code que le serveur partage avec le navigateu
   // model.js utilise lui-même util.js
   for (const name of [...shared, 'util.js']) assert.ok(dockerfile.includes(`src/js/${name}`), name);
 });
+
+test('EV-42 : la version donnée à la construction entre dans chaque page ; sans elle, c’est le commit', async (t) => {
+  const run = (out, version) =>
+    spawnSync(process.execPath, ['scripts/build.mjs', '--outdir', out], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, APP_VERSION: version } });
+  const given = await tempDir(t);
+  assert.equal(run(given, 'essai-42').status, 0);
+  for (const page of PAGES) {
+    const text = readFileSync(path.join(given, page), 'utf8');
+    assert.match(text, /essai-42/, page);
+    assert.doesNotMatch(text, /__APP_VERSION__/, page);
+  }
+
+  const fromGit = await tempDir(t);
+  assert.equal(run(fromGit, '').status, 0);
+  const commit = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8' });
+  // Dans une copie sans dépôt, comme une image Docker, elle le dit au lieu d'inventer
+  const expected = commit.status === 0 ? commit.stdout.trim() : 'inconnue';
+  assert.ok(readFileSync(path.join(fromGit, 'eleve.html'), 'utf8').includes(`"${expected}`), expected);
+});

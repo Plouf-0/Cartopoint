@@ -355,3 +355,7 @@ Dès que la page apprend la fin du cours, par `GET /api/student/state`, elle fig
 - **Ce que voit l'enseignant :** « A fini », « Figé à la fin du cours », « A fini avant la fin, reçu après » ou « A fini après la fin du cours », puis le nombre de réponses faites après la fin.
 - **Le compte rendu d'un élève** (`report.js`) garde ses placements et ses résultats, jamais les positions réelles (`CRG-10`). `report.js` ne dépend plus du code de gestion : `views/report-actions.js` garde ce qui n'existe que dans l'application d'origine.
 
+## Version affichée
+
+Chaque page montre sa version en bas à gauche (`version.js`) : le commit, gravé par `scripts/build.mjs`, suivi de « + » s'il restait des modifications. C'est celle que le navigateur a vraiment, y compris une page gardée par le service worker. Une page servie depuis `src/` affiche « dev ». Une image Docker n'a pas de dépôt git : `docker build --build-arg APP_VERSION=$(git rev-parse --short HEAD) .`, sans quoi elle affiche « inconnue ». Le journal des problèmes note cette version.
+

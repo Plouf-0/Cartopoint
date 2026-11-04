@@ -173,7 +173,7 @@ test('INC-04 : les textes trop longs sont coupés, et un envoi trop gros est ref
     action: long,
     reason: long,
     details: 'x'.repeat(2500),
-    machine: { browser: long, language: long, screen: long, window: long, network: long }
+    machine: { version: long, browser: long, language: long, screen: long, window: long, network: long }
   });
   assert.equal((await send(base, sent)).status, 200);
   const [incident] = await listed(base);
@@ -182,6 +182,7 @@ test('INC-04 : les textes trop longs sont coupés, et un envoi trop gros est ref
   assert.equal(incident.reason.length, 1000);
   assert.equal(incident.details.length, 2000);
   assert.equal(incident.machine.browser.length, 400);
+  assert.equal(incident.machine.version.length, 40);
   assert.equal(incident.machine.language.length, 20);
   assert.equal(incident.machine.screen.length, 20);
   assert.equal(incident.machine.window.length, 20);

@@ -1257,6 +1257,14 @@ const MUTANTS = [
   ['CRG-11 : figé non affiché', 'src/js/prof/launch.js', "participant.autoClosed\n    ? 'Figé", "false\n    ? 'Figé"],
   ['CRG-13 : réponses après la fin non affichées', 'src/js/prof/launch.js', 'participant.answersAfterEnd ? `', 'false ? `'],
   ['CRG-13 : avant ou après la fin confondus', 'src/js/prof/launch.js', 'participant.finishedAfterEnd\n', 'true\n'],
+  // Version affichée
+  ['EV-42 : pas de version à l’écran', 'src/js/version.js', '  document.body.append(label);\n', ''],
+  ['EV-42 : pages construites sans version', 'scripts/build.mjs', 'define: { __APP_VERSION__: JSON.stringify(version) }', 'define: {}'],
+  ['EV-42 : version demandée ignorée', 'scripts/build.mjs', 'if (process.env.APP_VERSION) return process.env.APP_VERSION;', ''],
+  ['EV-42 : la version empêche d’appuyer', 'src/css/app.css', 'font-size: 11px; pointer-events: none; }', 'font-size: 11px; }'],
+  ['EV-42 : journal sans version', 'src/js/incident.js', '    version: APP_VERSION,\n', ''],
+  ['EV-42 : version refusée par le serveur', 'server/incidents.mjs', 'version: 40, ', ''],
+  ['EV-42 : version absente du tableau de bord', 'src/js/admin/incidents.js', 'if (machine.version) parts.push(`version ${machine.version}`);', ''],
   // Hors ligne : la préparation
   ['hors ligne : plan non téléchargé', 'src/js/eleve/offline.js', 'files.add(map.image);', ''],
   ['hors ligne : photos non téléchargées', 'src/js/eleve/offline.js', 'files.add(media.data);', ''],
@@ -1464,6 +1472,7 @@ const TESTS_FOR = {
   'src/js/eleve/correction.js': ['e2e/correction'],
   'src/js/report.js': ['e2e/correction', 'e2e/legacy'],
   'src/js/views/report-actions.js': ['e2e/legacy'],
+  'src/js/version.js': ['e2e/offline'],
   'src/js/eleve/offline.js': ['e2e/offline', 'e2e/incidents'],
   'src/sw.js': ['e2e/offline'],
   'src/index.html': ['offline-site', 'e2e/offline'],

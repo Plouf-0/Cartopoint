@@ -9,6 +9,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY src ./src
 COPY scripts ./scripts
+# Sans dépôt git ici : la version affichée sur les pages vient de là (docker build --build-arg APP_VERSION=$(git rev-parse --short HEAD) .)
+ARG APP_VERSION=
 RUN npm run build
 
 FROM node:24-alpine

@@ -12,7 +12,7 @@ const MAX_ROWS = 500;
 const SHOWN = 200;
 const MAX_PER_MINUTE = 60;
 const TEXT_LIMITS = { page: 200, action: 120, reason: 1000, details: 2000 };
-const MACHINE_TEXTS = { browser: 400, language: 20, screen: 20, window: 20, network: 20 };
+const MACHINE_TEXTS = { version: 40, browser: 400, language: 20, screen: 20, window: 20, network: 20 };
 const MACHINE_NUMBERS = ['pixelRatio', 'cores', 'memoryGb', 'storageUsed', 'storageQuota'];
 const MACHINE_FLAGS = ['online', 'worker'];
 

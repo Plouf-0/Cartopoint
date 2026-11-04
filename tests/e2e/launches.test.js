@@ -263,20 +263,62 @@ test('COU-13 : revenir sur le même QR code reprend le même élève et son trav
   assert.equal(site.db.prepare('SELECT COUNT(*) AS n FROM participants').get().n, 1);
 });
 
-test('fermer l’onglet juste après un placement ne le perd pas', async (t) => {
+/** L'écriture regroupée ne part jamais : seul le changement d'état de la page peut enregistrer le placement. */
+const NO_GROUPED_WRITE = () => {
+  const { setTimeout: later } = window;
+  window.setTimeout = (run, delay, ...rest) => (delay === 250 ? 0 : later(run, delay, ...rest));
+};
+const hasPlacement = async () => {
+  const database = await new Promise((resolve) => {
+    const open = indexedDB.open('inventaire-botanique');
+    open.onsuccess = () => resolve(open.result);
+  });
+  const values = await new Promise((resolve) => {
+    const request = database.transaction('progress').objectStore('progress').getAll();
+    request.onsuccess = () => resolve(request.result);
+  });
+  database.close();
+  return JSON.stringify(values).includes('"x":');
+};
+/** Pas de waitForFunction ici : une fonction asynchrone y rend une promesse, toujours vraie. */
+async function placementWritten(page) {
+  for (let tries = 0; tries < 30; tries++) {
+    if (await page.evaluate(hasPlacement)) return;
+    await page.waitForTimeout(100);
+  }
+  assert.fail('le placement n’a jamais été écrit');
+}
+
+async function placedWithoutWriting(t) {
   const { site, teacher } = await setup(t);
   const code = await launch(teacher, await publishedCourse(teacher));
   const page = await student(t, site);
+  await page.addInitScript(NO_GROUPED_WRITE);
   await enter(page, code);
   await page.locator('[data-place]').first().click();
   const box = await page.locator('#plan').boundingBox();
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await page.locator('.pin').first().waitFor();
-  // Sans attendre l'écriture regroupée : c'est le changement d'état de la page qui la déclenche
+  return page;
+}
+
+test('fermer l’onglet juste après un placement ne le perd pas', async (t) => {
+  const page = await placedWithoutWriting(t);
+  assert.equal(await page.evaluate(hasPlacement), false, 'rien d’écrit pour le moment');
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
-  await page.waitForTimeout(100);
+  await placementWritten(page);
   await page.reload();
   await page.locator('.pin').first().waitFor();
+});
+
+test('passer à une autre application juste après un placement ne le perd pas', async (t) => {
+  const page = await placedWithoutWriting(t);
+  assert.equal(await page.evaluate(hasPlacement), false, 'rien d’écrit pour le moment');
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await placementWritten(page);
 });
 
 test('COU-09 : un nouveau lancement repart à zéro sur le même appareil, même pour un même cours', async (t) => {

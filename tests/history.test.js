@@ -151,6 +151,25 @@ test('HIS-06 : le fichier d’un élève se lit, y compris après la fin, et il 
   assert.equal(seen.finishedAfterEnd, false, 'il avait fini avant de le remettre');
 });
 
+test('HIS-06 : un fichier garde l’heure où l’élève a fini, pas celle où il est remis, et jamais une heure à venir', async (t) => {
+  const { base, db, browser } = await site(t);
+  const launch = await launched(browser);
+  const me = await join(base, launch.code);
+  const other = await join(base, launch.code, 'Tom');
+  await browser.post(`/api/launches/${launch.id}/end`);
+  db.prepare('UPDATE launches SET ended_at = ?').run(new Date(Date.now() - 10 * 60000).toISOString());
+  const target = `/api/launches/${launch.id}/answers-file`;
+
+  const finishedAt = Date.now() - 20 * 60000;
+  await browser.post(target, { ...answersFile(me), finishedAt });
+  assert.equal(Date.parse(row(db, me.id).finished_at), finishedAt);
+  const seen = (await browser.get(`/api/launches/${launch.id}`)).json().participants.find(({ names }) => names === 'Léa');
+  assert.equal(seen.finishedAfterEnd, false, 'il avait fini avant la fin, et l’a remis bien après');
+
+  await browser.post(target, { ...answersFile(other), finishedAt: Date.now() + 60 * 60000 });
+  assert.ok(Date.parse(row(db, other.id).finished_at) <= Date.now());
+});
+
 test('HIS-06 : un fichier fini après la fin du cours se voit, et ses réponses après la fin sont comptées', async (t) => {
   const { base, db, browser } = await site(t);
   const launch = await launched(browser);

@@ -22,7 +22,8 @@ const WATCH_DRAWING = () => {
     return fillText.call(this, text, ...rest);
   };
   CanvasRenderingContext2D.prototype.setLineDash = function (dash) {
-    if (dash.length && dash[0] !== 5) window.drawn.dashes++;
+    // Sur le plan lui-même, de la taille de son image : la légende et le tableau du compte rendu ont aussi leurs pointillés
+    if (dash.length && this.canvas.width === 100) window.drawn.dashes++;
     return setLineDash.call(this, dash);
   };
 };
@@ -168,6 +169,21 @@ test('HIS-09 : le compte rendu d’un élève se télécharge, avec les position
   assert.ok(drawn.texts.includes('Position réelle'));
   assert.ok(drawn.dashes > 0, 'les pointillés vers les positions réelles');
   await teacher.getByText('✓ Compte rendu de Léa Dupont téléchargé').waitFor();
+});
+
+test('HIS-09 : le compte rendu donne les résultats calculés à la réception, ceux de la liste, sans les recalculer', async (t) => {
+  const { site, teacher, launch, openLaunch } = await setup(t);
+  await handIn(site, await join(site, launch, 'Léa'), { f1: entry(40, 60) });
+  const stored = JSON.parse(participant(site, 'Léa').results);
+  stored.maps.m1.fiches.f1 = { state: 'far', d: 77, dist: 'écart gardé par le serveur' };
+  site.db.prepare('UPDATE participants SET results = ?').run(JSON.stringify(stored));
+  await openLaunch();
+  await saved(teacher, () => row(teacher, 'Léa').getByRole('button', { name: 'JPG' }).click());
+  const { texts } = await teacher.evaluate(() => window.drawn);
+  assert.ok(
+    texts.some((text) => text.includes('écart gardé par le serveur')),
+    texts.join(' | ')
+  );
 });
 
 test('E-15 : un navigateur sans roundRect sort quand même le compte rendu', async (t) => {
@@ -405,6 +421,23 @@ test('HOR-09 : des réponses refusées par le serveur peuvent aussi partir par f
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Terminer', exact: true }).click();
   await page.getByRole('button', { name: SAVE_ANSWERS }).waitFor();
+});
+
+test('HIS-06 : la liste suit l’import sans attendre, et le même fichier peut se choisir de nouveau', async (t) => {
+  const { site, teacher, launch, openLaunch } = await setup(t);
+  const page = await studentOffline(t, site, launch);
+  const file = await saved(page, () => page.getByRole('button', { name: SAVE_ANSWERS }).click());
+  // Pas de rafraîchissement régulier : seul l'import peut mettre la liste à jour
+  await teacher.addInitScript(() => {
+    window.setInterval = () => 0;
+  });
+  await openLaunch();
+  await row(teacher, 'Léa Dupont').getByText('A commencé').waitFor();
+  await teacher.locator('#answersFile').setInputFiles({ name: file.name, mimeType: 'application/json', buffer: file.bytes });
+  await row(teacher, 'Léa Dupont')
+    .getByText(/par fichier/)
+    .waitFor();
+  assert.equal(await teacher.locator('#answersFile').inputValue(), '', 'sinon, choisir de nouveau le même fichier ne ferait rien');
 });
 
 test('HIS-06 : un fichier d’un autre lancement, ou illisible, le dit, sans rien changer', async (t) => {

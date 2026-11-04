@@ -172,6 +172,41 @@ test('CRG-11 : une fiche ouverte se referme, et un placement commencé s’annul
   assert.equal(await placing.locator('#placeHint').isVisible(), false);
 });
 
+test('CRG-11 : figé même si l’envoi échoue : plus rien à placer', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launchedCourse(teacher);
+  const page = await newStudent(t, site, code);
+  await placeFirstFiche(page);
+  assert.ok((await page.locator('[data-place]').count()) > 0, 'il restait des fiches à placer');
+  await page.route('**/api/student/answers', (route) => route.abort());
+  await endCourse(teacher);
+  await wakeUp(page);
+  await page.locator('.panel-foot').getByText('Vos réponses restent sur cet appareil').waitFor({ timeout: 10000 });
+  assert.equal(await page.locator('[data-place]').count(), 0);
+});
+
+test('CRG-12 : plusieurs contrôles pendant que la correction arrive ne la demandent qu’une fois', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launchedCourse(teacher);
+  const page = await newStudent(t, site, code);
+  await placeFirstFiche(page);
+  await finish(page);
+  let asked = 0;
+  await page.route('**/api/student/correction', async (route) => {
+    asked++;
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    await route.continue();
+  });
+  await endCourse(teacher);
+  await wakeUp(page);
+  await page.waitForTimeout(300);
+  await wakeUp(page);
+  await page.waitForTimeout(100);
+  await wakeUp(page);
+  await correctionArrived(page);
+  assert.equal(asked, 1);
+});
+
 test('CRG-11 : deux contrôles en même temps n’envoient qu’une fois', async (t) => {
   const { site, teacher } = await setup(t);
   const code = await launchedCourse(teacher);
@@ -510,9 +545,19 @@ test('CRG-08 : un plan aussi utilisé par un autre cours de cet appareil reste g
     database.close();
     sessionStorage.removeItem(`cartopoint.seance.${id}`);
   }, id);
+  // La page retéléchargerait sans rien dire un fichier effacé par erreur : c'est donc l'effacement lui-même qu'il faut regarder
+  await page.addInitScript(() => {
+    window.erased = [];
+    const { delete: erase } = Cache.prototype;
+    Cache.prototype.delete = function (request) {
+      window.erased.push(String(request));
+      return erase.call(this, request);
+    };
+  });
   await page.reload();
   await page.locator('#pageTitle', { hasText: 'Second' }).waitFor();
   const kept = await keptOnDevice(page);
+  assert.deepEqual(await page.evaluate(() => window.erased), [], 'aucun fichier effacé, même un instant');
   assert.deepEqual(kept.media.sort(), before.sort(), 'ce sont les mêmes fichiers : le second cours en a besoin');
   assert.ok(!kept.keys.includes(`cours/${id}`), 'le premier est bien effacé');
   assert.ok(
@@ -653,6 +698,8 @@ test('CRG-13 : terminer sans réseau avant la fin : l’enseignant voit que c’
   await correctionArrived(page);
   assert.equal(participant(site).late, 1);
   assert.equal(participant(site).auto_closed, 0);
+  const { ended_at: endedAt } = site.db.prepare('SELECT ended_at FROM launches').get();
+  assert.ok(Date.parse(participant(site).finished_at) < Date.parse(endedAt), 'l’heure où il a fini, pas celle où c’est arrivé');
   await teacher.reload();
   await teacherRow(teacher).getByText('A fini avant la fin, reçu après').waitFor();
 });

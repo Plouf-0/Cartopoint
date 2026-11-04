@@ -639,7 +639,7 @@ const MUTANTS = [
     'finishedAt: new Date().toISOString() };\n'
   ],
   ['rendu : figé oublié au rechargement', 'src/js/eleve/main.js', '  S.finished = Boolean(submission);\n', ''],
-  ['rendu : réponses non gardées', 'src/js/eleve/main.js', '  await keepSubmission();\n  showCourseState();', '  showCourseState();'],
+  ['rendu : réponses non gardées', 'src/js/eleve/main.js', '  await keepSubmission();\n  await sendAnswers();', '  await sendAnswers();'],
   ['CRG-11 : travail figé non gardé', 'src/js/eleve/main.js', '  await flush();\n  await keepSubmission();\n}', '  await flush();\n}'],
   ['rendu : réponses vides', 'src/js/eleve/main.js', 'S.progress[map.id]?.entries ?? {}', '{}'],
   ['rendu : jamais renvoyé', 'src/js/eleve/main.js', "if (sendState !== 'refused') await sendAnswers();", ''],
@@ -648,7 +648,6 @@ const MUTANTS = [
   ['rendu : réception non découverte', 'src/js/eleve/main.js', "} else if (sendState !== 'received') {", '} else if (false) {'],
   ['rendu : pas de bouton Réessayer', 'src/js/eleve/main.js', "${sendState === 'waiting' ?", '${false ?'],
   ['rendu : hors ligne, prétend envoyer', 'src/js/eleve/main.js', "if (submission && !navigator.onLine) sendState = 'waiting';", ''],
-  ['rendu : invitation restée après avoir rendu', 'src/js/eleve/main.js', '  showCourseState();\n  await sendAnswers();', '  await sendAnswers();'],
   ['rendu : pas d’invitation à la fin du cours', 'src/js/eleve/main.js', 'if (courseEnded)', 'if (false)'],
   ['figé : règle commune sans le rendu', 'src/js/store.js', '!S.admin && (verified() || S.finished)', '!S.admin && verified()'],
   [
@@ -834,6 +833,7 @@ const MUTANTS = [
     ''
   ],
   ['élève : travail perdu si la page se ferme', 'src/js/eleve/main.js', "window.addEventListener('pagehide', () => flush());", ''],
+  ['élève : travail perdu en passant à une autre application', 'src/js/eleve/main.js', "document.visibilityState === 'hidden' && flush()", 'false'],
   ['élève : travail non relu', 'src/js/eleve/main.js', 'if (saved) work[map.id] = normalizeProgress(saved);', ''],
   ['élève : travail non écrit', 'src/js/backends/student.js', 'for (const [key, value] of progress) await Progress.put(key, value);', ''],
   [
@@ -1731,7 +1731,7 @@ const TESTS_FOR = {
   'src/js/accueil.js': ['e2e/launches'],
   'src/js/eleve/main.js': ['e2e/offline', 'e2e/launches', 'e2e/incidents', 'e2e/correction', 'e2e/history'],
   'src/js/eleve/network-icon.js': ['e2e/offline'],
-  'src/eleve.html': ['e2e/offline'],
+  'src/eleve.html': ['e2e/offline', 'e2e/launches'],
   'src/js/incident.js': ['incidents', 'e2e/incidents', 'e2e/offline'],
   'src/js/main.js': ['e2e/incidents'],
   'src/js/admin/incidents.js': ['e2e/incidents'],

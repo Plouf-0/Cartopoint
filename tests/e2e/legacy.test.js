@@ -327,9 +327,13 @@ test('une fois vérifié, sans noms, télécharger le compte rendu ou le fichier
   await page.locator('#dlgResults[open]').waitFor({ state: 'detached' });
   assert.equal(await page.locator('#studentNames').evaluate((input) => input === document.activeElement), true);
 
+  let downloads = 0;
+  page.on('download', () => downloads++);
   await page.locator('#showResults').click();
   await page.locator('#resTeacher').click();
   await page.locator('#dlgResults[open]').waitFor({ state: 'detached' });
+  await page.waitForTimeout(300);
+  assert.equal(downloads, 0, 'rien ne part sans les noms');
 });
 
 test('une fois vérifié, l’image, le compte rendu et le fichier pour l’enseignant se téléchargent, à ses noms', async (t) => {

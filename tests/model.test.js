@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  meanGap,
   draftOf,
   normalizeProject,
   normalizeProgress,
@@ -178,4 +179,11 @@ test('CRG-09 : un résultat se présente pareil, calculé ici ou reçu du serveu
     assert.equal(result.cls, gradeOf(state).cls);
   }
   assert.equal(evaluate({ refX: null, refY: null }, { x: 1, y: 1 }).label, gradeOf('noref').label);
+});
+
+test('HIS-03 : la précision moyenne passe en mètres selon l’échelle de la carte, sans compter les fiches non placées', () => {
+  const results = { maps: { m1: { fiches: { a: { d: 10 }, b: { d: 5 }, c: { state: 'unplaced' } } } } };
+  assert.equal(meanGap({ maps: [{ id: 'm1', widthMeters: 200 }] }, results), 15, 'écarts de 20 et de 10 mètres');
+  assert.equal(meanGap({ maps: [{ id: 'm1', widthMeters: null }] }, results), 7.5, 'sans échelle, en % du plan');
+  assert.equal(meanGap({ maps: [{ id: 'm1', widthMeters: 200 }] }, { maps: {} }), null, 'rien de placé, pas de précision');
 });

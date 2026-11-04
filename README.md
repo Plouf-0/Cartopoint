@@ -45,6 +45,11 @@ ADMIN_EMAIL=moi@example.org ADMIN_PASSWORD='un-mot-de-passe' npm run dev
 En développement, les pages chargent `src/js/` en modules ES : modifiez un fichier et rechargez. Le fichier de secours ne se télécharge qu'après
 `npm run build`, servi avec `npm start`.
 
+## Navigateurs
+
+Chrome, Firefox et Safari récents, sur ordinateur et sur téléphone : c'est ce qui est testé et corrigé. Rien ne bloque les autres. Edge, Brave, Opera et Samsung Internet utilisent le
+moteur de Chrome. Une version antérieure à 2022 (Chrome 100, Firefox 100, Safari 15.4) peut ne pas ouvrir les pages.
+
 ## Numéro de version
 
 `x.y.z` dans `package.json` : `x` pour un changement rétro-incompatible, `y` pour un ajout de fonctionnalité, `z` pour une correction. Les versions `0.y.z`
@@ -155,3 +160,7 @@ tests/                  tests node:test ; e2e/ pour les parcours dans le navigat
 ```
 
 Détails dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Licence
+
+GNU GPL version 3 : voir [LICENSE](LICENSE). Les polices sont sous licence SIL OFL (`src/assets/fonts/`), et le générateur de QR code sous licence MIT (`src/js/vendor/`).

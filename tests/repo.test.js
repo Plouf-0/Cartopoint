@@ -75,6 +75,13 @@ test('QUA-05 : chaque exigence de la section 12 du cahier a au moins un test qui
   );
 });
 
+test('Q-07 : package.json annonce la licence du fichier LICENSE', () => {
+  const license = readFileSync(path.join(ROOT, 'LICENSE'), 'utf8');
+  assert.match(license, /GNU GENERAL PUBLIC LICENSE\s+Version 3,/);
+  assert.equal(JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).license, 'GPL-3.0-only');
+  assert.equal(JSON.parse(readFileSync(path.join(ROOT, 'package-lock.json'), 'utf8')).packages[''].license, 'GPL-3.0-only');
+});
+
 test('Git ignore les données, les bases et les secrets', () => {
   const ignored = readFileSync(path.join(ROOT, '.gitignore'), 'utf8').split('\n');
   for (const entry of ['data/', '.dev-data/', '.env', '*.db', '*.sqlite']) assert.ok(ignored.includes(entry), entry);

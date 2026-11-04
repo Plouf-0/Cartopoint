@@ -242,7 +242,6 @@ async function finish() {
   S.finished = true;
   S.ui.placing = null;
   await keepSubmission();
-  showCourseState();
   await sendAnswers();
 }
 

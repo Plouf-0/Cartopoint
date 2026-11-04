@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.32** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.33** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -795,10 +795,9 @@ Ces choix ne se déduisent pas du code. Les pistes sont des suggestions.
   doivent continuer à s'ouvrir.
 - **Q-06 — Les seuils de correction doivent-ils être réglables ?** Ils sont fixes (4 % et 10 %), quelle que
   soit la taille du terrain : sur 180 m de large, par exemple, cela fait environ 7 m et 18 m.
-- **Q-07 — Sous quelle licence ?** `LICENSE` contient la GPL v3, alors que `package.json` indique
-  `UNLICENSED`. Il faut choisir l'une des deux.
-- **Q-08 — Quelles cibles officielles ?** Navigateurs et appareils pris en charge (voir E-15), et niveau
-  d'accessibilité visé : le RGAA s'impose si l'application est diffusée par un établissement public.
+- **Q-07 — Sous quelle licence ?** **Tranchée le 4 novembre 2026 :** la GPL v3, celle du fichier `LICENSE`. `package.json` dit désormais `GPL-3.0-only`.
+- **Q-08 — Quelles cibles officielles ?** **Tranchée en partie le 4 novembre 2026 :** Chrome, Firefox et Safari récents, sur ordinateur et sur téléphone. Rien ne bloque les autres navigateurs : ce sont
+  ceux qui sont testés et corrigés. **Reporté par l'utilisateur :** le niveau d'accessibilité. Le RGAA s'impose si l'application est diffusée par un établissement public, et placer une fiche exige encore un pointeur (E-15).
 
 - **Q-19 — Les réponses faites après la fin du cours comptent-elles dans le score ?** **Tranchée le 4 novembre 2026 :** oui, et l'enseignant voit combien
   il y en a (`CRG-13`). Un élève sans réseau ne peut pas savoir que le cours est fini, et l'heure d'un téléphone n'est qu'une indication.
@@ -852,7 +851,7 @@ Toutes le 1er novembre 2026.
 ## 12. Fonctionnement cible
 
 Ce qui suit **n'est pas encore en place**. Une fois livrées, ces exigences rejoignent les sections 4 à 8
-et remplacent celles qu'elles contredisent. Les questions encore ouvertes (Q-06, Q-07 et Q-08) ne bloquent pas ce fonctionnement.
+et remplacent celles qu'elles contredisent. Les questions encore ouvertes (Q-06 et l'accessibilité de Q-08) ne bloquent pas ce fonctionnement.
 
 **Parcours visé**
 
@@ -1187,3 +1186,4 @@ fichier `.log` : le journal arrive sans rien demander à la personne, et l'admin
 | 0.30    | 4 novembre 2026   | Étape 9 : fichier de secours d'un cours (EXP-03, EXP-04) ; une photo manquante à l'enregistrement est annoncée |
 | 0.31    | 4 novembre 2026   | EV-45 : l'heure de lancement sur le JPG, la correction, l'Excel, la page du lancement, la liste des lancements et le nom des fichiers |
 | 0.32    | 4 novembre 2026   | Étape 10, sur la branche : l'accueil à la racine, l'ancienne publication retirée (`SRV-02` à `SRV-08`, `MUL-01`, `MUL-02`), E-04 derrière Cloudflare, E-15 en partie. La section 12 rejoindra les sections 4 à 8 une fois la production passée |
+| 0.33    | 4 novembre 2026   | Q-07 tranchée (GPL v3), Q-08 tranchée pour les navigateurs, l'accessibilité reportée |

@@ -359,3 +359,14 @@ Dès que la page apprend la fin du cours, par `GET /api/student/state`, elle fig
 
 Chaque page montre sa version en bas à gauche (`version.js`) : le commit, gravé par `scripts/build.mjs`, suivi de « + » s'il restait des modifications. C'est celle que le navigateur a vraiment, y compris une page gardée par le service worker. Une page servie depuis `src/` affiche « dev ». Une image Docker n'a pas de dépôt git : `docker build --build-arg APP_VERSION=$(git rev-parse --short HEAD) .`, sans quoi elle affiche « inconnue ». Le journal des problèmes note cette version.
 
+## Historique
+
+La page d'un lancement (`prof/launch.js`, `prof/launch-results.js`) reste celle de son suivi : une fois le cours fini, c'est aussi son historique.
+
+- **La liste** vient de `GET /api/launches/:id`, toutes les 5 secondes : état, score, précision moyenne et note de chacun. Elle ne se redessine pas pendant qu'on écrit une note.
+- **Le reste** vient de `GET /api/launches/:id/sheets`, à la demande : le cours avec ses positions réelles, et les réponses de chacun. Un autre enseignant reçoit 404 (`ANO-06`).
+- **Les comptes rendus** (`prof/student-reports.js`) réutilisent `report.js`, qui dessine à partir de l'état commun : cette page y met tour à tour chaque élève. `S.admin` y fait apparaître les positions réelles et les écarts. Plusieurs fichiers partent dans un `.zip` (`zip.js`, sans compression : les JPG ne se compressent plus), car un navigateur bloque les téléchargements multiples.
+- **L'Excel** (`prof/results-workbook.js` pour le contenu, `xlsx-write.js` pour le fichier, tous deux sans écran, donc testés sans navigateur). `xlsx.js` reste le lecteur. Un texte y est toujours écrit comme du texte : aucune formule possible. La précision moyenne vient de `meanGap()` (`model.js`), partagée avec le serveur.
+- **Le fichier de réponses** (`format: cartopoint-reponses`) est proposé à l'élève quand l'envoi n'aboutit pas. `POST /api/launches/:id/answers-file` suit le même chemin qu'un envoi : le premier rendu reçu fait foi (`HIS-07`). Sans signature : un enseignant qui importe un fichier fait confiance à celui qui le lui donne.
+- **La purge** (`launches.purge()`, chaque heure, avant celle des fichiers) efface un lancement un an après sa fin ou, s'il n'a jamais été terminé, après sa dernière activité.
+

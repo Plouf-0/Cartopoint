@@ -111,7 +111,7 @@ test('CRG-06, CRG-09 : la correction donne les positions réelles, le résultat 
   assert.equal(response.headers['cache-control'], 'no-store');
   const { maps, score } = body(response);
   assert.deepEqual(score, { ok: 1, near: 0, far: 1, unplaced: 1, noref: 1 });
-  assert.deepEqual(maps.m1.fiches.f1, { state: 'ok', d: 0, dist: '0.0 m', refX: REF.x, refY: REF.y });
+  assert.deepEqual(maps.m1.fiches.f1, { state: 'ok', d: 0, dist: '0,0 m', refX: REF.x, refY: REF.y });
   assert.equal(maps.m1.fiches.f2.state, 'far');
   assert.equal(maps.m1.fiches.f2.dist, '50 m');
   assert.equal(maps.m2.fiches.f3.state, 'unplaced');

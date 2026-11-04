@@ -124,7 +124,8 @@ async function fontsReady() {
  * Compte rendu complet sur une seule image :
  *   titre, élèves, carte, date, score · plan avec repères · tableau des fiches et mesures.
  */
-async function drawReport(names) {
+/** @param note la note que l'enseignant a donnée, s'il en a donné une */
+async function drawReport(names, { note = '' } = {}) {
   await fontsReady();
   const pal = paletteOf(S.project.theme);
   const rows = resultRows();
@@ -169,6 +170,11 @@ async function drawReport(names) {
     ctx.font = `24px ${SANS}`;
     ctx.fillStyle = pal.inkSoft;
     ctx.fillText(`bien placée(s)${near ? ` · ${near} proche(s)` : ''}`, W - P, y + 80);
+    if (note) {
+      ctx.font = `600 30px ${SANS}`;
+      ctx.fillStyle = pal.ink;
+      ctx.fillText(fit(ctx, `Note : ${note}`, 340), W - P, y + 122);
+    }
     ctx.textAlign = 'left';
   }
 
@@ -309,6 +315,11 @@ const toJpeg = (canvas) => new Promise((resolve) => canvas.toBlob(resolve, 'imag
 /* ------------------------------------------------------------------ */
 /* Téléchargements                                                      */
 /* ------------------------------------------------------------------ */
+
+/** Le compte rendu en JPG, pour le télécharger ou le ranger dans une archive. */
+export const reportBlob = async (names, options) => toJpeg(await drawReport(names, options));
+/** Le plan en JPG, avec les positions réelles et les écarts. */
+export const planImageBlob = async () => toJpeg(await drawPlan(true));
 
 export async function downloadPlanImage(names) {
   try {

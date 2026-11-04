@@ -44,8 +44,9 @@ export function createApp({ root, data, password = '', maxBody = 100 * 1024 * 10
     db,
     backup: () => backupDatabase(db, path.join(data, 'backups')),
     purge() {
-      // Dans cet ordre : un compte effacé libère ses fichiers
+      // Dans cet ordre : un compte effacé ou un lancement trop ancien libèrent leurs fichiers
       auth.purge();
+      launches.purge();
       media.purge();
       incidents.purge();
     },

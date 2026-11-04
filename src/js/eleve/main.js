@@ -14,7 +14,7 @@ import { normalizeProgress, normalizeProject, placedPos } from '../model.js';
 import { onRender, render } from '../render.js';
 import { S, activate, flush, listed, posOf, switchMap, useBackend } from '../store.js';
 import { applyTheme } from '../themes.js';
-import { $, errorText, esc, fatal, prefs, toast } from '../util.js';
+import { $, download, errorText, esc, fatal, prefs, safeFileName, toast } from '../util.js';
 import { bindMap, renderMap } from '../views/map.js';
 import { fillPanel } from '../views/panel-frame.js';
 import { bindReader } from '../views/reader.js';
@@ -161,6 +161,7 @@ function footHTML() {
   return `<div class="panel-foot">
       <div class="locked-note" role="status">🔒 Travail terminé : il ne peut plus être modifié.<br>${SEND_STATES[sendState]}</div>
       ${sendState === 'waiting' ? '<button type="button" class="btn soft" id="retrySend">Réessayer</button>' : ''}
+      ${sendState === 'waiting' || sendState === 'refused' ? '<button type="button" class="btn ghost" id="saveAnswers">Télécharger mes réponses, à donner à l’enseignant</button>' : ''}
     </div>`;
 }
 
@@ -168,6 +169,7 @@ function bindPanel(panel) {
   bindStudentList(panel);
   $('#finishBtn')?.addEventListener('click', finish);
   $('#retrySend')?.addEventListener('click', sendAnswers);
+  $('#saveAnswers')?.addEventListener('click', saveAnswersFile);
   $('#seeCorrection')?.addEventListener('click', () => showCorrection(studentNames));
 }
 
@@ -210,6 +212,13 @@ async function sendAnswers() {
   render();
   // Le contrôle qui a appris la fin du cours a pu passer pendant cet envoi : la correction n'attend pas le suivant
   if (courseEnded && sendState === 'received') await receiveCorrection();
+}
+
+/** Sans réseau, le travail peut quand même arriver : ce fichier contient ses réponses, jamais la correction (HOR-09). */
+function saveAnswersFile() {
+  const { answers, finishedAt } = submission;
+  const file = { format: 'cartopoint-reponses', version: 1, participantId: studentId, names: studentNames, answers, finishedAt: Date.parse(finishedAt) };
+  download(JSON.stringify(file), `${safeFileName(`Réponses - ${studentNames}`)}.json`, 'application/json');
 }
 
 const currentAnswers = () => Object.fromEntries(S.project.maps.map((map) => [map.id, S.progress[map.id]?.entries ?? {}]));

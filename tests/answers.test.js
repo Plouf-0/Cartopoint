@@ -104,7 +104,7 @@ test('CRG-09 : le résultat est celui de evaluate(), avec le rapport et l’éch
   const expected = evaluate(fiche, answers.m1.f1, { ratio: 2, widthMeters: 200 });
   assert.equal(expected.state, 'ok');
   assert.deepEqual(results.maps.m1.fiches.f1, { state: 'ok', d: expected.d, dist: expected.dist });
-  assert.equal(results.maps.m1.fiches.f1.dist, '2.0 m', '1 % d’un plan de 200 m');
+  assert.equal(results.maps.m1.fiches.f1.dist, '2,0 m', '1 % d’un plan de 200 m, à la française');
   assert.deepEqual(results.maps.m2.fiches.f4.state, 'far');
   assert.match(results.maps.m2.fiches.f4.dist, /% du plan/, 'sans échelle, l’écart reste en pourcentage');
 });

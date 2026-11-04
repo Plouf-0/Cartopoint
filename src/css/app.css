@@ -465,6 +465,14 @@ table.teachers .row-actions .btn { white-space: normal; }
 .participants li { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding: 8px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
 .participant-state { font-size: 13px; color: var(--ink-soft); }
 .participant-state.done { color: var(--accent-dark); font-weight: 700; }
+.participant-name { flex: 1 1 180px; overflow-wrap: anywhere; }
+.participant-score { flex-basis: 100%; font-size: 13px; color: var(--ink-soft); }
+.participants .row-actions { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.note-input { width: 110px; padding: 4px 8px; font-size: 14px; }
+.results-section { margin-top: 14px; display: grid; gap: 10px; justify-items: start; }
+.results-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.detail-dialog { width: min(980px, 96vw); }
+.detail-plan { display: block; width: 100%; height: auto; margin: 8px 0 12px; border-radius: 8px; }
 .launch-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
 
 /* Accueil */

@@ -410,10 +410,10 @@ test('un code terminé ne compte pas comme un essai raté', async (t) => {
   assert.equal(status, 410);
 });
 
-test('COU-08 : un lancement n’expire pas tout seul', async (t) => {
+test('COU-08 : un lancement n’expire pas tout seul, même après des mois sans activité', async (t) => {
   const { base, app, db } = await site(t);
   const { launch } = await launched(await loggedIn(base));
-  db.prepare('UPDATE launches SET opened_at = ?').run('2020-01-01T00:00:00.000Z');
+  db.prepare('UPDATE launches SET opened_at = ?').run(new Date(Date.now() - 300 * 24 * 60 * 60 * 1000).toISOString());
   app.purge();
   assert.equal((await student(base).get(`/api/join/${launch.code}`)).status, 200);
 });

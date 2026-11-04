@@ -3,6 +3,7 @@
  * propre code (COU-06). Un élève n'a pas de compte : un jeton, gardé par son navigateur, le reconnaît.
  */
 import { AFTER_END_GRACE } from './answers.mjs';
+import { meanGap, normalizeProject, usesMeters } from '../src/js/model.js';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { hashToken } from './auth.mjs';
 import { HttpError } from './http.mjs';
@@ -13,6 +14,8 @@ const CODE_LENGTH = 6;
 const CODE_ATTEMPTS = 5;
 export const MAX_PARTICIPANTS = 200;
 export const MAX_NAMES = 120;
+export const MAX_NOTE = 40;
+export const KEEP_LAUNCH_MS = 365 * 24 * 60 * 60 * 1000;
 
 const iso = () => new Date().toISOString();
 
@@ -40,7 +43,9 @@ export function normalizeNames(value) {
   return names;
 }
 
-export function createLaunches(db, { makeCode = newCode } = {}) {
+export function createLaunches(db, { makeCode = newCode, now = Date.now } = {}) {
+  /** Le cours du lancement tel qu'il a été publié, positions réelles comprises. */
+  const contentOf = (row) => normalizeProject(JSON.parse(db.prepare('SELECT content FROM course_versions WHERE id = ?').get(row.version_id).content));
   const participantsOf = (launchId) => db.prepare('SELECT * FROM participants WHERE launch_id = ? ORDER BY joined_at, rowid').all(launchId);
   const participantCount = (launchId) => db.prepare('SELECT COUNT(*) AS n FROM participants WHERE launch_id = ?').get(launchId).n;
   const versionNumber = (versionId) => db.prepare('SELECT number FROM course_versions WHERE id = ?').get(versionId).number;
@@ -94,9 +99,11 @@ export function createLaunches(db, { makeCode = newCode } = {}) {
     /** Ce que voit l'enseignant, et lui seul : les noms de ses élèves et leur état (SUI-01). */
     details(row) {
       const course = db.prepare('SELECT title FROM courses WHERE id = ?').get(row.course_id);
+      const project = contentOf(row);
       return {
         ...summary(row),
         title: course.title,
+        gapUnit: usesMeters(project) ? 'm' : '% du plan',
         participants: participantsOf(row.id).map((p) => ({
           id: p.id,
           names: p.names,
@@ -105,9 +112,59 @@ export function createLaunches(db, { makeCode = newCode } = {}) {
           late: Boolean(p.late),
           autoClosed: Boolean(p.auto_closed),
           answersAfterEnd: p.answers_after_end,
-          finishedAfterEnd: Boolean(row.ended_at && p.finished_at && Date.parse(p.finished_at) > Date.parse(row.ended_at) + AFTER_END_GRACE)
+          finishedAfterEnd: Boolean(row.ended_at && p.finished_at && Date.parse(p.finished_at) > Date.parse(row.ended_at) + AFTER_END_GRACE),
+          byFile: Boolean(p.by_file),
+          note: p.note,
+          score: p.results ? JSON.parse(p.results).score : null,
+          meanGap: p.results ? meanGap(project, JSON.parse(p.results)) : null
         }))
       };
+    },
+
+    /**
+     * Tout ce qu'il faut pour les comptes rendus et le fichier Excel, en une fois : le cours du lancement, positions réelles comprises, et les réponses de chacun.
+     * Ne part que vers l'enseignant du cours (HIS-04, ANO-06).
+     */
+    sheets(row) {
+      const stored = new Map(participantsOf(row.id).map((p) => [p.id, p]));
+      const details = this.details(row);
+      return {
+        ...details,
+        grace: AFTER_END_GRACE,
+        course: contentOf(row),
+        participants: details.participants.map((p) => {
+          const { answers, results } = stored.get(p.id);
+          return { ...p, answers: answers ? JSON.parse(answers) : null, results: results ? JSON.parse(results) : null };
+        })
+      };
+    },
+
+    /** La note que l'enseignant donne à un élève, s'il en donne une. Effacer, c'est enregistrer une note vide. */
+    setNote(row, participantId, rawNote) {
+      if (typeof rawNote !== 'string') throw new HttpError(400, 'Note illisible.');
+      const note = rawNote.trim().slice(0, MAX_NOTE);
+      const { changes } = db.prepare('UPDATE participants SET note = ? WHERE id = ? AND launch_id = ?').run(note, participantId, row.id);
+      if (!changes) throw new HttpError(404, 'Introuvable');
+      return { note };
+    },
+
+    /** L'élève d'un fichier de réponses : seulement s'il appartient à ce lancement (HIS-06). Comme par le réseau, le premier rendu reçu fait foi (HIS-07). */
+    forFile(row, participantId) {
+      const participant = db.prepare('SELECT id, names, submitted_at FROM participants WHERE id = ? AND launch_id = ?').get(participantId, row.id);
+      if (!participant) throw new HttpError(400, 'Ce fichier vient d’un autre lancement de ce cours, ou d’un autre cours.');
+      return { ...participant, ended_at: row.ended_at, content: db.prepare('SELECT content FROM course_versions WHERE id = ?').get(row.version_id).content };
+    },
+
+    /** Supprimer un lancement terminé, avec ses élèves et leurs réponses (HIS-05). Celui qui est en marche se termine d'abord. */
+    remove(row) {
+      if (!row.ended_at) throw new HttpError(409, "Terminez d'abord ce cours : des élèves y travaillent peut-être encore.");
+      db.prepare('DELETE FROM launches WHERE id = ?').run(row.id);
+    },
+
+    /** Un an après la fin du cours ou, pour un cours jamais terminé, après sa dernière activité (HIS-05). */
+    purge() {
+      const lastActivity = 'SELECT MAX(COALESCE(p.submitted_at, p.joined_at)) FROM participants p WHERE p.launch_id = launches.id';
+      db.prepare(`DELETE FROM launches WHERE COALESCE(ended_at, (${lastActivity}), opened_at) < ?`).run(new Date(now() - KEEP_LAUNCH_MS).toISOString());
     },
 
     /** Terminer deux fois garde la première date. */
@@ -147,10 +204,10 @@ export function createLaunches(db, { makeCode = newCode } = {}) {
      * l'apprend (CRG-11). Figer n'a pas de sens avant la fin : le dire alors ne compte pas.
      * @returns la date du rendu gardé
      */
-    submit(participant, answers, results, { autoClosed = false, finishedAt = null, afterEnd = 0 } = {}) {
+    submit(participant, answers, results, { autoClosed = false, finishedAt = null, afterEnd = 0, byFile = false } = {}) {
       const closedByEnd = autoClosed && Boolean(participant.ended_at);
       db.prepare(
-        'UPDATE participants SET answers = ?, results = ?, submitted_at = ?, late = ?, auto_closed = ?, answers_after_end = ?, finished_at = ? WHERE id = ? AND submitted_at IS NULL'
+        'UPDATE participants SET answers = ?, results = ?, submitted_at = ?, late = ?, auto_closed = ?, answers_after_end = ?, finished_at = ?, by_file = ? WHERE id = ? AND submitted_at IS NULL'
       ).run(
         JSON.stringify(answers),
         JSON.stringify(results),
@@ -159,6 +216,7 @@ export function createLaunches(db, { makeCode = newCode } = {}) {
         closedByEnd ? 1 : 0,
         afterEnd,
         finishedAt,
+        byFile ? 1 : 0,
         participant.id
       );
       return db.prepare('SELECT submitted_at FROM participants WHERE id = ?').get(participant.id).submitted_at;

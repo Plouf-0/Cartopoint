@@ -246,9 +246,24 @@ export function evaluate(fiche, entry, { ratio = 1, widthMeters = null } = {}) {
   if (!p) return { state: 'unplaced', ...gradeOf('unplaced') };
   const d = Math.hypot(p.x - fiche.refX, (p.y - fiche.refY) / ratio);
   const meters = widthMeters ? (d / 100) * widthMeters : null;
-  const dist = meters !== null ? `${meters < 10 ? meters.toFixed(1) : Math.round(meters)} m` : `${d.toFixed(1)} % du plan`;
+  const decimal = (value) => value.toFixed(1).replace('.', ',');
+  const dist = meters !== null ? `${meters < 10 ? decimal(meters) : Math.round(meters)} m` : `${decimal(d)} % du plan`;
   const state = d <= THRESHOLDS.ok ? 'ok' : d <= THRESHOLDS.near ? 'near' : 'far';
   return { state, ...gradeOf(state), d, dist };
+}
+
+/** Les écarts d'un cours s'expriment en mètres si toutes ses cartes connaissent leur largeur réelle, sinon en % de la largeur du plan. */
+export const usesMeters = (project) => project.maps.length > 0 && project.maps.every((map) => map.widthMeters);
+
+/** La précision moyenne d'un élève, à partir des résultats du serveur : les fiches non placées n'y entrent pas. */
+export function meanGap(project, results) {
+  const meters = usesMeters(project);
+  const gaps = project.maps.flatMap((map) =>
+    Object.values(results.maps[map.id]?.fiches ?? {})
+      .filter(({ d }) => d !== undefined)
+      .map(({ d }) => (meters ? (d / 100) * map.widthMeters : d))
+  );
+  return gaps.length ? gaps.reduce((total, gap) => total + gap, 0) / gaps.length : null;
 }
 
 /** Range les fiches par réf. photo (1, 2, 5a, 5b, 10…), celles sans réf. à la fin. */

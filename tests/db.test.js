@@ -8,7 +8,7 @@ import { tempDir } from './helpers.js';
 
 const TABLES = ['accounts', 'course_versions', 'courses', 'incidents', 'launches', 'links', 'media', 'participants', 'sessions'];
 
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 const version = (db) => db.prepare('PRAGMA user_version').get().user_version;
 const count = (db, table) => db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
 const tables = (db) =>

@@ -22,7 +22,7 @@ import { mergeCalled, sourceLines } from './browser-coverage.mjs';
 
 const GROUPS = [
   { name: 'Serveur', dir: 'server', files: /\.mjs$/, min: { lines: 95, branches: 90, functions: 95 } },
-  { name: 'Navigateur', dir: 'src/js', files: /^(?!vendor\/).*\.js$/, min: { lines: 93, branches: 86, functions: 87 } }
+  { name: 'Navigateur', dir: 'src/js', files: /^(?!vendor\/).*\.js$/, min: { lines: 93, branches: 90, functions: 89 } }
 ];
 
 const listFiles = (dir, pattern) =>

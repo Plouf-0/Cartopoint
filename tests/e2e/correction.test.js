@@ -236,7 +236,7 @@ test('CRG-12, CRG-06 : la correction arrive sans rien faire : positions réelles
   await dialog.locator('tr', { hasText: 'Noisetier' }).getByText('Bien placée').waitFor();
   await dialog
     .locator('tr', { hasText: 'Noisetier' })
-    .getByText(/^\d+\.\d % du plan$/)
+    .getByText(/^\d+,\d % du plan$/)
     .waitFor();
   await dialog.locator('tr', { hasText: 'Sans position' }).getByText('Pas de position réelle').waitFor();
   await dialog.getByText('Cette correction disparaît quand vous fermez la page').waitFor();

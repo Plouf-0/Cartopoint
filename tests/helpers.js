@@ -85,6 +85,8 @@ export function client(base) {
   return {
     get: (target, headers) => call('GET', target, undefined, headers),
     post: (target, body = {}, headers) => call('POST', target, body, headers),
+    put: (target, body = {}, headers) => call('PUT', target, body, headers),
+    delete: (target, headers) => call('DELETE', target, undefined, headers),
     raw: call,
     get cookie() {
       return cookie;
@@ -116,4 +118,42 @@ export function cheapHash(password) {
   const salt = randomBytes(16);
   const key = scryptSync(password, salt, 32, { N: 1024, r: 8, p: 1 });
   return ['scrypt', 1024, 8, 1, salt.toString('base64'), key.toString('base64')].join('$');
+}
+
+/** Relit une archive ZIP sans compression, comme celles du site : { nom du fichier : octets }. Passe par la table centrale, comme un vrai lecteur. */
+export function readZip(buffer) {
+  const end = buffer.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  const count = buffer.readUInt16LE(end + 10);
+  let at = buffer.readUInt32LE(end + 16);
+  const files = {};
+  for (let i = 0; i < count; i++) {
+    const size = buffer.readUInt32LE(at + 24);
+    const nameLength = buffer.readUInt16LE(at + 28);
+    const offset = buffer.readUInt32LE(at + 42);
+    const name = buffer.toString('utf8', at + 46, at + 46 + nameLength);
+    const start = offset + 30 + buffer.readUInt16LE(offset + 26) + buffer.readUInt16LE(offset + 28);
+    files[name] = buffer.subarray(start, start + size);
+    at += 46 + nameLength;
+  }
+  return files;
+}
+
+/** Les lignes d'une page d'un classeur : texte ou nombre, chaque cellule à sa place. */
+export function sheetRows(xml) {
+  const columnIndex = (reference) => [...reference.match(/^[A-Z]+/)[0]].reduce((total, letter) => total * 26 + letter.charCodeAt(0) - 64, 0) - 1;
+  const unescape = (text) =>
+    text
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&amp;/g, '&');
+  return [...xml.matchAll(/<row [^>]*?(?:\/>|>(.*?)<\/row>)/g)].map(([, body = '']) => {
+    const row = [];
+    for (const [, reference, attributes, content] of body.matchAll(/<c r="([A-Z]+\d+)"([^>]*)>(.*?)<\/c>/g)) {
+      row[columnIndex(reference)] = attributes.includes('inlineStr')
+        ? unescape(content.match(/<t[^>]*>(.*?)<\/t>/)[1])
+        : Number(content.match(/<v>(.*?)<\/v>/)[1]);
+    }
+    return Array.from(row, (cell) => cell ?? null);
+  });
 }

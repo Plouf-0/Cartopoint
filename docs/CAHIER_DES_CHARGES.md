@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.26** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.27** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -78,7 +78,7 @@ trace.
 | EV-40   | 04/11/2026 | Hors ligne, horodater chaque réponse pour voir lesquelles ont été faites avant et après la fin du cours. | CRG-13, Q-19 | Moyenne | Fait dans la branche |
 | EV-41   | 04/11/2026 | Le premier enseignant dit perdre « la localisation sur l'image de la fiche » quand il exporte. L'ajouter si l'export ne la prend pas. | TAB-10 | Moyenne | Vérifié : voir Q-20 |
 | EV-42   | 04/11/2026 | Un petit indicateur de version en bas de page, pour savoir si le navigateur a la bonne. | INC-01 | Basse | Fait dans la branche |
-| EV-43   | 04/11/2026 | L'enseignant peut sortir le JPG de chaque élève, et un Excel : une page par élève avec toutes ses réponses, et au début une page avec la précision moyenne et la moyenne des trois mesures. L'élève sort son JPG (déjà fait, `CRG-10`). | HIS-08, HIS-09 | Haute | Étape 8 |
+| EV-43   | 04/11/2026 | L'enseignant peut sortir le JPG de chaque élève, pour l'imprimer et le lui rendre avec sa note, et un Excel : une page par élève avec toutes ses réponses, et au début une page avec la précision moyenne et la moyenne des trois mesures. L'élève sort son JPG (déjà fait, `CRG-10`). | HIS-08, HIS-09 | Haute | Fait dans la branche |
 
 - **Exigence concernée :** son identifiant (`PLA-03`, `E-01`…), ou rien pour un besoin nouveau.
 - **Priorité :** Haute (empêche une séance), Moyenne (gêne réelle), Basse (confort).
@@ -929,7 +929,7 @@ Demandes : EV-02, EV-09
 - **COU-06** Le QR code et le code court sont propres à chaque lancement.
 - **COU-07** Un même cours peut être relancé, par exemple pour une autre classe.
 - **COU-08** L'enseignant clique sur « Terminer le cours » : le QR code et le code cessent alors de fonctionner. Un lancement
-  n'expire pas tout seul.
+  n'expire pas tout seul, sauf s'il n'a vu aucune activité depuis un an (`HIS-05`).
 - **COU-09** Chaque lancement repart à zéro : l'avancement d'un élève est propre au lancement, y compris sur
   un appareil partagé.
 - **COU-10** S'il reste des élèves non finis, l'enseignant en est prévenu avant de terminer le cours.
@@ -980,7 +980,9 @@ Demandes : EV-05, EV-15
 - **HIS-08** L'enseignant peut exporter un lancement dans un vrai fichier Excel (`.xlsx`), en remplacement du CSV prévu d'abord (EV-43). La première page
   donne la précision moyenne (écart moyen entre placement et position réelle) et la moyenne des trois mesures : une ligne par élève, et une ligne pour la
   classe. Suit une page par élève ayant rendu, avec toutes ses réponses, fiche par fiche. Les nombres sont de vrais nombres, qu'Excel peut calculer.
-- **HIS-09** L'enseignant peut sortir le compte rendu JPG de chaque élève, un par un ou tous ensemble.
+- **HIS-09** L'enseignant peut sortir le compte rendu JPG de chaque élève, pour l'imprimer et le lui rendre : un bouton par élève, et un bouton pour tous, qui donne une
+  archive `.zip`. Il montre les positions réelles et les écarts. L'enseignant peut y ajouter une note, facultative, en texte libre (« 14/20 ») : elle apparaît sur le compte rendu
+  et dans l'Excel, et ne part pas chez l'élève. Un cours à plusieurs cartes donne un compte rendu par carte.
 
 ### 12.5 Travail hors ligne et rendu — `HOR`
 
@@ -1174,3 +1176,4 @@ fichier `.log` : le journal arrive sans rien demander à la personne, et l'admin
 | 0.24    | 4 novembre 2026   | EV-04 : symptôme disparu sans cause établie ; EV-41 : export et localisation vérifiés, Q-20 ouverte |
 | 0.25    | 4 novembre 2026   | Version affichée sur chaque page et notée dans le journal (EV-42) |
 | 0.26    | 4 novembre 2026   | EV-43 : Excel à une page par élève et JPG de chaque élève pour l'enseignant, au lieu du CSV (HIS-08, HIS-09) |
+| 0.27    | 4 novembre 2026   | Étape 8 : résultats par élève, note, détail, comptes rendus à imprimer, Excel, fichier de réponses, suppression et purge d'un lancement |

@@ -4,7 +4,9 @@
  */
 import { api } from '../api.js';
 import { card, dateAndTime, el, errorLine, show, showError } from '../compte/ui.js';
+import { resultsSection } from './launch-results.js';
 import { qrSvg } from './qr.js';
+import { stateText } from './results-workbook.js';
 
 const launchId = decodeURIComponent(location.pathname.split('/').pop());
 /** L'adresse à taper avec le code. Elle deviendra la racine du site à l'étape 10. */
@@ -44,24 +46,6 @@ function qrDialog(code) {
   return dialog;
 }
 
-/** Avant ou après la fin : comment il a fini, puis combien de réponses ont été faites après la fin (CRG-11, CRG-13). */
-function participantState(participant) {
-  if (!participant.submittedAt) return 'A commencé';
-  const finished = participant.autoClosed
-    ? 'Figé à la fin du cours'
-    : !participant.late
-      ? 'A fini'
-      : participant.finishedAfterEnd
-        ? 'A fini après la fin du cours'
-        : 'A fini avant la fin, reçu après';
-  return participant.answersAfterEnd ? `${finished} · ${participant.answersAfterEnd} réponse(s) après la fin` : finished;
-}
-
-function participantRow(participant) {
-  const state = participantState(participant);
-  return el('li', {}, el('span', {}, participant.names), el('span', { className: `participant-state ${participant.submittedAt ? 'done' : ''}` }, state));
-}
-
 function showLaunch(first) {
   document.title = `${first.title} — Cartopoint`;
   const qr = qrDialog(first.code);
@@ -75,6 +59,16 @@ function showLaunch(first) {
   const count = el('p', { className: 'hint' });
   const list = el('ul', { className: 'participants' });
   const empty = el('div', { className: 'empty-box' }, 'Aucun élève pour le moment.');
+  const results = resultsSection(launchId, () => refresh());
+  const participantRow = (participant) =>
+    el(
+      'li',
+      {},
+      el('span', { className: 'participant-name' }, participant.names),
+      el('span', { className: `participant-state ${participant.submittedAt ? 'done' : ''}` }, participant.submittedAt ? stateText(participant) : 'A commencé'),
+      results.scoreLine(participant, latest.gapUnit) ?? '',
+      results.rowActions(participant) ?? ''
+    );
 
   const endError = errorLine();
   const endNote = el('p', { className: 'hint' }, 'Le QR code et le code cesseront de fonctionner. Les élèves déjà entrés gardent leur travail.');
@@ -118,8 +112,10 @@ function showLaunch(first) {
     const finished = launch.participants.filter((participant) => participant.submittedAt).length;
     const done = finished === 0 ? "aucun n'a fini" : finished === 1 ? '1 a fini' : `${finished} ont fini`;
     count.textContent = `${launch.participants.length} élève(s) ou groupe(s) entré(s), ${done}.`;
-    list.replaceChildren(...launch.participants.map(participantRow));
+    // Toutes les 5 secondes : ne pas effacer une note en cours de frappe, ni une fenêtre de détail ouverte
+    if (!list.contains(document.activeElement) || document.activeElement.tagName !== 'INPUT') list.replaceChildren(...launch.participants.map(participantRow));
     empty.hidden = launch.participants.length > 0;
+    results.update(launch, `/prof/cours/${encodeURIComponent(launch.courseId)}`);
   }
 
   async function refresh() {
@@ -134,7 +130,7 @@ function showLaunch(first) {
     }
   }
 
-  show([header, joinCard, card('Élèves', count, listError, list, empty), endCard], { wide: true });
+  show([header, joinCard, card('Élèves', count, listError, list, empty, results.section), endCard], { wide: true });
   apply(first);
   setInterval(() => document.visibilityState === 'visible' && refresh(), REFRESH_EVERY);
   document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && refresh());

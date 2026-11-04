@@ -762,8 +762,8 @@ const MUTANTS = [
     "apply(await api('GET', `/launches/${launchId}`));\n      listError.hidden = true;",
     "list.replaceChildren();\n      apply(await api('GET', `/launches/${launchId}`));"
   ],
-  ['lancement : état « a fini » jamais affiché', 'src/js/prof/launch.js', "if (!participant.submittedAt) return 'A commencé';", "return 'A commencé';"],
-  ['lancement : rendu tardif non signalé', 'src/js/prof/launch.js', '!participant.late\n', 'true\n'],
+  ['lancement : état « a fini » jamais affiché', 'src/js/prof/launch.js', "participant.submittedAt ? stateText(participant) : 'A commencé'", "'A commencé'"],
+  ['lancement : rendu tardif non signalé', 'src/js/prof/results-workbook.js', '!participant.late\n', 'true\n'],
   ['lancement : bouton actif sans publication', 'src/js/prof/course-tab.js', 'launch.disabled = !course.published;', 'launch.disabled = false;'],
   [
     'lancement : modifications non signalées',
@@ -1261,9 +1261,14 @@ const MUTANTS = [
   ['origine : fichier pour l’enseignant sans noms', 'src/js/views/report-actions.js', '  if (names === null) return;\n', ''],
   ['CRG-10 : positions réelles cachées à l’enseignant', 'src/js/report.js', 'const plan = await drawPlan(S.admin);', 'const plan = await drawPlan(false);'],
   // Fin du cours : ce que voit l'enseignant
-  ['CRG-11 : figé non affiché', 'src/js/prof/launch.js', "participant.autoClosed\n    ? 'Figé", "false\n    ? 'Figé"],
-  ['CRG-13 : réponses après la fin non affichées', 'src/js/prof/launch.js', 'participant.answersAfterEnd ? `', 'false ? `'],
-  ['CRG-13 : avant ou après la fin confondus', 'src/js/prof/launch.js', 'participant.finishedAfterEnd\n', 'true\n'],
+  ['CRG-11 : figé non affiché', 'src/js/prof/results-workbook.js', 'participant.autoClosed\n', 'false\n'],
+  [
+    'CRG-13 : réponses après la fin non affichées',
+    'src/js/prof/results-workbook.js',
+    'if (participant.answersAfterEnd) parts.push(`${participant.answersAfterEnd} réponse(s) après la fin`);',
+    ''
+  ],
+  ['CRG-13 : avant ou après la fin confondus', 'src/js/prof/results-workbook.js', 'participant.finishedAfterEnd\n', 'true\n'],
   // Version affichée
   ['EV-42 : pas de version à l’écran', 'src/js/version.js', '  document.body.append(label);\n', ''],
   ['EV-42 : pages construites sans version', 'scripts/build.mjs', 'define: { __APP_VERSION__: JSON.stringify(version) }', 'define: {}'],
@@ -1272,6 +1277,179 @@ const MUTANTS = [
   ['EV-42 : journal sans version', 'src/js/incident.js', '    version: APP_VERSION,\n', ''],
   ['EV-42 : version refusée par le serveur', 'server/incidents.mjs', 'version: 40, ', ''],
   ['EV-42 : version absente du tableau de bord', 'src/js/admin/incidents.js', 'if (machine.version) parts.push(`version ${machine.version}`);', ''],
+  // Historique : le serveur
+  [
+    'HIS-05 : un cours en marche supprimé',
+    'server/launches.mjs',
+    'if (!row.ended_at) throw new HttpError(409, "Terminez d\'abord ce cours : des élèves y travaillent peut-être encore.");',
+    ''
+  ],
+  ['HIS-05 : rien n’est purgé', 'server/app.mjs', '      launches.purge();\n', ''],
+  ['HIS-05 : gardé dix ans', 'server/launches.mjs', 'KEEP_LAUNCH_MS = 365 *', 'KEEP_LAUNCH_MS = 3650 *'],
+  ['HIS-05 : dernière activité ignorée', 'server/launches.mjs', 'COALESCE(ended_at, (${lastActivity}), opened_at)', 'COALESCE(ended_at, opened_at)'],
+  ['HIS-05 : suppression sans effet', 'server/launches.mjs', "db.prepare('DELETE FROM launches WHERE id = ?').run(row.id);", ''],
+  [
+    'HIS-06 : fichier d’un autre lancement accepté',
+    'server/launches.mjs',
+    "'SELECT id, names, submitted_at FROM participants WHERE id = ? AND launch_id = ?').get(participantId, row.id)",
+    "'SELECT id, names, submitted_at FROM participants WHERE id = ?').get(participantId)"
+  ],
+  ['HIS-06 : pas signalé comme reçu par fichier', 'server/launches.mjs', 'byFile ? 1 : 0', '0'],
+  [
+    'HIS-06 : n’importe quel fichier accepté',
+    'server/routes/launches.mjs',
+    'if (file?.format !== ANSWERS_FORMAT) throw new HttpError(400, "Ce n\'est pas un fichier de réponses.");',
+    ''
+  ],
+  [
+    'HIS-06 : réponses du fichier non vérifiées',
+    'server/routes/launches.mjs',
+    'onServerClock(cleanAnswers(file.answers, project), undefined, now)',
+    'onServerClock(file.answers, undefined, now)'
+  ],
+  [
+    'HIS-06 : réponses après la fin non comptées',
+    'server/routes/launches.mjs',
+    'afterEnd: row.ended_at ? countAfterEnd(timed.answers, Date.parse(row.ended_at)) : 0',
+    'afterEnd: 0'
+  ],
+  ['HIS-06 : heure de fin du fichier ignorée', 'server/routes/launches.mjs', 'Number.isFinite(file.finishedAt) ? Math.min(file.finishedAt, now) : now', 'now'],
+  [
+    'HIS-07 : le second envoi écrase le premier',
+    'server/routes/launches.mjs',
+    'if (participant.submitted_at) return sendJson(req, res, { names: participant.names, alreadyReceived: true }, PRIVATE);',
+    ''
+  ],
+  ['HIS-03 : pas de score', 'server/launches.mjs', 'score: p.results ? JSON.parse(p.results).score : null', 'score: null'],
+  ['HIS-03 : pas de précision', 'server/launches.mjs', 'meanGap: p.results ? meanGap(project, JSON.parse(p.results)) : null', 'meanGap: null'],
+  ['HIS-03 : toujours en mètres', 'src/js/model.js', 'project.maps.length > 0 && project.maps.every((map) => map.widthMeters)', 'true'],
+  ['HIS-03 : une fiche non placée compte zéro', 'src/js/model.js', '.filter(({ d }) => d !== undefined)\n', '\n'],
+  ['HIS-03 : écart sans échelle', 'src/js/model.js', 'meters ? (d / 100) * map.widthMeters : d', 'd'],
+  ['HIS-04 : réponses absentes', 'server/launches.mjs', 'answers: answers ? JSON.parse(answers) : null', 'answers: null'],
+  ['HIS-09 : note sans limite', 'server/launches.mjs', 'rawNote.trim().slice(0, MAX_NOTE)', 'rawNote.trim()'],
+  ['HIS-09 : note non vérifiée', 'server/launches.mjs', "if (typeof rawNote !== 'string') throw new HttpError(400, 'Note illisible.');", ''],
+  [
+    'HIS-09 : note donnée à un autre lancement',
+    'server/launches.mjs',
+    "'UPDATE participants SET note = ? WHERE id = ? AND launch_id = ?').run(note, participantId, row.id)",
+    "'UPDATE participants SET note = ? WHERE id = ?').run(note, participantId)"
+  ],
+  // Historique : l'écran de l'enseignant
+  ['HIS-03 : score non affiché', 'src/js/prof/launch-results.js', 'if (!participant.score) return null;', 'return null;'],
+  ['HIS-09 : boutons pour celui qui n’a pas rendu', 'src/js/prof/launch-results.js', 'if (!participant.submittedAt) return null;', ''],
+  [
+    'HIS-09 : boutons pour tous sans aucun rendu',
+    'src/js/prof/launch-results.js',
+    'saveAll.hidden = saveExcel.hidden = !handedIn;',
+    'saveAll.hidden = saveExcel.hidden = false;'
+  ],
+  ['HIS-09 : archive sans filtre', 'src/js/prof/launch-results.js', 'participants.filter((participant) => participant.results),\n', 'participants,\n'],
+  ['HIS-09 : plusieurs fichiers d’un coup', 'src/js/prof/launch-results.js', 'if (reports.length === 1) download', 'if (true) download'],
+  [
+    'HIS-09 : note non enregistrée',
+    'src/js/prof/launch-results.js',
+    "const { note } = await api('PUT', `/launches/${launchId}/participants/${participant.id}/note`, { note: input.value });",
+    'const note = input.value;'
+  ],
+  [
+    'HIS-09 : refus de la note muet',
+    'src/js/prof/launch-results.js',
+    '      participant.note = note;\n    } catch (e) {\n      showError(error, e);',
+    '      participant.note = note;\n    } catch (e) {'
+  ],
+  [
+    'HIS-09 : une note en cours de frappe effacée',
+    'src/js/prof/launch.js',
+    "if (!list.contains(document.activeElement) || document.activeElement.tagName !== 'INPUT') list.replaceChildren",
+    'list.replaceChildren'
+  ],
+  ['HIS-09 : panne muette', 'src/js/prof/launch-results.js', 'showError(error, { message: errorText(e) });\n    } finally {', 'void e;\n    } finally {'],
+  ['HIS-09 : bouton bloqué après une panne', 'src/js/prof/launch-results.js', '      buttonNode.disabled = false;\n', ''],
+  ['HIS-09 : compte rendu sans positions réelles', 'src/js/prof/student-reports.js', '  S.admin = true;\n', ''],
+  ['HIS-09 : compte rendu sans résultats du serveur', 'src/js/prof/student-reports.js', '  S.correction = participant.results;\n', ''],
+  ['HIS-09 : note absente du compte rendu', 'src/js/prof/student-reports.js', '{ note: participant.note }', '{}'],
+  ['HIS-09 : note non dessinée', 'src/js/report.js', 'if (note) {\n      ctx.font', 'if (false) {\n      ctx.font'],
+  [
+    'HIS-09 : deux élèves de même nom écrasés',
+    'src/js/prof/student-reports.js',
+    "const names = uniqueNames(reports.map((report) => report.name.replace(/\\.jpg$/, ''))).map((name) => `${name}.jpg`);",
+    'const names = reports.map((report) => report.name);'
+  ],
+  ['HIS-04 : détail sans plan', 'src/js/prof/launch-results.js', '(blob) => (image.src = URL.createObjectURL(blob)),', '() => {},'],
+  ['HIS-04 : fenêtre jamais retirée', 'src/js/prof/launch-results.js', "dialog.addEventListener('close', () => dialog.remove());", ''],
+  [
+    'HIS-05 : supprimer sans confirmation',
+    'src/js/prof/launch-results.js',
+    "if (!confirm('Supprimer ce lancement ?",
+    "if (false && !confirm('Supprimer ce lancement ?"
+  ],
+  ['HIS-05 : supprimer proposé en plein cours', 'src/js/prof/launch-results.js', 'remove.hidden = !launch.endedAt;', 'remove.hidden = false;'],
+  ['HIS-06 : la liste ne suit pas l’import', 'src/js/prof/launch-results.js', '      await onChange();\n', ''],
+  ['HIS-06 : fichier illisible non expliqué', 'src/js/prof/launch-results.js', 'throw new Error("Ce n\'est pas un fichier de réponses.");', 'return;'],
+  ['HIS-06 : le même fichier ne se réimporte pas', 'src/js/prof/launch-results.js', "    fileInput.value = '';\n", ''],
+  // Le fichier de réponses de l'élève
+  ['HOR-09 : pas de bouton', 'src/js/eleve/main.js', "$('#saveAnswers')?.addEventListener('click', saveAnswersFile);", ''],
+  [
+    'HOR-09 : bouton même une fois reçu',
+    'src/js/eleve/main.js',
+    '${sendState === \'waiting\' || sendState === \'refused\' ? \'<button type="button" class="btn ghost" id="saveAnswers"',
+    '${true ? \'<button type="button" class="btn ghost" id="saveAnswers"'
+  ],
+  ['HOR-09 : réponses refusées sans recours', 'src/js/eleve/main.js', "${sendState === 'waiting' || sendState === 'refused' ?", "${sendState === 'waiting' ?"],
+  ['HOR-09 : fichier sans identité', 'src/js/eleve/main.js', 'participantId: studentId, ', ''],
+  // L'Excel
+  ['HIS-08 : texte perdu dans les cellules', 'src/js/xlsx-write.js', 'const isBold = cell?.bold === true;', 'const isBold = Boolean(cell?.bold);'],
+  [
+    'HIS-08 : texte écrit comme un nombre',
+    'src/js/xlsx-write.js',
+    "if (typeof value === 'number') return Number.isFinite(value) ? `<c r=\"${reference}\"${style}><v>${value}</v></c>` : '';",
+    ''
+  ],
+  [
+    'HIS-08 : XML non échappé',
+    'src/js/xlsx-write.js',
+    ".replace(/[&<>\"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' })[char])",
+    ''
+  ],
+  ['HIS-08 : caractères interdits gardés', 'src/js/xlsx-write.js', '.replace(/[\\u0000-\\u0008', '.replace(/[^\\s\\S][\\u0000-\\u0008'],
+  ['HIS-08 : noms de page refusés par Excel', 'src/js/xlsx-write.js', ".replace(/[[\\]:*?/\\\\]/g, ' ')", ''],
+  ['HIS-08 : deux pages de même nom', 'src/js/zip.js', 'seen.has(candidate.toLowerCase())', 'false'],
+  ['HIS-08 : noms de page trop longs', 'src/js/xlsx-write.js', 'uniqueNames(usable, { limit: MAX_SHEET_NAME })', 'uniqueNames(usable)'],
+  ['HIS-08 : colonnes fausses après Z', 'src/js/xlsx-write.js', 'Math.floor((n - 1) / 26)', '0'],
+  [
+    'HIS-08 : pas de synthèse',
+    'src/js/prof/results-workbook.js',
+    'return [summarySheet(project, participants, { title, endedAt }), ...handedIn',
+    'return [...handedIn'
+  ],
+  [
+    'HIS-08 : page pour celui qui n’a pas rendu',
+    'src/js/prof/results-workbook.js',
+    'const handedIn = participants.filter((participant) => participant.results).map(',
+    'const handedIn = participants.map('
+  ],
+  [
+    'HIS-08 : moyenne de la classe avec les absents',
+    'src/js/prof/results-workbook.js',
+    '  const handedIn = participants.filter((participant) => participant.results);\n',
+    '  const handedIn = participants;\n'
+  ],
+  [
+    'HIS-08 : une mesure française n’est pas un nombre',
+    'src/js/prof/results-workbook.js',
+    'const measureCell = (raw) => num(raw) ?? (raw || null);',
+    'const measureCell = (raw) => raw || null;'
+  ],
+  ['HIS-08 : réponses après la fin non signalées', 'src/js/prof/results-workbook.js', "late ? 'oui' : null", 'null'],
+  ['HIS-08 : par fichier non signalé', 'src/js/prof/results-workbook.js', "if (participant.byFile) parts.push('par fichier');", ''],
+  [
+    'HIS-08 : fiches masquées dans l’Excel',
+    'src/js/prof/results-workbook.js',
+    'for (const fiche of visibleFiches(map)) {\n      const entry',
+    'for (const fiche of map.fiches) {\n      const entry'
+  ],
+  ['HIS-08 : impression non réglée', 'src/js/xlsx-write.js', '<pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>', ''],
+  ['zip : contrôle faux', 'src/js/zip.js', 'return (crc ^ 0xffffffff) >>> 0;', 'return crc >>> 0;'],
   // Hors ligne : la préparation
   ['hors ligne : plan non téléchargé', 'src/js/eleve/offline.js', 'files.add(map.image);', ''],
   ['hors ligne : photos non téléchargées', 'src/js/eleve/offline.js', 'files.add(media.data);', ''],
@@ -1461,14 +1639,14 @@ const TESTS_FOR = {
   'server/routes/pages.mjs': ['offline-site', 'accounts', 'courses', 'launches'],
   'server/courses.mjs': ['courses', 'launches'],
   'server/student-view.mjs': ['student-view', 'launches'],
-  'server/launches.mjs': ['launches', 'answers', 'correction'],
+  'server/launches.mjs': ['launches', 'answers', 'correction', 'history'],
   'server/answers.mjs': ['answers', 'correction'],
   'server/routes/launches.mjs': ['launches'],
   'server/routes/student.mjs': ['load', 'launches', 'answers', 'correction'],
   'src/js/prof/qr.js': ['e2e/launches'],
-  'src/js/prof/launch.js': ['e2e/offline', 'e2e/launches', 'e2e/correction'],
+  'src/js/prof/launch.js': ['e2e/offline', 'e2e/launches', 'e2e/correction', 'e2e/history'],
   'src/js/accueil.js': ['e2e/launches'],
-  'src/js/eleve/main.js': ['e2e/offline', 'e2e/launches', 'e2e/incidents', 'e2e/correction'],
+  'src/js/eleve/main.js': ['e2e/offline', 'e2e/launches', 'e2e/incidents', 'e2e/correction', 'e2e/history'],
   'src/js/eleve/network-icon.js': ['e2e/offline'],
   'src/eleve.html': ['e2e/offline'],
   'src/js/incident.js': ['incidents', 'e2e/incidents', 'e2e/offline'],
@@ -1477,9 +1655,15 @@ const TESTS_FOR = {
   'server/incidents.mjs': ['incidents'],
   'server/routes/incidents.mjs': ['incidents'],
   'src/js/eleve/correction.js': ['e2e/correction'],
-  'src/js/report.js': ['e2e/correction', 'e2e/legacy'],
+  'src/js/report.js': ['e2e/correction', 'e2e/legacy', 'e2e/history'],
   'src/js/views/report-actions.js': ['e2e/legacy'],
   'src/js/version.js': ['e2e/offline'],
+  'src/js/prof/launch-results.js': ['e2e/history'],
+  'src/js/prof/student-reports.js': ['e2e/history'],
+  'src/js/prof/results-workbook.js': ['results-workbook', 'e2e/history'],
+  'src/js/xlsx-write.js': ['results-workbook'],
+  'src/js/zip.js': ['results-workbook', 'e2e/history'],
+  'server/routes/launches.mjs': ['history', 'launches'],
   'src/js/eleve/offline.js': ['e2e/offline', 'e2e/incidents'],
   'src/sw.js': ['e2e/offline'],
   'src/index.html': ['offline-site', 'e2e/offline'],
@@ -1496,8 +1680,8 @@ const TESTS_FOR = {
   'server/migrations/001-initial.sql': ['db'],
   'server/routes/legacy.mjs': ['routes-legacy', 'server'],
   'server/index.mjs': ['server-start'],
-  'server/app.mjs': ['server-start', 'courses', 'incidents'],
-  'src/js/model.js': ['model', 'e2e/courses', 'e2e/legacy', 'e2e/correction'],
+  'server/app.mjs': ['server-start', 'courses', 'incidents', 'history'],
+  'src/js/model.js': ['model', 'e2e/courses', 'e2e/legacy', 'e2e/correction', 'history', 'results-workbook'],
   'src/js/themes.js': ['model', 'e2e/courses'],
   'src/js/views/reader.js': ['wording', 'e2e/offline', 'e2e/launches'],
   'src/prof-cours.html': ['wording', 'e2e/courses'],

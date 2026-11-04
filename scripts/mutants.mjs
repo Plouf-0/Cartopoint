@@ -1398,7 +1398,7 @@ const MUTANTS = [
   [
     'HIS-08 : pas de synthèse',
     'src/js/prof/results-workbook.js',
-    'return [summarySheet(project, participants, { title, endedAt }), ...handedIn',
+    'return [summarySheet(project, participants, { title, openedAt, endedAt }), ...handedIn',
     'return [...handedIn'
   ],
   [
@@ -1430,12 +1430,25 @@ const MUTANTS = [
   ['HIS-08 : impression non réglée', 'src/js/xlsx-write.js', '<pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>', ''],
   ['zip : contrôle faux', 'src/js/zip.js', 'return (crc ^ 0xffffffff) >>> 0;', 'return crc >>> 0;'],
   ['HIS-03 : la liste se redessine sans raison', 'src/js/prof/launch.js', 'if (listed !== shownList) {', 'if (true) {'],
+  ['HIS-09 : la date du jour au lieu de celle du lancement', 'src/js/report.js', '${dateAndTime(date ?? Date.now())}', '${dateAndTime(Date.now())}'],
   [
-    'HIS-09 : la date du jour au lieu de celle du cours',
-    'src/js/report.js',
-    "${date ? new Date(date).toLocaleDateString('fr-FR', { dateStyle: 'long' }) : new Date()",
-    '${new Date()'
+    'HIS-09 : l’heure de lancement oubliée',
+    'src/js/util.js',
+    "{ dateStyle: 'long', timeStyle: 'short' });\n\n/** Un moment dans",
+    "{ dateStyle: 'long' });\n\n/** Un moment dans"
   ],
+  ['HIS-08 : synthèse sans le lancement', 'src/js/prof/results-workbook.js', '[`Lancé le ${dateAndTime(openedAt)}`], ', ''],
+  ['HIS-08 : page d’élève sans le lancement', 'src/js/prof/results-workbook.js', '[`Cours lancé le ${dateAndTime(participant.openedAt)}`],\n', ''],
+  ['HIS-08 : Excel écrasé par le lancement suivant', 'src/js/prof/launch-results.js', ' - ${fileStamp(sheets.openedAt)}.xlsx', '.xlsx'],
+  ['HIS-09 : archive écrasée par le lancement suivant', 'src/js/prof/launch-results.js', ' - ${fileStamp(openedAt)}.zip', '.zip'],
+  [
+    'HIS-02 : heure de fin à la place du lancement',
+    'src/js/prof/course-tab.js',
+    '`Lancé le ${opened}, terminé',
+    '`Lancé le ${dateAndTime(launch.endedAt)}, terminé'
+  ],
+  ['HIS-02 : page du lancement sans son heure', 'src/js/prof/launch.js', ' Lancé le ${dateAndTime(launch.openedAt)}.', ''],
+  ['CRG-10 : correction sans l’heure du cours', 'src/js/eleve/correction.js', ' · cours du ${esc(dateAndTime(S.correction.openedAt))}', ''],
   [
     'HIS-09 : un compte rendu sans le jour du cours',
     'src/js/prof/student-reports.js',
@@ -1758,7 +1771,7 @@ const TESTS_FOR = {
   'src/js/views/reader.js': ['wording', 'e2e/offline', 'e2e/launches'],
   'src/prof-cours.html': ['wording', 'e2e/courses'],
   'src/js/spreadsheet.js': ['spreadsheet', 'e2e/courses'],
-  'src/js/util.js': ['util', 'e2e/legacy', 'e2e/courses', 'e2e/incidents'],
+  'src/js/util.js': ['util', 'results-workbook', 'e2e/legacy', 'e2e/courses', 'e2e/incidents'],
   'src/js/db.js': ['e2e/legacy'],
   'src/js/store.js': ['e2e/legacy', 'e2e/courses', 'e2e/launches', 'e2e/correction'],
   'src/js/project-io.js': ['e2e/legacy', 'e2e/fallback'],
@@ -1769,7 +1782,7 @@ const TESTS_FOR = {
   'src/js/prof/course.js': ['e2e/courses', 'e2e/incidents'],
   'src/js/prof/course-backend.js': ['e2e/courses'],
   'src/js/prof/course-io.js': ['e2e/courses'],
-  'src/js/prof/course-tab.js': ['e2e/courses', 'e2e/launches', 'e2e/incidents', 'e2e/fallback'],
+  'src/js/prof/course-tab.js': ['e2e/courses', 'e2e/launches', 'e2e/incidents', 'e2e/fallback', 'e2e/history'],
   'src/js/prof/main.js': ['e2e/courses', 'e2e/launches'],
   'src/js/api.js': ['e2e/courses', 'e2e/incidents'],
   'src/js/ai.js': ['e2e/legacy'],

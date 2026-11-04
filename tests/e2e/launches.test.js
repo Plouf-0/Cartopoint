@@ -593,7 +593,7 @@ test('COU-07 : les lancements d’un cours se retrouvent, et un cours en cours s
   await teacher.getByText(/^Terminé le /).waitFor();
   await teacher.goto(`/prof/cours/${course.id}`);
   await teacher.getByRole('tab', { name: 'Cours' }).click();
-  await teacher.locator('#launchList li', { hasText: 'Terminé le' }).waitFor();
+  await teacher.locator('#launchList li', { hasText: 'terminé le' }).waitFor();
 
   await teacher.goto('/prof');
   await teacher.locator('.course-row').waitFor();

@@ -149,7 +149,7 @@ test('HIS-03 : la liste ne se redessine que si quelque chose a changé : un bout
 
 /* --- HIS-09 : les comptes rendus --- */
 
-test('HIS-09 : le compte rendu d’un élève se télécharge, avec les positions réelles, les écarts et le jour du cours, pour le lui rendre', async (t) => {
+test('HIS-09 : le compte rendu d’un élève se télécharge, avec les positions réelles, les écarts, le jour et l’heure du lancement, pour le lui rendre', async (t) => {
   const { site, teacher, launch, openLaunch } = await setup(t);
   const me = await join(site, launch, 'Léa Dupont');
   await handIn(site, me, { f1: entry(40, 60), f2: entry(30, 60) });
@@ -161,7 +161,7 @@ test('HIS-09 : le compte rendu d’un élève se télécharge, avec les position
   const drawn = await teacher.evaluate(() => window.drawn);
   assert.ok(drawn.texts.some((text) => text.includes('Léa Dupont')));
   assert.ok(
-    drawn.texts.some((text) => text.endsWith('12 mars 2026')),
+    drawn.texts.some((text) => text.endsWith('12 mars 2026 à 11:00')),
     drawn.texts.join(' | ')
   );
   assert.ok(!drawn.texts.some((text) => /^Note/.test(text)), 'pas de note');
@@ -170,7 +170,7 @@ test('HIS-09 : le compte rendu d’un élève se télécharge, avec les position
   await teacher.getByText('✓ Compte rendu de Léa Dupont téléchargé').waitFor();
 });
 
-test('HIS-09 : tous les comptes rendus portent aussi le jour du cours', async (t) => {
+test('HIS-09 : tous les comptes rendus portent aussi le jour et l’heure du lancement', async (t) => {
   const { site, teacher, launch, openLaunch } = await setup(t);
   await handIn(site, await join(site, launch, 'Léa'), { f1: entry(40, 60) });
   site.db.prepare('UPDATE launches SET opened_at = ?').run('2026-03-12T10:00:00.000Z');
@@ -178,7 +178,7 @@ test('HIS-09 : tous les comptes rendus portent aussi le jour du cours', async (t
   await saved(teacher, () => teacher.getByRole('button', { name: 'Tout télécharger (JPG)' }).click());
   const { texts } = await teacher.evaluate(() => window.drawn);
   assert.ok(
-    texts.some((text) => text.endsWith('12 mars 2026')),
+    texts.some((text) => text.endsWith('12 mars 2026 à 11:00')),
     texts.join(' | ')
   );
 });
@@ -187,9 +187,10 @@ test('HIS-09 : tout d’un coup : une archive avec un compte rendu par élève a
   const { site, teacher, launch, openLaunch } = await setup(t);
   for (const names of ['Léa', 'Tom', 'Tom']) await handIn(site, await join(site, launch, names), { f1: entry(40, 60) });
   await join(site, launch, 'Noé');
+  site.db.prepare('UPDATE launches SET opened_at = ?').run('2026-03-12T10:00:00.000Z');
   await openLaunch();
   const file = await saved(teacher, () => teacher.getByRole('button', { name: 'Tout télécharger (JPG)' }).click());
-  assert.equal(file.name, 'Comptes rendus - Sortie au parc.zip');
+  assert.equal(file.name, 'Comptes rendus - Sortie au parc - 2026-03-12 11h00.zip');
   const files = readZip(file.bytes);
   assert.deepEqual(Object.keys(files).sort(), ['Compte rendu - Léa.jpg', 'Compte rendu - Tom (2).jpg', 'Compte rendu - Tom.jpg']);
   for (const bytes of Object.values(files)) assert.ok(bytes.subarray(0, 3).equals(JPEG));
@@ -217,14 +218,16 @@ test('HIS-08 : l’Excel se télécharge : la synthèse, puis une page par élè
   await handIn(site, await join(site, launch, 'Léa Dupont'), { f1: entry(40, 60, { temperature: '20' }) });
   await handIn(site, await join(site, launch, '=1+1'), { f1: entry(50, 60, { temperature: '24' }) });
   await join(site, launch, 'Noé');
+  site.db.prepare('UPDATE launches SET opened_at = ?').run('2026-03-12T10:00:00.000Z');
   await openLaunch();
   const file = await saved(teacher, () => teacher.getByRole('button', { name: 'Télécharger l’Excel' }).click());
-  assert.equal(file.name, 'Résultats - Sortie au parc.xlsx');
+  assert.equal(file.name, 'Résultats - Sortie au parc - 2026-03-12 11h00.xlsx');
   const files = readZip(file.bytes);
   const names = [...files['xl/workbook.xml'].toString().matchAll(/<sheet name="([^"]*)"/g)].map(([, name]) => name);
   assert.deepEqual(names, ['Synthèse', 'Léa Dupont', '=1+1']);
   assert.doesNotMatch(files['xl/worksheets/sheet3.xml'].toString() + files['xl/worksheets/sheet1.xml'].toString(), /<f>/);
   const summary = sheetRows(files['xl/worksheets/sheet1.xml'].toString());
+  assert.equal(summary[1][0], 'Lancé le 12 mars 2026 à 11:00');
   assert.deepEqual(summary.find((cells) => cells[0] === 'Léa Dupont').slice(0, 2), ['Léa Dupont', 'A fini']);
   assert.equal(summary.find((cells) => cells[0] === 'Classe')[7], 22, 'température moyenne de la classe');
   assert.equal(summary.find((cells) => cells[0] === 'Noé')[1], "N'a pas rendu");
@@ -299,17 +302,18 @@ test('HIS-05 : supprimer un lancement demande confirmation, ramène au cours, et
   assert.equal(launch.id.length > 0, true);
 });
 
-test('HIS-02, SUI-04 : depuis le cours, l’enseignant retrouve ses lancements et ses élèves une fois le cours fini', async (t) => {
+test('HIS-02, SUI-04 : depuis le cours, l’enseignant retrouve ses lancements et ses élèves une fois le cours fini, avec l’heure de chacun', async (t) => {
   const { site, teacher, launch, course } = await setup(t);
   await handIn(site, await join(site, launch, 'Léa'), { f1: entry(40, 60) });
+  site.db.prepare('UPDATE launches SET opened_at = ?').run('2026-03-12T10:00:00.000Z');
   teacher.once('dialog', (dialog) => dialog.accept());
   await teacher.getByRole('button', { name: 'Terminer le cours' }).click();
-  await teacher.getByText(/^Terminé le /).waitFor();
+  await teacher.getByText(/^Terminé le .*\. Lancé le 12 mars 2026 à 11:00\. Version 1 du cours\.$/).waitFor();
   await teacher.goto(`/prof/cours/${course.id}`);
   await teacher.getByRole('tab', { name: 'Cours' }).click();
   await teacher
     .locator('#launchList')
-    .getByRole('link', { name: /^Terminé le / })
+    .getByRole('link', { name: /^Lancé le 12 mars 2026 à 11:00, terminé le / })
     .click();
   await row(teacher, 'Léa').getByText('1 / 2 bien placée(s)').waitFor();
 });

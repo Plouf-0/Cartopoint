@@ -6,7 +6,7 @@ import { reportIncident } from '../incident.js';
 import { DEFAULT_TITLE, hasRef } from '../model.js';
 import { render } from '../render.js';
 import { S, changedMap, changedMeta, flush, hasUnsentChanges } from '../store.js';
-import { $, download, errorText, esc, loadImage, safeFileName, toast } from '../util.js';
+import { $, dateAndTime, download, errorText, esc, loadImage, safeFileName, toast } from '../util.js';
 import { exportCourse } from './course-io.js';
 import { askFallbackPassword, fallbackPage } from './fallback-file.js';
 
@@ -62,8 +62,8 @@ async function launchCourse() {
 }
 
 function launchRow(launch) {
-  const date = new Date(launch.endedAt ?? launch.openedAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
-  const state = launch.endedAt ? `Terminé le ${date}` : `En cours depuis le ${date}, code ${launch.code}`;
+  const opened = dateAndTime(launch.openedAt);
+  const state = launch.endedAt ? `Lancé le ${opened}, terminé le ${dateAndTime(launch.endedAt)}` : `En cours depuis le ${opened}, code ${launch.code}`;
   return `<li><a href="/prof/lancements/${esc(launch.id)}">${esc(state)}</a> <span class="hint">· ${launch.participantCount} élève(s) ou groupe(s)</span></li>`;
 }
 

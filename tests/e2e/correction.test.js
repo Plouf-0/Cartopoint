@@ -395,6 +395,7 @@ test('CRG-10 : le compte rendu se télécharge, avec les placements et les résu
   await wakeUp(page);
   await correctionArrived(page);
   await page.locator('#seeCorrection').click();
+  await page.locator('#correctionBox').getByText('cours du 12 mars 2026 à 11:00').waitFor();
   const saved = page.waitForEvent('download');
   await page.locator('#correctionReport').click();
   const file = await saved;
@@ -409,8 +410,8 @@ test('CRG-10 : le compte rendu se télécharge, avec les placements et les résu
   );
   assert.ok(!drawn.texts.includes('Position réelle'), 'pas de légende des positions réelles');
   assert.ok(
-    drawn.texts.some((text) => text.endsWith('12 mars 2026')),
-    'le jour du cours, pas celui du téléchargement'
+    drawn.texts.some((text) => text.endsWith('12 mars 2026 à 11:00')),
+    'le lancement du cours, pas le téléchargement'
   );
   assert.equal(drawn.dashes, 0, 'pas de pointillés vers les positions réelles');
 });

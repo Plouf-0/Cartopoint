@@ -3,7 +3,7 @@
  * élève ayant rendu, avec toutes ses réponses. Ce fichier ne contient que des calculs, sans rien à l'écran : il se teste sans navigateur.
  */
 import { MEASURES, meanGap, numberOf, placedPos, titleOf, usesMeters, visibleFiches } from '../model.js';
-import { num } from '../util.js';
+import { dateAndTime, num } from '../util.js';
 import { bold } from '../xlsx-write.js';
 
 const GRADE_LABELS = { ok: 'Bien placée', near: 'Proche', far: 'À revoir', unplaced: 'Non placée', noref: 'Pas de position réelle' };
@@ -44,14 +44,10 @@ export function stateText(participant) {
   return parts.join(' · ');
 }
 
-function summarySheet(project, participants, { title, endedAt }) {
+function summarySheet(project, participants, { title, openedAt, endedAt }) {
   const unit = usesMeters(project) ? 'm' : '% du plan';
   const handedIn = participants.filter((participant) => participant.results);
-  const rows = [
-    [bold(title)],
-    [endedAt ? `Terminé le ${new Date(endedAt).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}` : 'Cours encore en marche'],
-    []
-  ];
+  const rows = [[bold(title)], [`Lancé le ${dateAndTime(openedAt)}`], [endedAt ? `Terminé le ${dateAndTime(endedAt)}` : 'Cours encore en marche'], []];
 
   rows.push([
     bold('Élève'),
@@ -121,6 +117,7 @@ function studentSheet(project, participant) {
   const several = project.maps.length > 1;
   const rows = [
     [bold(participant.names)],
+    [`Cours lancé le ${dateAndTime(participant.openedAt)}`],
     [stateText(participant)],
     [bold('Précision moyenne'), round(meanGap(project, participant.results)), unit],
     [],
@@ -166,7 +163,7 @@ function studentSheet(project, participant) {
 }
 
 /** @param sheets ce que répond GET /launches/:id/sheets, le cours étant déjà normalisé */
-export function resultsWorkbook({ title, endedAt, grace, project, participants }) {
-  const handedIn = participants.filter((participant) => participant.results).map((participant) => ({ ...participant, endedAt, grace }));
-  return [summarySheet(project, participants, { title, endedAt }), ...handedIn.map((participant) => studentSheet(project, participant))];
+export function resultsWorkbook({ title, openedAt, endedAt, grace, project, participants }) {
+  const handedIn = participants.filter((participant) => participant.results).map((participant) => ({ ...participant, openedAt, endedAt, grace }));
+  return [summarySheet(project, participants, { title, openedAt, endedAt }), ...handedIn.map((participant) => studentSheet(project, participant))];
 }

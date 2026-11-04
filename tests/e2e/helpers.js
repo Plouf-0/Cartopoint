@@ -66,6 +66,8 @@ export async function openPage(t, browser, { base, permissions = [], viewport = 
     permissions,
     viewport,
     locale: 'fr-FR',
+    // Une heure affichée se compare telle quelle, sur le serveur comme sur le laptop
+    timezoneId: 'Europe/Paris',
     hasTouch: touch,
     ...(ENGINE === 'firefox' ? {} : { isMobile: touch })
   });

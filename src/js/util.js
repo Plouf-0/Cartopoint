@@ -54,6 +54,16 @@ export const formatSize = (bytes) =>
 /** Date du jour au format AAAA-MM-JJ. */
 export const today = () => new Date().toISOString().slice(0, 10);
 
+/** Un moment à la française, avec l'heure : 12 mars 2026 à 11:00. */
+export const dateAndTime = (when) => new Date(when).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
+
+/** Un moment dans un nom de fichier : il se trie bien, et deux lancements d'un même cours ne donnent pas le même nom. */
+export function fileStamp(when) {
+  const date = new Date(when);
+  const two = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())} ${two(date.getHours())}h${two(date.getMinutes())}`;
+}
+
 /** Date AAAA-MM-JJ affichée à la française (les autres formats sont rendus tels quels). */
 export const frDate = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(d + 'T12:00').toLocaleDateString('fr-FR') : str(d));
 

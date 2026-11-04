@@ -2,7 +2,7 @@
  * Exports image : plan avec repères, et compte rendu complet des élèves en JPG
  * (noms, plan, résultats, mesures), facile à rendre sur l'ENT ou à imprimer.
  */
-import { $, toast, download, safeFileName, loadImage, errorText } from './util.js';
+import { $, toast, dateAndTime, download, safeFileName, loadImage, errorText } from './util.js';
 import { S, verified, progress, evaluationOf } from './store.js';
 import { visibleFiches, numberOf, titleOf, hasRef, placedPos, MEASURES } from './model.js';
 import { paletteOf } from './themes.js';
@@ -124,7 +124,7 @@ async function fontsReady() {
  * Compte rendu complet sur une seule image :
  *   titre, élèves, carte, date, score · plan avec repères · tableau des fiches et mesures.
  */
-/** @param date le jour du cours, si le compte rendu en vient d'un. Sinon, le moment où on le télécharge (application d'origine) */
+/** @param date le lancement du cours, si le compte rendu en vient d'un. Sinon, le moment où on le télécharge (application d'origine) */
 async function drawReport(names, { date } = {}) {
   await fontsReady();
   const pal = paletteOf(S.project.theme);
@@ -161,15 +161,7 @@ async function drawReport(names, { date } = {}) {
   ctx.font = `26px ${SANS}`;
   ctx.fillStyle = pal.inkSoft;
   ctx.fillText(fit(ctx, `Élève(s) : ${names || '—'}`, CW - 380), P, y + 74);
-  ctx.fillText(
-    fit(
-      ctx,
-      `${S.map.name} · ${date ? new Date(date).toLocaleDateString('fr-FR', { dateStyle: 'long' }) : new Date().toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}`,
-      CW - 380
-    ),
-    P,
-    y + 112
-  );
+  ctx.fillText(fit(ctx, `${S.map.name} · ${dateAndTime(date ?? Date.now())}`, CW - 380), P, y + 112);
   if (showEv && scored) {
     ctx.textAlign = 'right';
     ctx.fillStyle = pal.ink;

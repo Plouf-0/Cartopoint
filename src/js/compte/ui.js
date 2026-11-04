@@ -3,6 +3,7 @@
  * jamais par innerHTML : une adresse e-mail ne peut donc pas injecter de code (SEC-04).
  */
 import { api } from '../api.js';
+import { dateAndTime } from '../util.js';
 
 /** Crée un élément. Une propriété inconnue du navigateur devient un attribut. */
 export function el(tag, props = {}, ...children) {
@@ -113,7 +114,6 @@ export function accountBar(account, onLogout) {
   return el('div', { className: 'account-bar' }, el('span', {}, account.email), logout);
 }
 
-const dateAndTime = (iso) => new Date(iso).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
 /** Pour un tableau : 2 nov. 2026. */
 const shortDate = (iso) => new Date(iso).toLocaleDateString('fr-FR', { dateStyle: 'medium' });
 

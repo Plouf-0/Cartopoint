@@ -105,7 +105,7 @@ function showLaunch(first) {
     latest = launch;
     const ended = Boolean(launch.endedAt);
     state.textContent = ended
-      ? `Terminé le ${dateAndTime(launch.endedAt)}. Version ${launch.versionNumber} du cours.`
+      ? `Terminé le ${dateAndTime(launch.endedAt)}. Lancé le ${dateAndTime(launch.openedAt)}. Version ${launch.versionNumber} du cours.`
       : `En cours depuis le ${dateAndTime(launch.openedAt)}. Version ${launch.versionNumber} du cours.`;
     joinCard.hidden = ended;
     endCard.hidden = ended;

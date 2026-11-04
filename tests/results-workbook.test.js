@@ -1,6 +1,7 @@
 /**
  * HIS-08 : le fichier Excel d'un lancement. Ces tests lisent le vrai fichier produit, sans navigateur, et vérifient chaque chiffre à la main.
  */
+process.env.TZ = 'Europe/Paris'; // Une heure écrite se compare telle quelle, sur le serveur comme sur le laptop
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { resultsWorkbook, stateText } from '../src/js/prof/results-workbook.js';
@@ -59,7 +60,7 @@ function classOf(course = project()) {
 }
 
 const workbook = (participants = classOf(), course = project()) =>
-  resultsWorkbook({ title: 'Sortie', endedAt: '2026-11-04T11:00:00.000Z', grace: 30000, project: course, participants });
+  resultsWorkbook({ title: 'Sortie', openedAt: '2026-11-04T09:30:00.000Z', endedAt: '2026-11-04T11:00:00.000Z', grace: 30000, project: course, participants });
 const summaryRow = (sheet, first) => sheet.rows.find((row) => row[0] === first || row[0]?.value === first);
 
 test('HIS-08 : une page de synthèse au début, puis une page par élève ayant rendu', () => {
@@ -67,6 +68,21 @@ test('HIS-08 : une page de synthèse au début, puis une page par élève ayant 
     workbook().map((sheet) => sheet.name),
     ['Synthèse', 'Léa Dupont', 'Tom Martin']
   );
+});
+
+test('HIS-08 : la synthèse dit quand le cours a été lancé et terminé', () => {
+  const [summary] = workbook();
+  assert.deepEqual(summary.rows[1], ['Lancé le 4 novembre 2026 à 10:30']);
+  assert.deepEqual(summary.rows[2], ['Terminé le 4 novembre 2026 à 12:00']);
+  const [running] = resultsWorkbook({
+    title: 'Sortie',
+    openedAt: '2026-11-04T09:30:00.000Z',
+    endedAt: null,
+    grace: 30000,
+    project: project(),
+    participants: []
+  });
+  assert.deepEqual(running.rows[2], ['Cours encore en marche']);
 });
 
 test('HIS-08 : la synthèse donne, par élève, son score, sa précision moyenne et la moyenne de ses trois mesures', () => {
@@ -124,8 +140,9 @@ test('HIS-08 : la page d’un élève donne toutes ses réponses, fiche par fich
     lea.rows[0].map((cell) => cell.value),
     ['Léa Dupont']
   );
-  assert.deepEqual(lea.rows[1], ['A fini']);
-  assert.deepEqual([lea.rows[2][0].value, lea.rows[2][1], lea.rows[2][2]], ['Précision moyenne', 10, 'm']);
+  assert.deepEqual(lea.rows[1], ['Cours lancé le 4 novembre 2026 à 10:30']);
+  assert.deepEqual(lea.rows[2], ['A fini']);
+  assert.deepEqual([lea.rows[3][0].value, lea.rows[3][1], lea.rows[3][2]], ['Précision moyenne', 10, 'm']);
   const noisetier = lea.rows.find((row) => row[2] === 'Noisetier');
   assert.deepEqual(noisetier, [1, '1', 'Noisetier', 'Corylus', 'Bien placée', 0, 40, 60, 40, 60, 20, 50, 1000, null]);
   const sureau = lea.rows.find((row) => row[2] === 'Sureau');

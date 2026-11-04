@@ -5,7 +5,7 @@
 import { api } from '../api.js';
 import { el, errorLine, showError } from '../compte/ui.js';
 import { MEASURES, numberOf, titleOf, visibleFiches } from '../model.js';
-import { download, errorText, safeFileName } from '../util.js';
+import { download, errorText, fileStamp, safeFileName } from '../util.js';
 import { workbookBlob } from '../xlsx-write.js';
 import { resultsWorkbook, stateText } from './results-workbook.js';
 import { allReportsZip, readSheets, studentPlan, studentReports } from './student-reports.js';
@@ -127,7 +127,7 @@ export function resultsSection(launchId, onChange) {
         openedAt,
         (done, total) => (status.textContent = `Préparation des comptes rendus… ${done} / ${total}`)
       );
-      download(blob, `Comptes rendus - ${safeFileName(title)}.zip`);
+      download(blob, `Comptes rendus - ${safeFileName(title)} - ${fileStamp(openedAt)}.zip`);
       status.textContent = '✓ Comptes rendus téléchargés';
     })
   );
@@ -135,7 +135,7 @@ export function resultsSection(launchId, onChange) {
   const saveExcel = button('Télécharger l’Excel', 'btn soft', () =>
     task(saveExcel, async () => {
       const sheets = await loadSheets();
-      download(workbookBlob(resultsWorkbook(sheets)), `Résultats - ${safeFileName(sheets.title)}.xlsx`);
+      download(workbookBlob(resultsWorkbook(sheets)), `Résultats - ${safeFileName(sheets.title)} - ${fileStamp(sheets.openedAt)}.xlsx`);
       status.textContent = '✓ Excel téléchargé';
     })
   );

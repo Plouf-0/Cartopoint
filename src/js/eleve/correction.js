@@ -9,7 +9,7 @@ import { Progress, openDb } from '../db.js';
 import { THRESHOLDS, emptyProgress, titleOf } from '../model.js';
 import { downloadReport, resultRows } from '../report.js';
 import { S, posOf } from '../store.js';
-import { $, esc, prefs } from '../util.js';
+import { $, dateAndTime, esc, prefs } from '../util.js';
 import { MEDIA_CACHE, filesToKeep } from './offline.js';
 
 const STUDENT_PREFIX = 'cartopoint.eleve.';
@@ -69,7 +69,7 @@ export function showCorrection(names) {
   const rows = resultRows();
   $('#correctionBox').innerHTML = `
     <div class="dlg-head">
-      <div style="flex:1"><h2>Votre correction</h2><p class="state">${esc(names)} · ${esc(S.map.name)}</p></div>
+      <div style="flex:1"><h2>Votre correction</h2><p class="state">${esc(names)} · ${esc(S.map.name)} · cours du ${esc(dateAndTime(S.correction.openedAt))}</p></div>
       <button class="x" type="button" data-close aria-label="Fermer">×</button>
     </div>
     <div class="dlg-body">

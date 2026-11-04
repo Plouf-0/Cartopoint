@@ -913,7 +913,6 @@ const MUTANTS = [
   ['réseau : se fie à ce qu’annonce le téléphone', 'src/js/eleve/network-icon.js', 'navigator.onLine && serverReached', 'navigator.onLine'],
   ['réseau : un refus pris pour une coupure', 'src/js/eleve/network-icon.js', '!error || (error.status !== 0 && error.status < 500)', '!error'],
   ['réseau : coupure non vue', 'src/js/eleve/network-icon.js', "window.addEventListener('offline', refresh);", ''],
-  ['réseau : retour non vu', 'src/js/eleve/network-icon.js', 'serverReached = true;\n    refresh();', 'serverReached = true;'],
   [
     'réseau : le serveur revenu ne rétablit pas l’icône',
     'src/js/eleve/main.js',

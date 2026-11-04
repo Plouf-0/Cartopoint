@@ -70,10 +70,7 @@ export function bindNetworkIcon() {
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') setOpen(false);
   });
-  window.addEventListener('online', () => {
-    serverReached = true;
-    refresh();
-  });
+  // Le retour du réseau passe par le contrôle que la page lance alors (serverAnswered) : seul le serveur prouve qu'il répond
   window.addEventListener('offline', refresh);
   refresh();
 }

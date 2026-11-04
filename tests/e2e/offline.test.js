@@ -857,6 +857,44 @@ test('HOR-10 : ce qui demande d’agir s’ouvre de soi-même, avant de quitter 
   assert.equal(await page.locator('#netButton.warning').count(), 0);
 });
 
+/** Fait passer un contrôle de l'état, comme la page toutes les 20 secondes, et attend qu'il soit traité. */
+async function nextCheck(page) {
+  const checked = page.waitForResponse('**/api/student/state');
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await checked;
+  await page.waitForTimeout(150);
+}
+
+test('HOR-10 : une alerte fermée par l’élève ne se rouvre pas à chaque contrôle', async (t) => {
+  const { site, teacher } = await setup(t);
+  const course = await fieldCourse(teacher);
+  const code = await launch(teacher, course);
+  const missing = await publishedPlan(teacher, course);
+  await rename(mediaFile(site, missing), mediaFile(site, missing) + '.absent');
+  const page = await openPage(t, browser, { base: site.base });
+  await enter(page, code);
+  await netInfo(page).getByText('Téléchargement incomplet').waitFor();
+  await page.mouse.move(0, 0);
+  await page.keyboard.press('Escape');
+  await netInfo(page).waitFor({ state: 'hidden' });
+
+  await nextCheck(page);
+  assert.equal(await netInfo(page).isVisible(), false, 'l’icône reste là pour y revenir');
+  await iconLooks(page, 'warning');
+});
+
+test('HOR-10 : le détail ouvert par l’élève ne se referme pas tout seul à chaque contrôle', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launch(teacher, await fieldCourse(teacher));
+  const page = await fieldStudent(t, site, code);
+  await netIcon(page).click();
+  await page.mouse.move(0, 0);
+  await netInfo(page).waitFor();
+
+  await nextCheck(page);
+  assert.equal(await netInfo(page).isVisible(), true);
+});
+
 test('sur un téléphone, un nom long ne casse pas l’en-tête : le titre garde sa largeur, et le détail du réseau reste à l’écran', async (t) => {
   const { site, teacher } = await setup(t);
   const code = await launch(teacher, await fieldCourse(teacher));
@@ -923,6 +961,8 @@ test('INC-01 : le fichier autonome, sans serveur, ne signale rien à personne', 
   });
   await page.waitForTimeout(300);
   assert.deepEqual(reports, []);
+  // Le navigateur refuse tout envoi vers file:// avant même de le tenter : seule la file d'attente le montrerait
+  assert.equal(await page.evaluate(() => localStorage.getItem('cartopoint.incidents')), null);
 });
 
 test('HOR-05 : le fichier autonome, ouvert d’un double-clic, a ses polices sans aucun serveur', async (t) => {

@@ -717,7 +717,8 @@ jour, E-05 et E-09 en partie.
   compte les échecs par adresse IP, mais derrière Traefik il ne voit que celle du proxy. Dix erreurs, de
   n'importe qui, bloquent donc aussi l'enseignant pendant 10 minutes. Le README annonce « par IP ». _Lié à
   `SRV-06`._ **Corrigé :** avec `TRUST_PROXY=1`, le client est reconnu par la dernière valeur de
-  `X-Forwarded-For`. Reste à le vérifier derrière le vrai proxy, à la mise en service.
+  `X-Forwarded-For`. Derrière Cloudflare, cette valeur est l'un de ses serveurs : le visiteur est alors lu dans `CF-Connecting-IP`, seulement si la requête vient bien de ses plages.
+  Vérifié derrière le vrai proxy, sur la préproduction, le 4 novembre.
 - **E-05 — Le projet est retéléchargé en entier à chaque ouverture.** Le serveur envoie `project.json`
   sans compression ni `ETag` ou `Last-Modified` (vérifié sur le serveur Node, sans le proxy : 4,15 Mo à
   chaque chargement, pour chaque élève, et jusqu'à 100 Mo autorisés). Les photos et vidéos des fiches ne

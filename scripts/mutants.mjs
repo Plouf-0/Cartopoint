@@ -1277,6 +1277,7 @@ const MUTANTS = [
   // Version affichée
   ['EV-42 : pas de version à l’écran', 'src/js/version.js', '  document.body.append(label);\n', ''],
   ['EV-44 : numéro de version oublié', 'scripts/build.mjs', 'const version = `${number} (${commitLabel()})`;', 'const version = commitLabel();'],
+  ['démarrage : port annoncé faux', 'server/index.mjs', 'http://localhost:${app.server.address().port}', 'http://localhost:${PORT}'],
   ['EV-42 : pages construites sans version', 'scripts/build.mjs', 'define: { __APP_VERSION__: JSON.stringify(version) }', 'define: {}'],
   ['EV-42 : version demandée ignorée', 'scripts/build.mjs', 'if (process.env.APP_VERSION) return process.env.APP_VERSION;', ''],
   ['EV-42 : la version empêche d’appuyer', 'src/css/app.css', 'font-size: 11px; pointer-events: none; }', 'font-size: 11px; }'],

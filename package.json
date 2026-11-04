@@ -1,6 +1,6 @@
 {
   "name": "inventaire-botanique",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Cartopoint : des fiches et leur position sur un plan, placement par les élèves, correction et compte rendu.",
   "private": true,
   "type": "module",

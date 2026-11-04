@@ -5,7 +5,7 @@
  *   node server/index.mjs [--root dist] [--data data] [--port 8080]
  *
  * Variables d'environnement (prioritaires sur les options) :
- *   PORT               port d'écoute (8080)
+ *   PORT               port d'écoute (8080) ; 0 en choisit un libre, annoncé au démarrage
  *   ROOT               dossier de l'application (dist)
  *   DATA_DIR           dossier des données (data) : app.db, project.json, projets/<nom>.json, backups/
  *   PUBLISH_PASSWORD   mot de passe de publication. Sans lui, la publication depuis
@@ -62,7 +62,8 @@ function periodicTasks() {
 }
 
 app.server.listen(PORT, () => {
-  console.log(`Cartopoint : http://localhost:${PORT}`);
+  // Avec le port 0, le système en choisit un libre : c'est celui-là qu'il faut annoncer
+  console.log(`Cartopoint : http://localhost:${app.server.address().port}`);
   console.log(`  application : ${ROOT}`);
   console.log(`  données     : ${DATA}`);
   console.log(`  publication : ${PASSWORD ? 'activée' : 'désactivée (définir PUBLISH_PASSWORD)'}`);

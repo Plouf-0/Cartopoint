@@ -4,7 +4,7 @@
  */
 import { api } from '../api.js';
 import { card, dateAndTime, el, errorLine, showError } from '../compte/ui.js';
-import { formatSize } from '../util.js';
+import { download, formatSize, today } from '../util.js';
 
 const BROWSERS = [
   [/Edg\w*\/(\d+)/, 'Edge'],
@@ -60,23 +60,48 @@ function incidentRow(incident) {
   );
 }
 
+/** Le journal en texte, pour le garder ou le transmettre : tout y est, sans avoir à ouvrir chaque ligne. */
+function journalLog(incidents) {
+  return incidents
+    .map((incident) =>
+      [
+        `[${incident.lastAt}] ${incident.action} : ${incident.reason}`,
+        incident.count > 1 ? `Répétitions : ${incident.count}, depuis ${incident.firstAt}` : '',
+        `Qui : ${incident.account ?? 'sans compte'}`,
+        `Page : ${incident.page}`,
+        `Machine : ${machineSummary(incident.machine)}`,
+        `Navigateur : ${incident.machine.browser ?? '?'}`,
+        `Détail de la machine : ${JSON.stringify(incident.machine)}`,
+        incident.details ? `Pile :\n${incident.details}` : ''
+      ]
+        .filter(Boolean)
+        .join('\n')
+    )
+    .join('\n\n');
+}
+
 export function incidentsCard() {
   const error = errorLine();
+  let shown = [];
   const list = el('ul', { className: 'incidents' });
   const empty = el('div', { className: 'empty-box', hidden: true }, 'Aucun problème signalé.');
+  const save = el('button', { className: 'btn soft sm', type: 'button', hidden: true }, 'Télécharger le journal (.log)');
   const clear = el('button', { className: 'btn ghost sm', type: 'button', hidden: true }, 'Tout effacer');
 
   async function refresh() {
     error.hidden = true;
     try {
       const incidents = await api('GET', '/admin/incidents');
+      shown = incidents;
       list.replaceChildren(...incidents.map(incidentRow));
       empty.hidden = incidents.length > 0;
       clear.hidden = !incidents.length;
+      save.hidden = !incidents.length;
     } catch (e) {
       showError(error, e);
     }
   }
+  save.addEventListener('click', () => download(journalLog(shown), `cartopoint-journal-${today()}.log`, 'text/plain;charset=utf-8'));
   clear.addEventListener('click', async () => {
     if (!confirm('Effacer tout le journal ?')) return;
     try {
@@ -93,6 +118,6 @@ export function incidentsCard() {
     error,
     list,
     empty,
-    clear
+    el('div', { className: 'row-actions' }, save, clear)
   );
 }

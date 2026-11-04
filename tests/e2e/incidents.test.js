@@ -4,7 +4,7 @@
  */
 import { before, after, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rename } from 'node:fs/promises';
+import { readFile, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { addAccount, cheapHash } from '../helpers.js';
 import { ADMIN, heading, launchBrowser, logIn, makePng, openPage, startSite } from './helpers.js';
@@ -655,11 +655,43 @@ test('INC-02 : ce que le navigateur a envoyé s’affiche comme du texte, jamais
   assert.match(await admin.locator('.incident-what').textContent(), /<img src=x/);
 });
 
+test('INC-02 : le journal se télécharge en .log, avec tout ce qu’il faut pour comprendre, sans ouvrir de détail', async (t) => {
+  const { site } = await teacherSite(t);
+  const account = site.db.prepare('SELECT id FROM accounts WHERE email = ?').get(TEACHER.email).id;
+  seed(site, [
+    {
+      account,
+      page: '/prof/cours/abc',
+      action: 'Publication',
+      reason: 'QuotaExceededError : plus de place',
+      details: 'la pile complète',
+      count: 3,
+      firstAt: '2026-11-01T10:00:00.000Z',
+      lastAt: '2026-11-04T10:00:00.000Z',
+      machine: { browser: 'Mozilla/5.0 (Windows NT 10.0) Chrome/120.0.0.0 Safari/537.36', cores: 12, storageUsed: 1200000, storageQuota: 85000000000 }
+    }
+  ]);
+  const admin = await adminPage(t, site);
+  const saved = admin.waitForEvent('download');
+  await admin.getByRole('button', { name: 'Télécharger le journal (.log)' }).click();
+  const file = await saved;
+  assert.match(file.suggestedFilename(), /^cartopoint-journal-\d{4}-\d{2}-\d{2}\.log$/);
+  const text = await readFile(await file.path(), 'utf8');
+  assert.match(text, /\[2026-11-04T10:00:00\.000Z\] Publication : QuotaExceededError : plus de place/);
+  assert.match(text, /Répétitions : 3, depuis 2026-11-01T10:00:00\.000Z/);
+  assert.match(text, /Qui : prof@example\.org/);
+  assert.match(text, /Page : \/prof\/cours\/abc/);
+  assert.match(text, /Machine : Chrome 120 sur Windows · 12 cœurs · place pour ce site : 1,2 Mo utilisés sur 85 Go/);
+  assert.match(text, /Navigateur : Mozilla\/5\.0 \(Windows NT 10\.0\)/);
+  assert.match(text, /Pile :\nla pile complète/);
+});
+
 test('INC-02 : le journal vide le dit, et l’effacer demande une confirmation', async (t) => {
   const { site } = await teacherSite(t);
   const admin = await adminPage(t, site);
   await admin.getByText('Aucun problème signalé.').waitFor();
   assert.equal(await admin.getByRole('button', { name: 'Tout effacer' }).isVisible(), false);
+  assert.equal(await admin.getByRole('button', { name: 'Télécharger le journal (.log)' }).isVisible(), false);
   await admin.getByText(/Jamais de nom d’élève/).waitFor();
 
   seed(site, [{ reason: 'à effacer' }]);

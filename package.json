@@ -16,6 +16,7 @@
     "test:e2e": "node --test tests/e2e/*.test.js",
     "test:coverage": "node scripts/coverage.mjs",
     "test:mutants": "node scripts/mutants.mjs",
+    "test:charge": "node scripts/charge.mjs",
     "convert": "node scripts/convert-project.mjs",
     "format": "prettier --write \"src/**/*.js\" \"server/**/*.mjs\" \"scripts/**/*.mjs\" \"tests/**/*.js\""
   },

@@ -23,10 +23,12 @@ const COURSE_CLOSED = "Ce cours n'accepte plus de nouveaux élèves.";
 const TOO_MANY = "Trop d'essais avec un code inconnu. Réessayez dans quelques minutes.";
 const NO_COURSE = "Ce cours n'existe plus.";
 const WINDOW = 15 * 60 * 1000;
+export const MAX_CODE_FAILURES = 200;
 
 export function studentRoutes(router, { launches, trustProxy }) {
-  // Seuls les échecs comptent : une classe entière partage souvent la même adresse (E-04)
-  const failures = createLimiter({ max: 30, windowMs: WINDOW });
+  // Seuls les échecs comptent, et une classe de 50 partage souvent la même adresse : quelques erreurs de chacun ne doivent pas la bloquer
+  // (E-04, QUA-09). Deviner un code reste hors de portée : à ce rythme, 19 200 essais par jour sur un milliard de codes
+  const failures = createLimiter({ max: MAX_CODE_FAILURES, windowMs: WINDOW });
 
   function openLaunch(req, params) {
     const ip = clientIp(req, trustProxy);

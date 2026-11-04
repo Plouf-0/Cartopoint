@@ -279,7 +279,7 @@ et le reste de l'application continue de fonctionner à partir de ce qui est en 
 - **Fin du cours :** le code cesse de fonctionner (410) et le jeton continue. Un élève déjà entré garde son accès, jusqu'à ce que le
   lancement soit supprimé. Son navigateur lui annonce la fin, en interrogeant `GET /api/student/state` toutes les 20 secondes si l'onglet
   est visible. La page de l'enseignant interroge `GET /api/launches/:id` toutes les 5 secondes.
-- **Limites :** 200 élèves par lancement. 30 essais de code inconnu par adresse en 15 minutes : une réussite ne compte pas.
+- **Limites :** 200 élèves par lancement. 200 essais de code inconnu par adresse en 15 minutes : une réussite ne compte pas, et une classe de 50 qui partage une adresse doit pouvoir se tromper.
 
 ## Rendre son travail
 

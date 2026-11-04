@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { crc32, deflateSync } from 'node:zlib';
-import { chromium } from 'playwright';
+import * as playwright from 'playwright';
 import { summarize } from '../../scripts/browser-coverage.mjs';
 import { createApp } from '../../server/app.mjs';
 import { ensureAdmin } from '../../server/auth.mjs';
@@ -15,7 +15,13 @@ import { tempDir } from '../helpers.js';
 
 export const ADMIN = { email: 'admin@example.org', password: 'mot-de-passe-admin' };
 
-export const launchBrowser = () => chromium.launch();
+/**
+ * Chromium par défaut. E2E_BROWSER=webkit ou firefox essaie un autre moteur, faute de pouvoir essayer sur chaque appareil. La couverture et le
+ * vidage du cache HTTP n'existent que dans Chromium.
+ */
+export const ENGINE = process.env.E2E_BROWSER ?? 'chromium';
+const IS_CHROMIUM = ENGINE === 'chromium';
+export const launchBrowser = () => playwright[ENGINE].launch();
 
 /** Une vraie image PNG, que le navigateur sait décoder. */
 export function makePng(width, height, { pad = 0 } = {}) {
@@ -55,16 +61,23 @@ export async function startSite(t, { root = path.resolve('src'), password = '' }
 
 /** Une page dans un navigateur vierge : sans cookie, comme une autre personne sur un autre appareil. */
 export async function openPage(t, browser, { base, permissions = [], viewport = { width: 1280, height: 800 }, touch = false, expectErrors = false } = {}) {
-  const context = await browser.newContext({ baseURL: base, permissions, viewport, locale: 'fr-FR', hasTouch: touch, isMobile: touch });
+  const context = await browser.newContext({
+    baseURL: base,
+    permissions,
+    viewport,
+    locale: 'fr-FR',
+    hasTouch: touch,
+    ...(ENGINE === 'firefox' ? {} : { isMobile: touch })
+  });
   context.setDefaultTimeout(5000);
   const page = await context.newPage();
   // Une erreur JavaScript fait toujours échouer le test, même si l'écran a l'air correct
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
+  if (IS_CHROMIUM) await page.coverage.startJSCoverage({ resetOnNavigation: false });
   t.after(async () => {
-    const entries = await page.coverage.stopJSCoverage();
-    if (process.env.BROWSER_COVERAGE_DIR) {
+    const entries = IS_CHROMIUM ? await page.coverage.stopJSCoverage() : [];
+    if (IS_CHROMIUM && process.env.BROWSER_COVERAGE_DIR) {
       await mkdir(process.env.BROWSER_COVERAGE_DIR, { recursive: true });
       await writeFile(path.join(process.env.BROWSER_COVERAGE_DIR, randomUUID() + '.json'), JSON.stringify(summarize(entries)));
     }

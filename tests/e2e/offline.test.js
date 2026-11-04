@@ -10,7 +10,7 @@ import { cp, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { addAccount, cheapHash, tempDir } from '../helpers.js';
-import { heading, launchBrowser, logIn, makePng, openPage, startSite } from './helpers.js';
+import { ENGINE, heading, launchBrowser, logIn, makePng, openPage, startSite } from './helpers.js';
 
 const TEACHER = { email: 'prof@example.org', password: 'mot-de-passe-prof' };
 const NAMES = 'Léa Dupont';
@@ -147,6 +147,7 @@ async function fieldStudent(t, site, code) {
  * rien. Un téléphone peut le vider à tout moment : seul ce que garde le service worker doit compter.
  */
 async function forgetHttpCache(page) {
+  if (ENGINE !== 'chromium') return;
   const session = await page.context().newCDPSession(page);
   await session.send('Network.clearBrowserCache');
   await session.detach();
@@ -700,7 +701,8 @@ test('le service worker ne s’occupe que de /c/ : ni l’accueil, ni les pages 
   assert.equal(await teacher.evaluate(() => navigator.serviceWorker.getRegistrations().then((list) => list.length)), 0);
 
   await cutNetwork(site, page);
-  await assert.rejects(page.goto('/accueil'), /ERR_INTERNET_DISCONNECTED|ERR_CONNECTION_REFUSED/);
+  // Chromium seul : Firefox peut encore la resservir de son cache HTTP, qu'on ne sait vider que dans Chromium
+  if (ENGINE === 'chromium') await assert.rejects(page.goto('/accueil'), /ERR_INTERNET_DISCONNECTED|ERR_CONNECTION_REFUSED/);
 });
 
 test('la page de l’enseignant demande d’attendre le message que l’élève voit vraiment', async (t) => {

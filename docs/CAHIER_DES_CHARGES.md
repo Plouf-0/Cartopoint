@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.21** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.22** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -72,7 +72,10 @@ trace.
 | EV-34   | 02/11/2026 | Rendre le site générique : des valeurs par défaut liées à Cartopoint plutôt qu'à « Inventaire botanique », en gardant le vert comme couleur par défaut. | Q-01 | Moyenne | Fait pour le nom, les valeurs par défaut et les textes. Voir Q-01 |
 | EV-35   | 02/11/2026 | Plus aucune donnée d'utilisateur sur GitHub à partir de maintenant. L'historique sera réécrit plus tard si besoin. | Dépôt | Haute | Fait dans la branche : plan d'exemple inventé, captures retirées, `tests/repo.test.js`. Ce qui est déjà public le reste |
 | EV-36   | 04/11/2026 | Sur la page élève, une petite icône qui dit si l'on est en ligne ou hors ligne, avec le détail en passant le doigt dessus, plutôt qu'un bandeau qui reste. | HOR-10 | Moyenne | Fait dans la branche |
-| EV-37   | 04/11/2026 | Quand quelque chose échoue chez quelqu'un, un journal avec la signature de sa machine, des informations utiles et la raison. | INC-01 à INC-07 | Haute | Fait dans la branche. Lecture de la demande à confirmer : voir INC |
+| EV-37   | 04/11/2026 | Quand le site casse chez quelqu'un, un `.log` pour voir pourquoi, avec la signature de sa machine, des informations utiles et la raison. Pour récupérer par exemple les erreurs de chez le premier enseignant. | INC-01 à INC-07 | Haute | Fait dans la branche |
+| EV-38   | 04/11/2026 | Vérifier qu'un cours fonctionne avec au moins 30 élèves, 50 au plus. | QUA-09 | Haute | Fait dans la branche |
+| EV-39   | 04/11/2026 | Bloquer l'élève dès que le cours est fini, au lieu d'un simple message qui le laisse continuer. | CRG-11 | Haute | Déjà prévu pour l'étape 7 |
+| EV-40   | 04/11/2026 | Hors ligne, horodater chaque réponse pour voir lesquelles ont été faites avant et après la fin du cours. | CRG-13, Q-19 | Moyenne | Étape 7 |
 
 - **Exigence concernée :** son identifiant (`PLA-03`, `E-01`…), ou rien pour un besoin nouveau.
 - **Priorité :** Haute (empêche une séance), Moyenne (gêne réelle), Basse (confort).
@@ -791,6 +794,9 @@ Ces choix ne se déduisent pas du code. Les pistes sont des suggestions.
 - **Q-08 — Quelles cibles officielles ?** Navigateurs et appareils pris en charge (voir E-15), et niveau
   d'accessibilité visé : le RGAA s'impose si l'application est diffusée par un établissement public.
 
+- **Q-19 — Les réponses faites après la fin du cours comptent-elles dans le score ?** **Tranchée le 4 novembre 2026 :** oui, et l'enseignant voit combien
+  il y en a (`CRG-13`). Un élève sans réseau ne peut pas savoir que le cours est fini, et l'heure d'un téléphone n'est qu'une indication.
+
 ### Décisions prises
 
 Toutes le 1er novembre 2026.
@@ -984,7 +990,8 @@ Demandes : EV-06, EV-10
   message avant de quitter le réseau.
 - **HOR-11** Les vidéos ne sont pas gardées sur l'appareil (section 9 de la feuille de route). Sans réseau, la fiche l'explique.
 - **HOR-06** Dès que l'élève clique sur Terminer, ses placements et ses mesures sont figés.
-- **HOR-07** Un élève peut rendre après la fin du cours : son rendu est accepté et signalé à l'enseignant.
+- **HOR-07** Un élève peut rendre après la fin du cours : son rendu est accepté et signalé à l'enseignant. Depuis EV-39, cela ne concerne plus que
+  celui qui ne pouvait pas savoir que le cours était fini, faute de réseau (`CRG-11`).
 - **HOR-08** L'élève dispose d'un bouton Terminer : son clic notifie l'enseignant et envoie ses réponses s'il a du
   réseau.
 - **HOR-09** En cas de problème de réseau, l'élève qui a terminé peut télécharger un fichier de réponses à donner à
@@ -1011,8 +1018,12 @@ Demandes : EV-08
   le serveur n'ouvre pas les images. Publier est refusé si un plan ne se charge pas.
 - **CRG-10** Le compte rendu JPG est disponible une fois la correction reçue, avec les placements et le résultat
   de chaque fiche, sans les positions réelles.
-- **CRG-11** Un élève qui n'a pas cliqué sur Terminer à la fin du cours voit son travail figé et envoyé avant
-  l'affichage de la correction, et l'enseignant en est averti.
+- **CRG-11** Un élève qui n'a pas cliqué sur Terminer à la fin du cours voit son travail figé et envoyé dès que sa page l'apprend, avant
+  l'affichage de la correction, et l'enseignant en est averti. Rien d'autre ne peut l'empêcher de continuer : sans réseau, son téléphone ne sait
+  pas que le cours est fini.
+- **CRG-13** Chaque placement et chaque mesure garde son heure. L'enseignant voit combien de réponses ont été faites après la fin du cours. Une
+  horloge de téléphone peut être fausse : à l'envoi, l'appareil donne aussi son heure, et le serveur en déduit l'écart avec la sienne. C'est une
+  indication et non une preuve : une horloge changée exprès en cours de route la trompe. Ces réponses comptent dans le score (Q-19).
 - **CRG-12** La page ouverte reçoit la correction d'elle-même, sans action de l'élève, y compris si le réseau ne
   revient qu'après la fin du cours.
 
@@ -1086,6 +1097,8 @@ Demande : EV-28
 - **QUA-05** Chaque exigence de la section 12 est couverte par au moins un test automatique, dont le titre cite
   l'identifiant. Si l'automatisation est impossible, comme sur de vrais téléphones, un essai à la main est noté dans
   la feuille de route.
+- **QUA-09** Un cours tient 50 élèves arrivant et rendant au même instant, sans refus, sans réponse perdue ni mélangée, et 30 aussi. Une classe de 50
+  derrière une seule adresse peut se tromper de code plusieurs fois sans se bloquer. `npm test` le vérifie, `npm run test:charge` donne les chiffres.
 - **QUA-06** La couverture se mesure sur **tous** les fichiers : un fichier qu'aucun test ne charge compte pour 0 %.
   `npm run test:coverage` échoue sous un seuil, et les seuils ne baissent jamais.
 - **QUA-07** Objectif à la mise en service : au moins 95 % des lignes et 90 % des branches du serveur, et au moins
@@ -1097,15 +1110,16 @@ Demande : EV-28
 
 ### 12.13 Journal des problèmes — `INC`
 
-Demande : EV-37. Lue comme un journal du site, parce que la cause de EV-04 reste inconnue faute de savoir ce qui s'est passé sur la machine du premier enseignant. Si l'utilisateur parlait des tests du laptop, c'est un ajout de plus, à faire à part.
+Demande : EV-37, parce que la cause de EV-04 reste inconnue faute de savoir ce qui s'est passé sur la machine du premier enseignant. L'utilisateur pensait à un
+fichier `.log` : le journal arrive sans rien demander à la personne, et l'admin le télécharge en `.log` (`INC-02`).
 
 - **INC-01** Ce qui échoue dans un navigateur arrive tout seul au serveur, avec ce que la personne faisait, la raison exacte et sa machine :
   navigateur et système, langue, écran, mémoire, cœurs, réseau, et la place que le navigateur pense pouvoir utiliser sur le disque. Sont
   signalés les erreurs du programme, les messages d'erreur affichés, les erreurs du serveur (5xx, 413), une écriture perdue alors que le réseau
   semble là, et une préparation pour le terrain incomplète. Un refus ordinaire (mot de passe, conflit, session expirée) et une lecture perdue ne
   sont pas des pannes. Le fichier autonome, sans serveur, ne signale rien.
-- **INC-02** Seul l'admin lit le journal et l'efface, dans son tableau de bord. Les 200 derniers problèmes s'y affichent, en clair sur ordinateur
-  comme sur téléphone. Ces textes viennent de n'importe quel navigateur : ils s'affichent comme du texte, jamais comme du code.
+- **INC-02** Seul l'admin lit le journal, le télécharge en `.log` et l'efface, dans son tableau de bord. Les 200 derniers problèmes s'y affichent,
+  en clair sur ordinateur comme sur téléphone. Ces textes viennent de n'importe quel navigateur : ils s'affichent comme du texte, jamais comme du code.
 - **INC-03** Ni nom d'élève, ni réponse, ni contenu de cours, ni adresse IP. Le compte est noté pour un enseignant. L'adresse de la page s'arrête
   au chemin : un lien d'invitation porte son secret après. Le serveur ne garde que les champs prévus, quoi que le navigateur envoie. La machine
   d'un élève est notée, sans rien qui dise de qui il s'agit (`ANO-08`). À mentionner dans l'information aux utilisateurs (étape 10).
@@ -1143,3 +1157,4 @@ Demande : EV-37. Lue comme un journal du site, parce que la cause de EV-04 reste
 | 0.19    | 3 novembre 2026   | EV-04 : constats sur le poste du premier enseignant |
 | 0.20    | 4 novembre 2026   | Étape 6 : page élève disponible sans réseau, polices servies par le site ; HOR-10, HOR-11 |
 | 0.21    | 4 novembre 2026   | Icône du réseau sur la page élève (EV-36, HOR-10) ; journal des problèmes (EV-37, INC-01 à INC-07) |
+| 0.22    | 4 novembre 2026   | Journal téléchargeable en `.log` ; charge de 30 à 50 élèves (EV-38, QUA-09) ; bloquer à la fin du cours et horodater les réponses (EV-39, EV-40, CRG-13, Q-19) |

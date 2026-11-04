@@ -711,6 +711,12 @@ const MUTANTS = [
   ['élève : COU-08, code encore valable', 'server/routes/student.mjs', 'if (launch.ended_at) throw new HttpError(410, COURSE_ENDED);', ''],
   ['élève : ADM-06, entrée sur un compte désactivé', 'server/routes/student.mjs', 'if (launch.disabled_at) throw new HttpError(410, COURSE_CLOSED);', ''],
   ['élève : échecs non comptés', 'server/routes/student.mjs', 'failures.fail(ip);', ''],
+  [
+    'QUA-09 : une classe bloquée par ses erreurs de code',
+    'server/routes/student.mjs',
+    'export const MAX_CODE_FAILURES = 200;',
+    'export const MAX_CODE_FAILURES = 30;'
+  ],
   ['élève : limite non appliquée', 'server/routes/student.mjs', 'if (failures.blocked(ip)) throw new HttpError(429, TOO_MANY);', ''],
   [
     'élève : un cours terminé compte comme un échec',
@@ -1114,6 +1120,16 @@ const MUTANTS = [
   ],
   ['INC-07 : une page s’emballe sans fin', 'src/js/incident.js', 'reported >= PER_PAGE_MAX', 'false'],
   // Journal des problèmes : ce que lit l'admin
+  [
+    'INC-02 : .log introuvable',
+    'src/js/admin/incidents.js',
+    "save.addEventListener('click', () => download(journalLog(shown), `cartopoint-journal-${today()}.log`, 'text/plain;charset=utf-8'));",
+    ''
+  ],
+  ['INC-02 : .log proposé sans rien dedans', 'src/js/admin/incidents.js', 'save.hidden = !incidents.length;', 'save.hidden = false;'],
+  ['INC-02 : .log vide', 'src/js/admin/incidents.js', 'shown = incidents;', ''],
+  ['INC-02 : .log sans la pile', 'src/js/admin/incidents.js', "incident.details ? `Pile :\\n${incident.details}` : ''", "''"],
+  ['INC-02 : .log sans la machine', 'src/js/admin/incidents.js', '`Machine : ${machineSummary(incident.machine)}`,', ''],
   ['INC-02 : carte absente du tableau de bord', 'src/js/admin/main.js', 'incidentsCard(), ', ''],
   ['INC-02 : effacer sans confirmation', 'src/js/admin/incidents.js', "if (!confirm('Effacer tout le journal ?')) return;", ''],
   ['INC-02 : Effacer proposé sans rien à effacer', 'src/js/admin/incidents.js', 'clear.hidden = !incidents.length;', 'clear.hidden = false;'],
@@ -1322,7 +1338,7 @@ const TESTS_FOR = {
   'server/launches.mjs': ['launches', 'answers'],
   'server/answers.mjs': ['answers'],
   'server/routes/launches.mjs': ['launches'],
-  'server/routes/student.mjs': ['launches', 'answers'],
+  'server/routes/student.mjs': ['load', 'launches', 'answers'],
   'src/js/prof/qr.js': ['e2e/launches'],
   'src/js/prof/launch.js': ['e2e/offline', 'e2e/launches'],
   'src/js/accueil.js': ['e2e/launches'],

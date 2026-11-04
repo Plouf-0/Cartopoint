@@ -2,6 +2,7 @@
  * Lancer un cours et le rejoindre, au niveau de l'API (cahier des charges, sections 12.2 à 12.4). Les écrans sont vérifiés
  * dans tests/e2e/launches.test.js.
  */
+import { MAX_CODE_FAILURES } from '../server/routes/student.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -292,7 +293,7 @@ test('un code inconnu est refusé, et les échecs répétés sont limités sans 
   for (let i = 0; i < 40; i++) assert.equal((await anyone.post(`/api/join/${launch.code}`, { names: `Élève ${i}` })).status, 200);
 
   let status;
-  for (let i = 0; i < 30; i++) status = (await anyone.get('/api/join/ZZZZZZ')).status;
+  for (let i = 0; i < MAX_CODE_FAILURES; i++) status = (await anyone.get('/api/join/ZZZZZZ')).status;
   assert.equal(status, 429);
   const blocked = await anyone.get(`/api/join/${launch.code}`);
   assert.equal(blocked.status, 429, 'bloqué : même un bon code doit attendre');
@@ -303,7 +304,7 @@ test('derrière le proxy, chaque adresse a sa propre limite', async (t) => {
   const { base } = await site(t, { trustProxy: true });
   const from = (ip) => ({ 'X-Forwarded-For': ip });
   const anyone = student(base);
-  for (let i = 0; i < 30; i++) await anyone.get('/api/join/ZZZZZZ', from('203.0.113.1'));
+  for (let i = 0; i < MAX_CODE_FAILURES; i++) await anyone.get('/api/join/ZZZZZZ', from('203.0.113.1'));
   assert.equal((await anyone.get('/api/join/ZZZZZZ', from('203.0.113.1'))).status, 429);
   assert.equal((await anyone.get('/api/join/ZZZZZZ', from('203.0.113.2'))).status, 404);
 });
@@ -405,7 +406,7 @@ test('un code terminé ne compte pas comme un essai raté', async (t) => {
   const { launch } = await launched(browser);
   await browser.post(`/api/launches/${launch.id}/end`);
   let status;
-  for (let i = 0; i < 35; i++) status = (await student(base).get(`/api/join/${launch.code}`)).status;
+  for (let i = 0; i < MAX_CODE_FAILURES + 5; i++) status = (await student(base).get(`/api/join/${launch.code}`)).status;
   assert.equal(status, 410);
 });
 

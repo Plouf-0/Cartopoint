@@ -21,13 +21,13 @@ function useStudent(project, participant, map) {
 }
 
 /** @returns [{ name, blob }], un fichier par carte */
-export async function studentReports(project, participant) {
+export async function studentReports(project, participant, date) {
   const several = project.maps.length > 1;
   const reports = [];
   for (const map of project.maps) {
     useStudent(project, participant, map);
     const label = several ? `${participant.names} - ${map.name}` : participant.names;
-    reports.push({ name: `Compte rendu - ${safeFileName(label)}.jpg`, blob: await reportBlob(participant.names, { note: participant.note }) });
+    reports.push({ name: `Compte rendu - ${safeFileName(label)}.jpg`, blob: await reportBlob(participant.names, { date }) });
   }
   return reports;
 }
@@ -39,11 +39,11 @@ export async function studentPlan(project, participant, map) {
 }
 
 /** Tous les comptes rendus dans une seule archive : un navigateur refuse de télécharger des dizaines de fichiers d'un coup. */
-export async function allReportsZip(project, participants, onProgress = () => {}) {
+export async function allReportsZip(project, participants, date, onProgress = () => {}) {
   const reports = [];
   for (const [index, participant] of participants.entries()) {
     onProgress(index + 1, participants.length);
-    reports.push(...(await studentReports(project, participant)));
+    reports.push(...(await studentReports(project, participant, date)));
   }
   const names = uniqueNames(reports.map((report) => report.name.replace(/\.jpg$/, ''))).map((name) => `${name}.jpg`);
   const files = await Promise.all(reports.map(async (report, index) => ({ name: names[index], data: new Uint8Array(await report.blob.arrayBuffer()) })));

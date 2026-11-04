@@ -357,13 +357,13 @@ Dès que la page apprend la fin du cours, par `GET /api/student/state`, elle fig
 
 ## Version affichée
 
-Chaque page montre sa version en bas à gauche (`version.js`) : le commit, gravé par `scripts/build.mjs`, suivi de « + » s'il restait des modifications. C'est celle que le navigateur a vraiment, y compris une page gardée par le service worker. Une page servie depuis `src/` affiche « dev ». Une image Docker n'a pas de dépôt git : `docker build --build-arg APP_VERSION=$(git rev-parse --short HEAD) .`, sans quoi elle affiche « inconnue ». Le journal des problèmes note cette version.
+Chaque page montre sa version en bas à gauche (`version.js`) : le numéro de `package.json` et le commit, gravés par `scripts/build.mjs`, le commit suivi de « + » s'il restait des modifications. Par exemple `version 1.0.0 (f401778)`. C'est celle que le navigateur a vraiment, y compris une page gardée par le service worker. Une page servie depuis `src/` affiche « dev ». Une image Docker n'a pas de dépôt git : `docker build --build-arg APP_VERSION=$(git rev-parse --short HEAD) .`, sans quoi elle affiche « inconnue ». Le journal des problèmes note cette version.
 
 ## Historique
 
 La page d'un lancement (`prof/launch.js`, `prof/launch-results.js`) reste celle de son suivi : une fois le cours fini, c'est aussi son historique.
 
-- **La liste** vient de `GET /api/launches/:id`, toutes les 5 secondes : état, score, précision moyenne et note de chacun. Elle ne se redessine pas pendant qu'on écrit une note.
+- **La liste** vient de `GET /api/launches/:id`, toutes les 5 secondes : état, score et précision moyenne de chacun. Elle ne se redessine que si quelque chose a changé.
 - **Le reste** vient de `GET /api/launches/:id/sheets`, à la demande : le cours avec ses positions réelles, et les réponses de chacun. Un autre enseignant reçoit 404 (`ANO-06`).
 - **Les comptes rendus** (`prof/student-reports.js`) réutilisent `report.js`, qui dessine à partir de l'état commun : cette page y met tour à tour chaque élève. `S.admin` y fait apparaître les positions réelles et les écarts. Plusieurs fichiers partent dans un `.zip` (`zip.js`, sans compression : les JPG ne se compressent plus), car un navigateur bloque les téléchargements multiples.
 - **L'Excel** (`prof/results-workbook.js` pour le contenu, `xlsx-write.js` pour le fichier, tous deux sans écran, donc testés sans navigateur). `xlsx.js` reste le lecteur. Un texte y est toujours écrit comme du texte : aucune formule possible. La précision moyenne vient de `meanGap()` (`model.js`), partagée avec le serveur.

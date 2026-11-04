@@ -41,14 +41,15 @@ test('l’image Docker embarque le code que le serveur partage avec le navigateu
   for (const name of [...shared, 'util.js']) assert.ok(dockerfile.includes(`src/js/${name}`), name);
 });
 
-test('EV-42 : la version donnée à la construction entre dans chaque page ; sans elle, c’est le commit', async (t) => {
+test('EV-42, EV-44 : le numéro de version et le commit entrent dans chaque page ; sans commit donné, c’est celui du dépôt', async (t) => {
+  const { version: number } = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   const run = (out, version) =>
     spawnSync(process.execPath, ['scripts/build.mjs', '--outdir', out], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, APP_VERSION: version } });
   const given = await tempDir(t);
   assert.equal(run(given, 'essai-42').status, 0);
   for (const page of PAGES) {
     const text = readFileSync(path.join(given, page), 'utf8');
-    assert.match(text, /essai-42/, page);
+    assert.ok(text.includes(`${number} (essai-42)`), `${page} : le numéro de version, puis le commit`);
     assert.doesNotMatch(text, /__APP_VERSION__/, page);
   }
 
@@ -57,5 +58,13 @@ test('EV-42 : la version donnée à la construction entre dans chaque page ; san
   const commit = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8' });
   // Dans une copie sans dépôt, comme une image Docker, elle le dit au lieu d'inventer
   const expected = commit.status === 0 ? commit.stdout.trim() : 'inconnue';
-  assert.ok(readFileSync(path.join(fromGit, 'eleve.html'), 'utf8').includes(`"${expected}`), expected);
+  assert.ok(readFileSync(path.join(fromGit, 'eleve.html'), 'utf8').includes(`${number} (${expected}`), expected);
+});
+
+test('EV-44 : le numéro de version suit la notation x.y.z, à partir de 1 : les versions 0.y.z sont celles d’avant la refonte', () => {
+  const { version } = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.match(version, /^[1-9]\d*\.\d+\.\d+$/);
+  const lock = JSON.parse(readFileSync(path.join(ROOT, 'package-lock.json'), 'utf8'));
+  assert.equal(lock.version, version, 'package-lock.json suit');
+  assert.equal(lock.packages[''].version, version);
 });

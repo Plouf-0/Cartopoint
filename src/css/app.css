@@ -140,10 +140,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .map-frame.placing::after,
 .map-frame.drop-over::after { content: ""; position: absolute; inset: 0; border: 3px dashed var(--accent); border-radius: var(--radius); pointer-events: none; }
 .map-frame.drop-over::after { border-style: solid; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+/* Sous le plan, jamais dessus : il cacherait un endroit où l'élève veut justement placer sa fiche. Collé au bas de l'écran si le plan est plus haut que lui */
 .place-hint {
-  position: absolute; left: 50%; top: 10px; transform: translateX(-50%); z-index: 30;
-  display: flex; align-items: center; gap: 10px; max-width: calc(100% - 20px);
-  background: var(--ink); color: #fff; border-radius: 999px; padding: 7px 8px 7px 15px; font-size: 14px; box-shadow: 0 4px 14px #0003;
+  position: sticky; bottom: 8px; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; padding: 6px 8px 6px 14px;
+  border-radius: 999px; background: var(--ink); color: #fff; font-size: 14px; box-shadow: 0 4px 14px #0003;
 }
 .place-hint span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .place-hint button { background: #ffffff26; color: #fff; border: 0; border-radius: 999px; padding: 4px 10px; cursor: pointer; font-weight: 700; }
@@ -468,7 +468,6 @@ table.teachers .row-actions .btn { white-space: normal; }
 .participant-name { flex: 1 1 180px; overflow-wrap: anywhere; }
 .participant-score { flex-basis: 100%; font-size: 13px; color: var(--ink-soft); }
 .participants .row-actions { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.note-input { width: 110px; padding: 4px 8px; font-size: 14px; }
 .results-section { margin-top: 14px; display: grid; gap: 10px; justify-items: start; }
 .results-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .detail-dialog { width: min(980px, 96vw); }

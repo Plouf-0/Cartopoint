@@ -6,7 +6,6 @@
  *   POST /launches/:id/end            terminer le cours
  *   DELETE /launches/:id              supprimer un lancement terminé
  *   GET  /launches/:id/sheets         le cours et toutes les réponses, pour les comptes rendus et le fichier Excel
- *   PUT  /launches/:id/participants/:participantId/note   la note d'un élève
  *   POST /launches/:id/answers-file   le fichier de réponses d'un élève
  */
 import { MAX_ANSWERS_BYTES, cleanAnswers, computeResults, countAfterEnd, onServerClock } from '../answers.mjs';
@@ -43,15 +42,6 @@ export function launchRoutes(router, { auth, courses, launches }) {
       })
     )
     .add('GET', '/api/launches/:id/sheets', (req, res, { params }) => sendJson(req, res, launches.sheets(launchOf(req, params)), PRIVATE))
-    .add(
-      'PUT',
-      '/api/launches/:id/participants/:participantId/note',
-      sameOriginOnly(async (req, res, { params }) => {
-        const row = launchOf(req, params);
-        const { note } = await readJson(req);
-        sendJson(req, res, launches.setNote(row, params.participantId, note), PRIVATE);
-      })
-    )
     .add(
       'POST',
       '/api/launches/:id/answers-file',

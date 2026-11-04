@@ -22,6 +22,8 @@ const PHOTO_3 = makePng(10, 30);
 const MP4 = Buffer.from('\0\0\0\x18ftypisom\0\0\0\0', 'latin1');
 const REF_X = 12.3456;
 const VERSION = 'essai-1';
+const { version: NUMBER } = JSON.parse(await readFile('package.json', 'utf8'));
+const label = (commit) => `version ${NUMBER} (${commit})`;
 
 let browser;
 let dist;
@@ -702,14 +704,14 @@ test('une nouvelle version remplace l’ancienne chez l’élève, sans perdre s
   assert.equal(pageCaches(before).length, 1);
   assert.equal(await updateWorker(page), 'aucune mise à jour', 'rien ne change tant que la page ne change pas');
 
-  assert.equal(await appVersion(page), `version ${VERSION}`);
+  assert.equal(await appVersion(page), label(VERSION));
   const pageFile = path.join(root, 'eleve.html');
   await writeFile(
     pageFile,
     (await readFile(pageFile, 'utf8')).replace('<title>', '<meta name="version-essai" content="2"><title>').replaceAll(VERSION, 'essai-2')
   );
   assert.equal(await updateWorker(page), 'activated');
-  assert.equal(await appVersion(page), `version ${VERSION}`, 'la page ouverte reste ce qu’elle est, et le dit');
+  assert.equal(await appVersion(page), label(VERSION), 'la page ouverte reste ce qu’elle est, et le dit');
 
   const after = await cachedUrls(page);
   assert.equal(pageCaches(after).length, 1, 'l’ancienne page n’encombre plus le téléphone');
@@ -721,7 +723,7 @@ test('une nouvelle version remplace l’ancienne chez l’élève, sans perdre s
   await page.locator('.label').first().waitFor();
   assert.equal(await page.locator('meta[name="version-essai"]').count(), 1);
   assert.equal(await naturalWidth(page, '#plan'), 40);
-  assert.equal(await appVersion(page), 'version essai-2', 'la version gardée sur l’appareil, sans réseau');
+  assert.equal(await appVersion(page), label('essai-2'), 'la version gardée sur l’appareil, sans réseau');
 });
 
 test('une mise à jour qui échoue laisse la version précédente en place, utilisable sans réseau', async (t) => {
@@ -997,11 +999,11 @@ test('EV-42 : chaque page dit sa version, en bas de l’écran', async (t) => {
   for (const address of ['/', '/accueil', '/admin', '/invitation', `/c/${code}`]) {
     await page.goto(address);
     await page.locator('#appVersion').waitFor();
-    assert.equal(await appVersion(page), `version ${VERSION}`, address);
+    assert.equal(await appVersion(page), label(VERSION), address);
   }
   for (const address of ['/prof', `/prof/cours/${course.id}`]) {
     await teacher.goto(address);
-    assert.equal(await appVersion(teacher), `version ${VERSION}`, address);
+    assert.equal(await appVersion(teacher), label(VERSION), address);
   }
 });
 
@@ -1009,7 +1011,7 @@ test('EV-42 : le fichier autonome dit aussi sa version', async (t) => {
   const page = await openPage(t, browser, {});
   await page.goto('file://' + path.join(dist, 'index.html'));
   await page.locator('#modeBtn').waitFor();
-  assert.equal(await appVersion(page), `version ${VERSION}`);
+  assert.equal(await appVersion(page), label(VERSION));
 });
 
 test('EV-42 : sur un téléphone, la version reste à l’écran, sans déborder ni empêcher d’appuyer sur ce qu’elle recouvre', async (t) => {

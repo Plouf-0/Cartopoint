@@ -124,8 +124,8 @@ async function fontsReady() {
  * Compte rendu complet sur une seule image :
  *   titre, élèves, carte, date, score · plan avec repères · tableau des fiches et mesures.
  */
-/** @param note la note que l'enseignant a donnée, s'il en a donné une */
-async function drawReport(names, { note = '' } = {}) {
+/** @param date le jour du cours, si le compte rendu en vient d'un. Sinon, le moment où on le télécharge (application d'origine) */
+async function drawReport(names, { date } = {}) {
   await fontsReady();
   const pal = paletteOf(S.project.theme);
   const rows = resultRows();
@@ -161,7 +161,15 @@ async function drawReport(names, { note = '' } = {}) {
   ctx.font = `26px ${SANS}`;
   ctx.fillStyle = pal.inkSoft;
   ctx.fillText(fit(ctx, `Élève(s) : ${names || '—'}`, CW - 380), P, y + 74);
-  ctx.fillText(fit(ctx, `${S.map.name} · ${new Date().toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}`, CW - 380), P, y + 112);
+  ctx.fillText(
+    fit(
+      ctx,
+      `${S.map.name} · ${date ? new Date(date).toLocaleDateString('fr-FR', { dateStyle: 'long' }) : new Date().toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}`,
+      CW - 380
+    ),
+    P,
+    y + 112
+  );
   if (showEv && scored) {
     ctx.textAlign = 'right';
     ctx.fillStyle = pal.ink;
@@ -170,11 +178,6 @@ async function drawReport(names, { note = '' } = {}) {
     ctx.font = `24px ${SANS}`;
     ctx.fillStyle = pal.inkSoft;
     ctx.fillText(`bien placée(s)${near ? ` · ${near} proche(s)` : ''}`, W - P, y + 80);
-    if (note) {
-      ctx.font = `600 30px ${SANS}`;
-      ctx.fillStyle = pal.ink;
-      ctx.fillText(fit(ctx, `Note : ${note}`, 340), W - P, y + 122);
-    }
     ctx.textAlign = 'left';
   }
 
@@ -330,10 +333,10 @@ export async function downloadPlanImage(names) {
   }
 }
 
-export async function downloadReport(names) {
+export async function downloadReport(names, options) {
   try {
     toast('Préparation du compte rendu…');
-    const blob = await toJpeg(await drawReport(names));
+    const blob = await toJpeg(await drawReport(names, options));
     download(blob, safeFileName(`Compte rendu - ${names || S.map.name}`) + '.jpg');
     toast('✓ Compte rendu téléchargé');
   } catch (e) {

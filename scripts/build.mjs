@@ -12,8 +12,8 @@
  *   node scripts/build.mjs --embed data/project.json --out "dist/Mon projet.html"
  *                                                   → fichier autonome contenant un projet
  *
- * La version affichée sur chaque page est le commit, suivi de « + » s'il reste des modifications. APP_VERSION la donne quand git n'est pas là,
- * comme dans une image Docker : docker build --build-arg APP_VERSION=$(git rev-parse --short HEAD) .
+ * La version affichée sur chaque page est le numéro de package.json puis le commit, suivi de « + » s'il reste des modifications : 1.0.0 (f401778).
+ * APP_VERSION donne le commit quand git n'est pas là, comme dans une image Docker : docker build --build-arg APP_VERSION=$(git rev-parse --short HEAD) .
  */
 import { spawnSync } from 'node:child_process';
 import { build } from 'esbuild';
@@ -29,14 +29,15 @@ const outDir = path.resolve(root, args.outdir || 'dist');
 const out = args.out ? path.resolve(root, args.out) : path.join(outDir, 'index.html');
 const SPACE_PAGES = ['prof.html', 'prof-cours.html', 'prof-lancement.html', 'admin.html', 'compte.html', 'accueil.html', 'eleve.html'];
 
-function appVersion() {
+function commitLabel() {
   if (process.env.APP_VERSION) return process.env.APP_VERSION;
   const git = (...command) => spawnSync('git', command, { cwd: root, encoding: 'utf8' });
   const commit = git('rev-parse', '--short', 'HEAD');
   if (commit.status !== 0) return 'inconnue';
   return commit.stdout.trim() + (git('status', '--porcelain').stdout.trim() ? '+' : '');
 }
-const version = appVersion();
+const { version: number } = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
+const version = `${number} (${commitLabel()})`;
 
 async function bundle(entry) {
   const { outputFiles } = await build({

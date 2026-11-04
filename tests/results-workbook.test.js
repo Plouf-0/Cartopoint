@@ -43,7 +43,7 @@ const student = (course, names, answers, extra = {}) => ({
   results: computeResults(course, { m1: answers }),
   ...extra
 });
-const absent = (names) => ({ id: names, names, submittedAt: null, note: '', answers: null, results: null });
+const absent = (names) => ({ id: names, names, submittedAt: null, answers: null, results: null });
 
 function classOf(course = project()) {
   return [
@@ -69,14 +69,14 @@ test('HIS-08 : une page de synthèse au début, puis une page par élève ayant 
   );
 });
 
-test('HIS-08 : la synthèse donne, par élève, sa note, son score, sa précision moyenne et la moyenne de ses trois mesures', () => {
+test('HIS-08 : la synthèse donne, par élève, son score, sa précision moyenne et la moyenne de ses trois mesures', () => {
   const [summary] = workbook();
   const lea = summaryRow(summary, 'Léa Dupont');
-  assert.deepEqual(lea, ['Léa Dupont', 'A fini', '14/20', 1, 0, 1, 0, 10, 21, 55, 1000]);
+  assert.deepEqual(lea, ['Léa Dupont', 'A fini', 1, 0, 1, 0, 10, 21, 55, 1000]);
   const tom = summaryRow(summary, 'Tom Martin');
-  assert.deepEqual(tom, ['Tom Martin', 'Figé à la fin du cours', null, 0, 1, 0, 1, 10, 24.5, null, null], '24,5 écrit à la française reste un nombre');
+  assert.deepEqual(tom, ['Tom Martin', 'Figé à la fin du cours', 0, 1, 0, 1, 10, 24.5, null, null], '24,5 écrit à la française reste un nombre');
   const noe = summaryRow(summary, 'Noé Petit');
-  assert.deepEqual(noe, ['Noé Petit', "N'a pas rendu", null, null, null, null, null, null, null, null, null]);
+  assert.deepEqual(noe, ['Noé Petit', "N'a pas rendu", null, null, null, null, null, null, null, null]);
 });
 
 test('HIS-08 : la ligne de la classe fait la moyenne de ceux qui ont rendu, sans compter les absents ni les cases vides', () => {
@@ -84,7 +84,7 @@ test('HIS-08 : la ligne de la classe fait la moyenne de ceux qui ont rendu, sans
   const row = summaryRow(summary, 'Classe');
   assert.deepEqual(
     row.map((cell) => cell?.value ?? cell),
-    ['Classe', '2 rendu(s) sur 3', null, 0.5, 0.5, 0.5, 0.5, 10, 22.75, 55, 1000]
+    ['Classe', '2 rendu(s) sur 3', 0.5, 0.5, 0.5, 0.5, 10, 22.75, 55, 1000]
   );
 });
 
@@ -102,7 +102,7 @@ test('HIS-08 : sans échelle, la précision est en % du plan, et le titre le dit
   const [summary] = workbook(classOf(course), course);
   assert.ok(JSON.stringify(summary.rows).includes('Précision moyenne (% du plan)'));
   assert.ok(JSON.stringify(summary.rows).includes('Écart moyen (% du plan)'));
-  assert.equal(summaryRow(summary, 'Léa Dupont')[7], 10);
+  assert.equal(summaryRow(summary, 'Léa Dupont')[6], 10);
 });
 
 test('HIS-08 : avec une échelle, le titre dit mètres', () => {
@@ -114,8 +114,8 @@ test('HIS-08 : un élève qui n’a placé aucune fiche n’a pas de précision,
   const course = project();
   const [summary] = workbook([student(course, 'Rien', {})], course);
   const row = summaryRow(summary, 'Rien');
-  assert.equal(row[6], 2, 'deux fiches non placées');
-  assert.equal(row[7], null);
+  assert.equal(row[5], 2, 'deux fiches non placées');
+  assert.equal(row[6], null);
 });
 
 test('HIS-08 : la page d’un élève donne toutes ses réponses, fiche par fiche', () => {
@@ -125,8 +125,7 @@ test('HIS-08 : la page d’un élève donne toutes ses réponses, fiche par fich
     ['Léa Dupont']
   );
   assert.deepEqual(lea.rows[1], ['A fini']);
-  assert.deepEqual([lea.rows[2][0].value, lea.rows[2][1]], ['Note', '14/20']);
-  assert.deepEqual([lea.rows[3][0].value, lea.rows[3][1], lea.rows[3][2]], ['Précision moyenne', 10, 'm']);
+  assert.deepEqual([lea.rows[2][0].value, lea.rows[2][1], lea.rows[2][2]], ['Précision moyenne', 10, 'm']);
   const noisetier = lea.rows.find((row) => row[2] === 'Noisetier');
   assert.deepEqual(noisetier, [1, '1', 'Noisetier', 'Corylus', 'Bien placée', 0, 40, 60, 40, 60, 20, 50, 1000, null]);
   const sureau = lea.rows.find((row) => row[2] === 'Sureau');

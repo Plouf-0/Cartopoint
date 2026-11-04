@@ -421,6 +421,64 @@ test('si la liste ne peut plus se mettre à jour, elle reste affichée avec un m
 
 /* --- COU-08 : terminer --- */
 
+/* --- Le bandeau de placement --- */
+
+async function placingOn(t, plan, viewport) {
+  const { site, teacher } = await setup(t);
+  const url = await teacher.evaluate(async (base64) => {
+    const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+    return (await (await fetch('/api/media', { method: 'POST', headers: { 'Content-Type': 'image/png' }, body: bytes })).json()).url;
+  }, plan.toString('base64'));
+  const code = await launch(
+    teacher,
+    await publishedCourse(teacher, { ...twoMaps, maps: [{ id: 'm1', name: 'Parc', image: url, fiches: twoMaps.maps[0].fiches }] })
+  );
+  const page = await openPage(t, browser, { base: site.base, touch: true, viewport });
+  await enter(page, code);
+  await page.locator('[data-place]').first().tap();
+  await page.locator('#placeHint').waitFor();
+  return page;
+}
+
+const overlap = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+test('le bandeau de placement est sous le plan : il ne cache aucun endroit où poser une fiche', async (t) => {
+  const page = await placingOn(t, makePng(100, 60), { width: 390, height: 800 });
+  const [plan, hint] = await Promise.all([page.locator('#plan').boundingBox(), page.locator('#placeHint').boundingBox()]);
+  assert.equal(overlap(plan, hint), false, `plan ${JSON.stringify(plan)}, bandeau ${JSON.stringify(hint)}`);
+  assert.ok(hint.y >= plan.y + plan.height, 'en dessous');
+  assert.ok(hint.y + hint.height <= 800, 'à l’écran');
+  assert.ok(hint.x >= 0 && hint.x + hint.width <= 390);
+
+  // Tout en bas du plan, là où le bandeau était avant
+  await page.touchscreen.tap(plan.x + plan.width / 2, plan.y + plan.height - 3);
+  const pin = await page.locator('.pin').first().boundingBox();
+  assert.ok(pin.y + pin.height / 2 > plan.y + plan.height * 0.9, 'la fiche est bien là où on a appuyé');
+  await page.locator('#placeHint').waitFor({ state: 'hidden' });
+});
+
+test('un plan plus haut que l’écran : le bandeau reste visible, et ne cache plus rien une fois en bas', async (t) => {
+  const page = await placingOn(t, makePng(100, 300), { width: 390, height: 700 });
+  await page.locator('#mapFrame').evaluate((frame) => frame.scrollIntoView({ block: 'start' }));
+  await page.waitForTimeout(100);
+  const stuck = await page.locator('#placeHint').boundingBox();
+  assert.ok(stuck.y + stuck.height <= 700 && stuck.y >= 0, `bandeau de ${stuck.y} à ${stuck.y + stuck.height}`);
+
+  await page.locator('#placeHint').evaluate((hint) => hint.parentElement.scrollIntoView({ block: 'end' }));
+  await page.waitForTimeout(100);
+  const [plan, hint] = await Promise.all([page.locator('#plan').boundingBox(), page.locator('#placeHint').boundingBox()]);
+  assert.equal(overlap(plan, hint), false, 'en descendant, le bas du plan se dégage');
+  const target = { x: plan.x + plan.width / 2, y: plan.y + plan.height - 3 };
+  assert.ok(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('#mapFrame'), target), 'un appui à cet endroit tombe bien sur le plan');
+});
+
+test('annuler le placement reste possible depuis le bandeau', async (t) => {
+  const page = await placingOn(t, makePng(100, 60), { width: 390, height: 800 });
+  await page.locator('#placeCancel').tap();
+  await page.locator('#placeHint').waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('.pin').count(), 0, 'annuler ne pose rien sur le plan');
+});
+
 test('COU-08 : terminer coupe le QR code et le code ; la liste reste, et l’élève en est informé', async (t) => {
   const { site, teacher } = await setup(t);
   const code = await launch(teacher, await publishedCourse(teacher));

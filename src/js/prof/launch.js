@@ -100,6 +100,7 @@ function showLaunch(first) {
   );
 
   let latest = first;
+  let shownList = '';
   function apply(launch) {
     latest = launch;
     const ended = Boolean(launch.endedAt);
@@ -112,8 +113,12 @@ function showLaunch(first) {
     const finished = launch.participants.filter((participant) => participant.submittedAt).length;
     const done = finished === 0 ? "aucun n'a fini" : finished === 1 ? '1 a fini' : `${finished} ont fini`;
     count.textContent = `${launch.participants.length} élève(s) ou groupe(s) entré(s), ${done}.`;
-    // Toutes les 5 secondes : ne pas effacer une note en cours de frappe, ni une fenêtre de détail ouverte
-    if (!list.contains(document.activeElement) || document.activeElement.tagName !== 'INPUT') list.replaceChildren(...launch.participants.map(participantRow));
+    // Toutes les 5 secondes : seulement si quelque chose a changé, pour ne pas retirer un bouton sous le doigt
+    const listed = JSON.stringify(launch.participants);
+    if (listed !== shownList) {
+      shownList = listed;
+      list.replaceChildren(...launch.participants.map(participantRow));
+    }
     empty.hidden = launch.participants.length > 0;
     results.update(launch, `/prof/cours/${encodeURIComponent(launch.courseId)}`);
   }

@@ -14,7 +14,6 @@ const CODE_LENGTH = 6;
 const CODE_ATTEMPTS = 5;
 export const MAX_PARTICIPANTS = 200;
 export const MAX_NAMES = 120;
-export const MAX_NOTE = 40;
 export const KEEP_LAUNCH_MS = 365 * 24 * 60 * 60 * 1000;
 
 const iso = () => new Date().toISOString();
@@ -114,7 +113,6 @@ export function createLaunches(db, { makeCode = newCode, now = Date.now } = {}) 
           answersAfterEnd: p.answers_after_end,
           finishedAfterEnd: Boolean(row.ended_at && p.finished_at && Date.parse(p.finished_at) > Date.parse(row.ended_at) + AFTER_END_GRACE),
           byFile: Boolean(p.by_file),
-          note: p.note,
           score: p.results ? JSON.parse(p.results).score : null,
           meanGap: p.results ? meanGap(project, JSON.parse(p.results)) : null
         }))
@@ -137,15 +135,6 @@ export function createLaunches(db, { makeCode = newCode, now = Date.now } = {}) 
           return { ...p, answers: answers ? JSON.parse(answers) : null, results: results ? JSON.parse(results) : null };
         })
       };
-    },
-
-    /** La note que l'enseignant donne à un élève, s'il en donne une. Effacer, c'est enregistrer une note vide. */
-    setNote(row, participantId, rawNote) {
-      if (typeof rawNote !== 'string') throw new HttpError(400, 'Note illisible.');
-      const note = rawNote.trim().slice(0, MAX_NOTE);
-      const { changes } = db.prepare('UPDATE participants SET note = ? WHERE id = ? AND launch_id = ?').run(note, participantId, row.id);
-      if (!changes) throw new HttpError(404, 'Introuvable');
-      return { note };
     },
 
     /** L'élève d'un fichier de réponses : seulement s'il appartient à ce lancement (HIS-06). Comme par le réseau, le premier rendu reçu fait foi (HIS-07). */
@@ -226,7 +215,7 @@ export function createLaunches(db, { makeCode = newCode, now = Date.now } = {}) 
     participant(token) {
       return db
         .prepare(
-          `SELECT participants.id, participants.names, participants.submitted_at, participants.results, launches.ended_at, course_versions.content FROM participants
+          `SELECT participants.id, participants.names, participants.submitted_at, participants.results, launches.opened_at, launches.ended_at, course_versions.content FROM participants
            JOIN launches ON launches.id = participants.launch_id JOIN course_versions ON course_versions.id = launches.version_id
            WHERE participants.token_hash = ?`
         )

@@ -391,6 +391,7 @@ test('CRG-10 : le compte rendu se télécharge, avec les placements et les résu
   await placeFirstFiche(page);
   await finish(page);
   await endCourse(teacher);
+  site.db.prepare('UPDATE launches SET opened_at = ?').run('2026-03-12T10:00:00.000Z');
   await wakeUp(page);
   await correctionArrived(page);
   await page.locator('#seeCorrection').click();
@@ -407,6 +408,10 @@ test('CRG-10 : le compte rendu se télécharge, avec les placements et les résu
     'ses résultats'
   );
   assert.ok(!drawn.texts.includes('Position réelle'), 'pas de légende des positions réelles');
+  assert.ok(
+    drawn.texts.some((text) => text.endsWith('12 mars 2026')),
+    'le jour du cours, pas celui du téléchargement'
+  );
   assert.equal(drawn.dashes, 0, 'pas de pointillés vers les positions réelles');
 });
 

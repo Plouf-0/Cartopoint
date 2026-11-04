@@ -1,10 +1,10 @@
 /**
- * L'historique côté serveur (HIS-02 à HIS-09) : résultats, note, fichier de réponses, suppression et purge. Un autre enseignant n'y voit rien (ANO-06). Les écrans
+ * L'historique côté serveur (HIS-02 à HIS-09) : résultats, fichier de réponses, suppression et purge. Un autre enseignant n'y voit rien (ANO-06). Les écrans
  * sont vérifiés dans tests/e2e/history.test.js, et le fichier Excel dans tests/results-workbook.test.js.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { KEEP_LAUNCH_MS, MAX_NOTE, createLaunches } from '../server/launches.mjs';
+import { KEEP_LAUNCH_MS, createLaunches } from '../server/launches.mjs';
 import { addAccount, cheapHash, client, request, startApp } from './helpers.js';
 
 const PASSWORD = 'mot-de-passe-1';
@@ -116,55 +116,21 @@ test('HIS-04 : l’enseignant reçoit le cours et toutes les réponses, position
   assert.ok(!('token_hash' in seen['Léa']) && !('tokenHash' in seen['Léa']), 'pas de jeton');
 });
 
-test('ANO-06 : un autre enseignant, ou personne, ne voit ni réponses ni note, ne supprime rien, n’importe rien', async (t) => {
+test('ANO-06 : un autre enseignant, ou personne, ne voit aucune réponse, ne supprime rien, n’importe rien', async (t) => {
   const { base, browser, other } = await site(t);
   const launch = await launched(browser);
   const me = await join(base, launch.code);
   await browser.post(`/api/launches/${launch.id}/end`);
-  const note = `/api/launches/${launch.id}/participants/${me.id}/note`;
   for (const [who, expected] of [
     [other, 404],
     [client(base), 401]
   ]) {
     assert.equal((await who.get(`/api/launches/${launch.id}/sheets`)).status, expected);
-    assert.equal((await who.put(note, { note: 'volée' })).status, expected);
     assert.equal((await who.delete(`/api/launches/${launch.id}`)).status, expected);
     assert.equal((await who.post(`/api/launches/${launch.id}/answers-file`, answersFile(me))).status, expected);
   }
   const { participants } = (await browser.get(`/api/launches/${launch.id}`)).json();
-  assert.equal(participants[0].note, '');
   assert.equal(participants[0].submittedAt, null);
-});
-
-/* --- La note --- */
-
-test('HIS-09 : la note se garde, se change et s’efface ; ni le serveur ni l’élève n’en font autre chose', async (t) => {
-  const { base, db, browser } = await site(t);
-  const launch = await launched(browser);
-  const me = await join(base, launch.code);
-  const note = (value) => browser.put(`/api/launches/${launch.id}/participants/${me.id}/note`, { note: value });
-
-  assert.deepEqual((await note('  14/20  ')).json(), { note: '14/20' });
-  assert.equal((await browser.get(`/api/launches/${launch.id}`)).json().participants[0].note, '14/20');
-  assert.equal((await note('x'.repeat(MAX_NOTE + 10))).json().note.length, MAX_NOTE);
-  assert.equal((await note(14)).status, 400);
-  assert.deepEqual((await note('')).json(), { note: '' });
-  assert.equal(row(db, me.id).note, '');
-
-  await note('14/20');
-  await send(base, me.token, { m1: { f1: entry(40, 60) } });
-  await browser.post(`/api/launches/${launch.id}/end`);
-  const { token } = me;
-  const correction = await request(base, '/api/student/correction', { headers: { Authorization: `Bearer ${token}` } });
-  assert.doesNotMatch(correction.body.toString(), /14\/20/, 'elle ne part pas chez l’élève : c’est l’enseignant qui la lui rend');
-});
-
-test('HIS-09 : un élève d’un autre lancement ne reçoit pas de note par erreur', async (t) => {
-  const { base, browser } = await site(t);
-  const first = await launched(browser);
-  const second = await launched(browser);
-  const stranger = await join(base, second.code);
-  assert.equal((await browser.put(`/api/launches/${first.id}/participants/${stranger.id}/note`, { note: '1' })).status, 404);
 });
 
 /* --- HOR-09, HIS-06, HIS-07 : le fichier de réponses --- */

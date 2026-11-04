@@ -56,7 +56,6 @@ function summarySheet(project, participants, { title, endedAt }) {
   rows.push([
     bold('Élève'),
     bold('État'),
-    bold('Note'),
     bold('Bien placées'),
     bold('Proches'),
     bold('À revoir'),
@@ -69,7 +68,6 @@ function summarySheet(project, participants, { title, endedAt }) {
     rows.push([
       participant.names,
       stateText(participant),
-      participant.note || null,
       score?.ok ?? null,
       score?.near ?? null,
       score?.far ?? null,
@@ -82,7 +80,6 @@ function summarySheet(project, participants, { title, endedAt }) {
   rows.push([
     bold('Classe'),
     bold(`${handedIn.length} rendu(s) sur ${participants.length}`),
-    null,
     ...['ok', 'near', 'far', 'unplaced'].map((state) => bold(classAverage((participant) => participant.results.score[state]))),
     bold(classAverage((participant) => meanGap(project, participant.results))),
     ...MEASURE_KEYS.map((key) => bold(classAverage((participant) => studentMeasure(project, participant, key))))
@@ -116,7 +113,7 @@ function summarySheet(project, participants, { title, endedAt }) {
       ]);
     }
   }
-  return { name: 'Synthèse', rows, widths: [28, 34, 10, 12, 10, 10, 12, 22, 22, 22, 22] };
+  return { name: 'Synthèse', rows, widths: [28, 34, 12, 10, 10, 12, 22, 22, 22, 22] };
 }
 
 function studentSheet(project, participant) {
@@ -125,7 +122,6 @@ function studentSheet(project, participant) {
   const rows = [
     [bold(participant.names)],
     [stateText(participant)],
-    participant.note ? [bold('Note'), participant.note] : [],
     [bold('Précision moyenne'), round(meanGap(project, participant.results)), unit],
     [],
     [

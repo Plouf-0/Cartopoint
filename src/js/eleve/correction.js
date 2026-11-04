@@ -93,7 +93,7 @@ export function showCorrection(names) {
       <button class="btn" type="button" id="correctionReport">Télécharger le compte rendu (JPG)</button>
     </div>`;
   $('#correctionBox [data-close]').onclick = () => $('#dlgCorrection').close();
-  $('#correctionReport').onclick = () => downloadReport(names);
+  $('#correctionReport').onclick = () => downloadReport(names, { date: S.correction.openedAt });
   $('#dlgCorrection').showModal();
 }
 

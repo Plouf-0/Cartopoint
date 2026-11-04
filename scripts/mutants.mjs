@@ -1154,7 +1154,7 @@ const MUTANTS = [
   // Fin du cours : la correction, côté serveur
   ['CRG-02 : correction avant la fin', 'server/routes/student.mjs', 'if (!endedAt) throw new HttpError(403, NOT_ENDED);', ''],
   ['CRG-07 : correction sans réponses', 'server/routes/student.mjs', 'if (!submittedAt) throw new HttpError(409, NOT_RECEIVED);', ''],
-  ['CRG-06 : correction gardée en cache', 'server/routes/student.mjs', 'JSON.parse(results)), PRIVATE)', 'JSON.parse(results)), REVALIDATED)'],
+  ['CRG-06 : correction gardée en cache', 'server/routes/student.mjs', 'openedAt }, PRIVATE)', 'openedAt }, REVALIDATED)'],
   ['CRG-06 : positions réelles absentes', 'server/answers.mjs', '...(hasRef(fiche) ? { refX: fiche.refX, refY: fiche.refY } : {})', ''],
   [
     'CRG-01 : fiches masquées dans la correction',
@@ -1247,7 +1247,12 @@ const MUTANTS = [
     "if (S.admin) {\n    legend((cx, cy) => drawTag(ctx, cx, cy, 12, '', TRUTH, 0.45), 'Position réelle');",
     "if (true) {\n    legend((cx, cy) => drawTag(ctx, cx, cy, 12, '', TRUTH, 0.45), 'Position réelle');"
   ],
-  ['CRG-10 : pas de compte rendu', 'src/js/eleve/correction.js', "$('#correctionReport').onclick = () => downloadReport(names);", ''],
+  [
+    'CRG-10 : pas de compte rendu',
+    'src/js/eleve/correction.js',
+    "$('#correctionReport').onclick = () => downloadReport(names, { date: S.correction.openedAt });",
+    ''
+  ],
   ['CRG-13 : aucune heure notée', 'src/js/store.js', 'if (S.stampAnswers) entry.at = Date.now();', ''],
   ['CRG-13 : heure oubliée au rechargement', 'src/js/model.js', 'if (Number.isFinite(e.at)) entry.at = e.at;', ''],
   ['CRG-13 : placement sans heure', 'src/js/views/map.js', 'stamped(Object.assign(entryOf(f, true), { x, y }));', 'Object.assign(entryOf(f, true), { x, y });'],
@@ -1271,6 +1276,7 @@ const MUTANTS = [
   ['CRG-13 : avant ou après la fin confondus', 'src/js/prof/results-workbook.js', 'participant.finishedAfterEnd\n', 'true\n'],
   // Version affichée
   ['EV-42 : pas de version à l’écran', 'src/js/version.js', '  document.body.append(label);\n', ''],
+  ['EV-44 : numéro de version oublié', 'scripts/build.mjs', 'const version = `${number} (${commitLabel()})`;', 'const version = commitLabel();'],
   ['EV-42 : pages construites sans version', 'scripts/build.mjs', 'define: { __APP_VERSION__: JSON.stringify(version) }', 'define: {}'],
   ['EV-42 : version demandée ignorée', 'scripts/build.mjs', 'if (process.env.APP_VERSION) return process.env.APP_VERSION;', ''],
   ['EV-42 : la version empêche d’appuyer', 'src/css/app.css', 'font-size: 11px; pointer-events: none; }', 'font-size: 11px; }'],
@@ -1326,14 +1332,6 @@ const MUTANTS = [
   ['HIS-03 : une fiche non placée compte zéro', 'src/js/model.js', '.filter(({ d }) => d !== undefined)\n', '\n'],
   ['HIS-03 : écart sans échelle', 'src/js/model.js', 'meters ? (d / 100) * map.widthMeters : d', 'd'],
   ['HIS-04 : réponses absentes', 'server/launches.mjs', 'answers: answers ? JSON.parse(answers) : null', 'answers: null'],
-  ['HIS-09 : note sans limite', 'server/launches.mjs', 'rawNote.trim().slice(0, MAX_NOTE)', 'rawNote.trim()'],
-  ['HIS-09 : note non vérifiée', 'server/launches.mjs', "if (typeof rawNote !== 'string') throw new HttpError(400, 'Note illisible.');", ''],
-  [
-    'HIS-09 : note donnée à un autre lancement',
-    'server/launches.mjs',
-    "'UPDATE participants SET note = ? WHERE id = ? AND launch_id = ?').run(note, participantId, row.id)",
-    "'UPDATE participants SET note = ? WHERE id = ?').run(note, participantId)"
-  ],
   // Historique : l'écran de l'enseignant
   ['HIS-03 : score non affiché', 'src/js/prof/launch-results.js', 'if (!participant.score) return null;', 'return null;'],
   ['HIS-09 : boutons pour celui qui n’a pas rendu', 'src/js/prof/launch-results.js', 'if (!participant.submittedAt) return null;', ''],
@@ -1345,30 +1343,10 @@ const MUTANTS = [
   ],
   ['HIS-09 : archive sans filtre', 'src/js/prof/launch-results.js', 'participants.filter((participant) => participant.results),\n', 'participants,\n'],
   ['HIS-09 : plusieurs fichiers d’un coup', 'src/js/prof/launch-results.js', 'if (reports.length === 1) download', 'if (true) download'],
-  [
-    'HIS-09 : note non enregistrée',
-    'src/js/prof/launch-results.js',
-    "const { note } = await api('PUT', `/launches/${launchId}/participants/${participant.id}/note`, { note: input.value });",
-    'const note = input.value;'
-  ],
-  [
-    'HIS-09 : refus de la note muet',
-    'src/js/prof/launch-results.js',
-    '      participant.note = note;\n    } catch (e) {\n      showError(error, e);',
-    '      participant.note = note;\n    } catch (e) {'
-  ],
-  [
-    'HIS-09 : une note en cours de frappe effacée',
-    'src/js/prof/launch.js',
-    "if (!list.contains(document.activeElement) || document.activeElement.tagName !== 'INPUT') list.replaceChildren",
-    'list.replaceChildren'
-  ],
   ['HIS-09 : panne muette', 'src/js/prof/launch-results.js', 'showError(error, { message: errorText(e) });\n    } finally {', 'void e;\n    } finally {'],
   ['HIS-09 : bouton bloqué après une panne', 'src/js/prof/launch-results.js', '      buttonNode.disabled = false;\n', ''],
   ['HIS-09 : compte rendu sans positions réelles', 'src/js/prof/student-reports.js', '  S.admin = true;\n', ''],
   ['HIS-09 : compte rendu sans résultats du serveur', 'src/js/prof/student-reports.js', '  S.correction = participant.results;\n', ''],
-  ['HIS-09 : note absente du compte rendu', 'src/js/prof/student-reports.js', '{ note: participant.note }', '{}'],
-  ['HIS-09 : note non dessinée', 'src/js/report.js', 'if (note) {\n      ctx.font', 'if (false) {\n      ctx.font'],
   [
     'HIS-09 : deux élèves de même nom écrasés',
     'src/js/prof/student-reports.js',
@@ -1450,6 +1428,40 @@ const MUTANTS = [
   ],
   ['HIS-08 : impression non réglée', 'src/js/xlsx-write.js', '<pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>', ''],
   ['zip : contrôle faux', 'src/js/zip.js', 'return (crc ^ 0xffffffff) >>> 0;', 'return crc >>> 0;'],
+  ['HIS-03 : la liste se redessine sans raison', 'src/js/prof/launch.js', 'if (listed !== shownList) {', 'if (true) {'],
+  [
+    'HIS-09 : la date du jour au lieu de celle du cours',
+    'src/js/report.js',
+    "${date ? new Date(date).toLocaleDateString('fr-FR', { dateStyle: 'long' }) : new Date()",
+    '${new Date()'
+  ],
+  [
+    'HIS-09 : un compte rendu sans le jour du cours',
+    'src/js/prof/student-reports.js',
+    'await reportBlob(participant.names, { date })',
+    'await reportBlob(participant.names, {})'
+  ],
+  [
+    'HIS-09 : l’archive sans le jour du cours',
+    'src/js/prof/student-reports.js',
+    'studentReports(project, participant, date)));',
+    'studentReports(project, participant)));'
+  ],
+  [
+    'CRG-10 : le compte rendu de l’élève sans le jour du cours',
+    'src/js/eleve/correction.js',
+    'downloadReport(names, { date: S.correction.openedAt })',
+    'downloadReport(names)'
+  ],
+  ['CRG-10 : le jour du cours non transmis', 'server/routes/student.mjs', 'JSON.parse(results)), openedAt }', 'JSON.parse(results)) }'],
+  [
+    'placement : bandeau sur le plan',
+    'src/css/app.css',
+    'position: sticky; bottom: 8px; z-index: 5;',
+    'position: absolute; left: 8px; right: 8px; top: -60px; z-index: 5;'
+  ],
+  ['placement : bandeau hors de l’écran', 'src/css/app.css', 'position: sticky; bottom: 8px; z-index: 5;', 'z-index: 5;'],
+  ['placement : bandeau de retour dans le plan', 'src/eleve.html', '</div>\n      <div class="place-hint"', '<div class="place-hint"'],
   // Hors ligne : la préparation
   ['hors ligne : plan non téléchargé', 'src/js/eleve/offline.js', 'files.add(map.image);', ''],
   ['hors ligne : photos non téléchargées', 'src/js/eleve/offline.js', 'files.add(media.data);', ''],

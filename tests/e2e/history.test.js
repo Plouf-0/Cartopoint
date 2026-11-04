@@ -1,5 +1,5 @@
 /**
- * L'historique, à l'écran de l'enseignant (HIS-02 à HIS-09) : une ligne par élève, sa note, son détail, son compte rendu, l'archive et le fichier Excel, et le fichier
+ * L'historique, à l'écran de l'enseignant (HIS-02 à HIS-09) : une ligne par élève, son détail, son compte rendu, l'archive et le fichier Excel, et le fichier
  * de réponses de l'élève (HOR-09). Le contenu du fichier Excel est vérifié dans tests/results-workbook.test.js.
  */
 import { before, after, test } from 'node:test';
@@ -74,7 +74,6 @@ const handIn = (site, me, answers) =>
 const row = (page, names) => page.locator('.participants li', { hasText: names });
 const refresh = (page) => page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
 const participant = (site, names) => site.db.prepare('SELECT * FROM participants WHERE names = ?').get(names);
-const note = (page, names) => row(page, names).getByLabel(`Note de ${names}`);
 
 async function saved(page, action) {
   const file = page.waitForEvent('download');
@@ -101,7 +100,6 @@ test('HIS-03 : une ligne par élève : son état, son score et sa précision ; r
   const waiting = row(teacher, 'Tom Martin');
   await waiting.getByText('A commencé').waitFor();
   assert.equal(await waiting.getByRole('button').count(), 0, 'SUI-03 : rien à voir tant qu’il n’a pas rendu');
-  assert.equal(await waiting.locator('input').count(), 0);
 });
 
 test('HIS-09 : les boutons pour tous n’apparaissent qu’une fois un rendu arrivé, sans recharger', async (t) => {
@@ -129,74 +127,60 @@ test('HIS-03 : un nom piégé reste du texte, dans la liste comme dans le détai
   assert.equal(await teacher.locator('.participants img, dialog[open] h2 img').count(), 0);
 });
 
-/* --- La note --- */
+/* --- La liste --- */
 
-test('HIS-09 : la note se garde dès qu’on quitte la case, et reste au rechargement', async (t) => {
+test('HIS-03 : la liste ne se redessine que si quelque chose a changé : un bouton ne disparaît pas sous le doigt', async (t) => {
   const { site, teacher, launch, openLaunch } = await setup(t);
   const me = await join(site, launch, 'Léa');
   await handIn(site, me, { f1: entry(40, 60) });
   await openLaunch();
-  const saving = teacher.waitForResponse('**/note');
-  await note(teacher, 'Léa').fill('14/20');
-  await note(teacher, 'Léa').blur();
-  await saving;
-  assert.equal(participant(site, 'Léa').note, '14/20');
-  await openLaunch();
-  assert.equal(await note(teacher, 'Léa').inputValue(), '14/20');
-});
-
-test('HIS-09 : la mise à jour de la liste n’efface pas une note en cours de frappe', async (t) => {
-  const { site, teacher, launch, openLaunch } = await setup(t);
-  const me = await join(site, launch, 'Léa');
-  await handIn(site, me, { f1: entry(40, 60) });
-  await openLaunch();
-  await note(teacher, 'Léa').fill('14/');
+  const jpg = row(teacher, 'Léa').getByRole('button', { name: 'JPG' });
+  await jpg.focus();
   const refreshed = teacher.waitForResponse(`**/api/launches/${launch.id}`);
   await refresh(teacher);
   await refreshed;
   await teacher.waitForTimeout(100);
-  assert.equal(await note(teacher, 'Léa').inputValue(), '14/');
-  assert.equal(await note(teacher, 'Léa').evaluate((input) => input === document.activeElement), true);
-});
+  assert.equal(await jpg.evaluate((button) => button === document.activeElement), true);
 
-test('HIS-09 : une note refusée par le serveur le dit', async (t) => {
-  const { site, teacher, launch, openLaunch } = await setup(t);
-  const me = await join(site, launch, 'Léa');
-  await handIn(site, me, { f1: entry(40, 60) });
-  await openLaunch();
-  await teacher.route('**/note', (route) => route.fulfill({ status: 500, body: 'Note impossible à garder.' }));
-  await note(teacher, 'Léa').fill('14/20');
-  await note(teacher, 'Léa').blur();
-  await teacher.getByText('Note impossible à garder.').waitFor();
+  await join(site, launch, 'Tom');
+  await refresh(teacher);
+  await row(teacher, 'Tom').waitFor();
 });
 
 /* --- HIS-09 : les comptes rendus --- */
 
-test('HIS-09 : le compte rendu d’un élève se télécharge, avec les positions réelles, les écarts et sa note, pour le lui rendre', async (t) => {
+test('HIS-09 : le compte rendu d’un élève se télécharge, avec les positions réelles, les écarts et le jour du cours, pour le lui rendre', async (t) => {
   const { site, teacher, launch, openLaunch } = await setup(t);
   const me = await join(site, launch, 'Léa Dupont');
   await handIn(site, me, { f1: entry(40, 60), f2: entry(30, 60) });
-  site.db.prepare('UPDATE participants SET note = ?').run('14/20');
+  site.db.prepare('UPDATE launches SET opened_at = ?').run('2026-03-12T10:00:00.000Z');
   await openLaunch();
   const file = await saved(teacher, () => row(teacher, 'Léa Dupont').getByRole('button', { name: 'JPG' }).click());
   assert.equal(file.name, 'Compte rendu - Léa Dupont.jpg');
   assert.ok(file.bytes.subarray(0, 3).equals(JPEG));
   const drawn = await teacher.evaluate(() => window.drawn);
   assert.ok(drawn.texts.some((text) => text.includes('Léa Dupont')));
-  assert.ok(drawn.texts.includes('Note : 14/20'), drawn.texts.join(' | '));
+  assert.ok(
+    drawn.texts.some((text) => text.endsWith('12 mars 2026')),
+    drawn.texts.join(' | ')
+  );
+  assert.ok(!drawn.texts.some((text) => /^Note/.test(text)), 'pas de note');
   assert.ok(drawn.texts.includes('Position réelle'));
   assert.ok(drawn.dashes > 0, 'les pointillés vers les positions réelles');
   await teacher.getByText('✓ Compte rendu de Léa Dupont téléchargé').waitFor();
 });
 
-test('HIS-09 : sans note, le compte rendu n’en montre pas', async (t) => {
+test('HIS-09 : tous les comptes rendus portent aussi le jour du cours', async (t) => {
   const { site, teacher, launch, openLaunch } = await setup(t);
-  const me = await join(site, launch, 'Léa');
-  await handIn(site, me, { f1: entry(40, 60) });
+  await handIn(site, await join(site, launch, 'Léa'), { f1: entry(40, 60) });
+  site.db.prepare('UPDATE launches SET opened_at = ?').run('2026-03-12T10:00:00.000Z');
   await openLaunch();
-  await saved(teacher, () => row(teacher, 'Léa').getByRole('button', { name: 'JPG' }).click());
+  await saved(teacher, () => teacher.getByRole('button', { name: 'Tout télécharger (JPG)' }).click());
   const { texts } = await teacher.evaluate(() => window.drawn);
-  assert.ok(!texts.some((text) => text.startsWith('Note')), texts.join(' | '));
+  assert.ok(
+    texts.some((text) => text.endsWith('12 mars 2026')),
+    texts.join(' | ')
+  );
 });
 
 test('HIS-09 : tout d’un coup : une archive avec un compte rendu par élève ayant rendu, même deux de même nom', async (t) => {
@@ -233,7 +217,6 @@ test('HIS-08 : l’Excel se télécharge : la synthèse, puis une page par élè
   await handIn(site, await join(site, launch, 'Léa Dupont'), { f1: entry(40, 60, { temperature: '20' }) });
   await handIn(site, await join(site, launch, '=1+1'), { f1: entry(50, 60, { temperature: '24' }) });
   await join(site, launch, 'Noé');
-  site.db.prepare("UPDATE participants SET note = '14/20' WHERE names = 'Léa Dupont'").run();
   await openLaunch();
   const file = await saved(teacher, () => teacher.getByRole('button', { name: 'Télécharger l’Excel' }).click());
   assert.equal(file.name, 'Résultats - Sortie au parc.xlsx');
@@ -242,8 +225,8 @@ test('HIS-08 : l’Excel se télécharge : la synthèse, puis une page par élè
   assert.deepEqual(names, ['Synthèse', 'Léa Dupont', '=1+1']);
   assert.doesNotMatch(files['xl/worksheets/sheet3.xml'].toString() + files['xl/worksheets/sheet1.xml'].toString(), /<f>/);
   const summary = sheetRows(files['xl/worksheets/sheet1.xml'].toString());
-  assert.deepEqual(summary.find((cells) => cells[0] === 'Léa Dupont').slice(0, 3), ['Léa Dupont', 'A fini', '14/20']);
-  assert.equal(summary.find((cells) => cells[0] === 'Classe')[8], 22, 'température moyenne de la classe');
+  assert.deepEqual(summary.find((cells) => cells[0] === 'Léa Dupont').slice(0, 2), ['Léa Dupont', 'A fini']);
+  assert.equal(summary.find((cells) => cells[0] === 'Classe')[7], 22, 'température moyenne de la classe');
   assert.equal(summary.find((cells) => cells[0] === 'Noé')[1], "N'a pas rendu");
   await teacher.getByText('✓ Excel téléchargé').waitFor();
 });

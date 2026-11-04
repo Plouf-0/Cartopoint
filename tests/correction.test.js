@@ -109,7 +109,8 @@ test('CRG-06, CRG-09 : la correction donne les positions réelles, le résultat 
   const response = await correction(base, me.token);
   assert.equal(response.status, 200);
   assert.equal(response.headers['cache-control'], 'no-store');
-  const { maps, score } = body(response);
+  const { maps, score, openedAt } = body(response);
+  assert.ok(Date.parse(openedAt), 'le jour du cours, pour le compte rendu');
   assert.deepEqual(score, { ok: 1, near: 0, far: 1, unplaced: 1, noref: 1 });
   assert.deepEqual(maps.m1.fiches.f1, { state: 'ok', d: 0, dist: '0,0 m', refX: REF.x, refY: REF.y });
   assert.equal(maps.m1.fiches.f2.state, 'far');

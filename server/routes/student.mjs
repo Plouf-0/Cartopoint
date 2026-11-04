@@ -90,9 +90,9 @@ export function studentRoutes(router, { launches, trustProxy }) {
       return sendJson(req, res, { id, names, ended: Boolean(endedAt), received: Boolean(submittedAt) }, PRIVATE);
     })
     .add('GET', '/api/student/correction', (req, res) => {
-      const { ended_at: endedAt, submitted_at: submittedAt, content, results } = participantOf(req);
+      const { opened_at: openedAt, ended_at: endedAt, submitted_at: submittedAt, content, results } = participantOf(req);
       if (!endedAt) throw new HttpError(403, NOT_ENDED);
       if (!submittedAt) throw new HttpError(409, NOT_RECEIVED);
-      return sendJson(req, res, correctionOf(normalizeProject(JSON.parse(content)), JSON.parse(results)), PRIVATE);
+      return sendJson(req, res, { ...correctionOf(normalizeProject(JSON.parse(content)), JSON.parse(results)), openedAt }, PRIVATE);
     });
 }

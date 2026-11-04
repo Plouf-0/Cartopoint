@@ -1,5 +1,5 @@
 /**
- * Les résultats d'un lancement, sur sa page (HIS-03 à HIS-09) : une ligne par élève, sa note, son détail, son compte rendu, et pour tous ensemble l'archive des
+ * Les résultats d'un lancement, sur sa page (HIS-03 à HIS-09) : une ligne par élève, son détail, son compte rendu, et pour tous ensemble l'archive des
  * comptes rendus et le fichier Excel. Tout texte passe par des nœuds de texte : un nom d'élève ne peut pas injecter de code.
  */
 import { api } from '../api.js';
@@ -24,28 +24,6 @@ function button(label, className, onClick) {
   const node = el('button', { className, type: 'button' }, label);
   node.addEventListener('click', onClick);
   return node;
-}
-
-/** La note se saisit au fil de la correction. Elle part dès qu'on quitte la case. */
-function noteField(launchId, participant, error) {
-  const input = el('input', {
-    className: 'text-input note-input',
-    value: participant.note,
-    maxLength: 40,
-    placeholder: 'Note',
-    'aria-label': `Note de ${participant.names}`
-  });
-  input.addEventListener('change', async () => {
-    error.hidden = true;
-    try {
-      const { note } = await api('PUT', `/launches/${launchId}/participants/${participant.id}/note`, { note: input.value });
-      input.value = note;
-      participant.note = note;
-    } catch (e) {
-      showError(error, e);
-    }
-  });
-  return input;
 }
 
 function detailDialog(project, participant) {
@@ -142,10 +120,11 @@ export function resultsSection(launchId, onChange) {
 
   const saveAll = button('Tout télécharger (JPG)', 'btn', () =>
     task(saveAll, async () => {
-      const { project, participants, title } = await loadSheets();
+      const { project, participants, title, openedAt } = await loadSheets();
       const blob = await allReportsZip(
         project,
         participants.filter((participant) => participant.results),
+        openedAt,
         (done, total) => (status.textContent = `Préparation des comptes rendus… ${done} / ${total}`)
       );
       download(blob, `Comptes rendus - ${safeFileName(title)}.zip`);
@@ -186,7 +165,7 @@ export function resultsSection(launchId, onChange) {
   const importFile = button('Importer un fichier de réponses', 'btn ghost', () => fileInput.click());
 
   const remove = button('Supprimer ce lancement', 'btn danger', async () => {
-    if (!confirm('Supprimer ce lancement ?\n\nLa liste des élèves, leurs réponses et leurs notes seront effacées pour de bon.')) return;
+    if (!confirm('Supprimer ce lancement ?\n\nLa liste des élèves et leurs réponses seront effacées pour de bon.')) return;
     await task(remove, async () => {
       await api('DELETE', `/launches/${launchId}`);
       location.href = remove.dataset.back;
@@ -212,16 +191,16 @@ export function resultsSection(launchId, onChange) {
       );
       const saveOne = button('JPG', 'btn soft sm', () =>
         task(saveOne, async () => {
-          const { project, participants } = await loadSheets();
+          const { project, participants, openedAt } = await loadSheets();
           const student = participants.find(({ id }) => id === participant.id);
-          const reports = await studentReports(project, student);
+          const reports = await studentReports(project, student, openedAt);
           // Plusieurs cartes, donc plusieurs fichiers : un navigateur en bloque souvent les suivants
           if (reports.length === 1) download(reports[0].blob, reports[0].name);
-          else download(await allReportsZip(project, [student]), `Compte rendu - ${safeFileName(student.names)}.zip`);
+          else download(await allReportsZip(project, [student], openedAt), `Compte rendu - ${safeFileName(student.names)}.zip`);
           status.textContent = `✓ Compte rendu de ${participant.names} téléchargé`;
         })
       );
-      return el('span', { className: 'row-actions' }, noteField(launchId, participant, error), openDetail, saveOne);
+      return el('span', { className: 'row-actions' }, openDetail, saveOne);
     },
     scoreLine(participant, gapUnit) {
       if (!participant.score) return null;

@@ -156,7 +156,7 @@ export function bindMap() {
     $('#stageInner').style.setProperty('--ratio', S.ratio);
   });
   frame.addEventListener('click', (e) => {
-    if (!S.ui.placing || e.target.closest('.pin, .place-hint')) return;
+    if (!S.ui.placing || e.target.closest('.pin')) return;
     const f = byId(S.ui.placing.id);
     const p = pointFromClient(e.clientX, e.clientY);
     if (f && p) setPosition(f, S.ui.placing.kind, p);

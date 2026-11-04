@@ -16,9 +16,6 @@ const NOISE = /ResizeObserver loop|^Script error\.?$/;
 
 let reported = 0;
 
-/** Le fichier autonome, ouvert d'un double-clic, n'a pas de serveur à prévenir. */
-const hasServer = () => typeof location !== 'undefined' && /^https?:$/.test(location.protocol);
-
 /** Une erreur peut être n'importe quoi : l'événement d'échec d'IndexedDB, par exemple, n'a ni nom ni message. */
 export function describeError(error) {
   if (typeof error === 'string') return error;
@@ -86,7 +83,7 @@ export async function sendWaiting() {
  */
 export async function reportIncident(action, error, details = error?.stack ?? '') {
   try {
-    if (!hasServer() || reported >= PER_PAGE_MAX) return;
+    if (reported >= PER_PAGE_MAX) return;
     reported++;
     const report = { at: Date.now(), page: location.pathname, action, reason: describeError(error), details, machine: await describeMachine() };
     if (!(await deliver(report))) keepForLater(report);
@@ -95,7 +92,8 @@ export async function reportIncident(action, error, details = error?.stack ?? ''
   }
 }
 
-if (hasServer()) {
+// Hors d'un navigateur, dans un test, il n'y a rien à écouter
+if (typeof window !== 'undefined') {
   window.addEventListener('error', (event) => {
     if (NOISE.test(event.message)) return;
     if (event.filename && !event.filename.startsWith(location.origin)) return; // une extension du navigateur, pas le site

@@ -1,5 +1,5 @@
 /**
- * Point d'entrée de l'application d'origine.
+ * Point d'entrée de l'application d'origine, devenue le fichier de secours. Sans serveur à prévenir, elle n'a pas de journal des problèmes (INC-01).
  *
  * Ordre de démarrage :
  *   1. mémoriser la page d'origine (pour pouvoir générer des fichiers autonomes) ;
@@ -7,7 +7,7 @@
  *   3. ouvrir le stockage du navigateur et choisir le projet à afficher ;
  *   4. appliquer le thème et dessiner.
  */
-import './incident.js';
+import './version.js';
 import { $, fatal, errorText } from './util.js';
 import { S, flush } from './store.js';
 import { openDb } from './db.js';

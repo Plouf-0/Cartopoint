@@ -47,6 +47,8 @@ test('EXP-01 : le fichier de secours se construit en un seul fichier, avec sa pl
   const page = readFileSync(path.join(out, 'secours.html'), 'utf8');
   assert.doesNotMatch(page, /<script type="module"|<link rel="stylesheet" href="\/?css/);
   assert.match(page, /<script id="embedded-project" type="application\/json">null<\/script>/);
+  assert.doesNotMatch(page, /cartopoint\.incidents/, 'INC-01 : sans serveur à prévenir, pas de journal des problèmes');
+  assert.match(readFileSync(path.join(out, 'eleve.html'), 'utf8'), /cartopoint\.incidents/, 'la recherche trouve bien le journal ailleurs');
   assert.equal(existsSync(path.join(out, 'index.html')), false, 'la racine du site est l’accueil, plus rien ne s’appelle index.html');
 });
 

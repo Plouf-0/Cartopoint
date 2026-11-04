@@ -1062,7 +1062,6 @@ const MUTANTS = [
   ],
   ['INC-01 : bruit du navigateur signalé', 'src/js/incident.js', 'if (NOISE.test(event.message)) return;', ''],
   ['INC-01 : erreurs d’extensions signalées', 'src/js/incident.js', 'if (event.filename && !event.filename.startsWith(location.origin)) return;', ''],
-  ['INC-01 : le fichier autonome signale', 'src/js/incident.js', '/^https?:$/.test(location.protocol)', 'true'],
   ['INC-01 : message d’erreur non signalé', 'src/js/util.js', "if (message.startsWith('⚠')) problemListener?.(message);", ''],
   ['INC-01 : tout message signalé', 'src/js/util.js', "if (message.startsWith('⚠')) problemListener?.(message);", 'problemListener?.(message);'],
   [
@@ -1118,7 +1117,12 @@ const MUTANTS = [
   ['INC-01 : « undefined » possible', 'src/js/incident.js', "String(inner ?? 'aucun détail')", 'String(inner)'],
   ['INC-01 : place sur le disque oubliée', 'src/js/incident.js', 'storageQuota: estimate?.quota', 'storageQuota: undefined'],
   ['INC-01 : navigateur non noté', 'src/js/incident.js', 'browser: navigator.userAgent,', ''],
-  ['INC-01 : page historique sans journal', 'src/js/main.js', "import './incident.js';\n", ''],
+  [
+    'INC-01 : le fichier de secours embarque le journal',
+    'src/js/main.js',
+    "import { $, fatal, errorText } from './util.js';",
+    "import './incident.js';\nimport { $, fatal, errorText } from './util.js';"
+  ],
   ['INC-03 : le secret d’un lien part dans le journal', 'src/js/incident.js', 'page: location.pathname', 'page: location.href'],
   [
     'INC-06 : pas d’attente sans réseau',
@@ -1733,7 +1737,7 @@ const TESTS_FOR = {
   'src/js/eleve/network-icon.js': ['e2e/offline'],
   'src/eleve.html': ['e2e/offline', 'e2e/launches'],
   'src/js/incident.js': ['incidents', 'e2e/incidents', 'e2e/offline'],
-  'src/js/main.js': ['e2e/incidents'],
+  'src/js/main.js': ['build', 'e2e/offline', 'e2e/incidents'],
   'src/js/admin/incidents.js': ['e2e/incidents'],
   'server/incidents.mjs': ['incidents'],
   'server/routes/incidents.mjs': ['incidents'],

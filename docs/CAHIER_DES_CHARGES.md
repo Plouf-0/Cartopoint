@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.33** · 4 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.34** · 5 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -605,7 +605,8 @@ Code : [`store.js`](../src/js/store.js), [`db.js`](../src/js/db.js)
   rien contenir de confidentiel. ⚠️ Q-03
 - **SEC-02** La seule protection réelle est le mot de passe de publication, vérifié par le serveur.
 - **SEC-03** Aucun secret ne doit figurer dans le projet ni dans le code.
-- **SEC-04** Tout texte venant d'un projet ou d'un utilisateur est échappé avant d'être affiché.
+- **SEC-04** Tout texte venant d'un projet ou d'un utilisateur est échappé avant d'être affiché, adresses de fichiers et identifiants compris. La CSP de
+  Traefik ne le remplace pas : elle autorise les scripts en ligne, donc un `onerror=` injecté.
 - **SEC-05** Aucune donnée personnelle des élèves n'arrive sur le serveur (`PRI-04`). E-08 est corrigé pour les polices dans la branche
   de la refonte
 
@@ -807,6 +808,12 @@ Ces choix ne se déduisent pas du code. Les pistes sont des suggestions.
   ni le plan ni les photos (`TAB-08`, `TAB-10`). Les données GPS des photos disparaissent dès leur ajout à une fiche quand elles sont réduites : ses 16 photos n'en ont plus. À demander au premier enseignant : sur quel
   bouton il clique, et ce qu'il s'attendait à voir.
 
+- **Q-21 — Faut-il signaler un rendu reçu après la distribution des corrections ?** La correction ne part qu'une fois le cours terminé (`CRG-02`), mais un rendu
+  reste accepté ensuite, à juste titre : un élève sans réseau ne sait pas que le cours est fini (`CRG-11`). Un élève entré sous deux noms peut donc, après la fin, faire
+  rendre le second à vide, lire ses positions réelles, puis rendre le premier sans faute. S'il déclare son travail figé et donne de fausses heures (`CRG-13`), l'enseignant
+  ne voit aucun signalement, seulement un nom de plus. Constaté par la revue de sécurité du 5 novembre 2026. _Piste : ne distribuer les corrections qu'après le délai de
+  30 secondes de `CRG-13`, puis signaler tout rendu reçu ensuite, d'après la seule horloge du serveur. Un élève resté sans réseau serait alors signalé lui aussi._
+
 ### Décisions prises
 
 Toutes le 1er novembre 2026.
@@ -941,6 +948,9 @@ Demandes : EV-02, EV-09
   classe entière partage souvent la même.
 - **COU-13** Revenir sur le même QR code reprend le même élève et son travail. Sur un appareil partagé, « Ce n'est pas vous ? »
   laisse entrer quelqu'un d'autre, sans le travail du précédent.
+- **COU-14** Un plan ou une photo d'un cours est un fichier de ce serveur, ou rien. Le serveur refuse toute autre valeur : elle partirait telle quelle chez les
+  élèves, et pourrait contenir un script ou les envoyer chercher une image ailleurs. Il refuse aussi un contenu mal formé, qui bloquerait son auteur et le tableau
+  de bord de l'admin.
 
 ### 12.3 Élèves sans compte — `ANO`
 
@@ -1187,3 +1197,4 @@ fichier `.log` : le journal arrive sans rien demander à la personne, et l'admin
 | 0.31    | 4 novembre 2026   | EV-45 : l'heure de lancement sur le JPG, la correction, l'Excel, la page du lancement, la liste des lancements et le nom des fichiers |
 | 0.32    | 4 novembre 2026   | Étape 10, sur la branche : l'accueil à la racine, l'ancienne publication retirée (`SRV-02` à `SRV-08`, `MUL-01`, `MUL-02`), E-04 derrière Cloudflare, E-15 en partie. La section 12 rejoindra les sections 4 à 8 une fois la production passée |
 | 0.33    | 4 novembre 2026   | Q-07 tranchée (GPL v3), Q-08 tranchée pour les navigateurs, l'accessibilité reportée |
+| 0.34    | 5 novembre 2026   | Revue de sécurité : plans et photos limités aux fichiers du serveur (`COU-14`), `SEC-04` étendu aux adresses et aux identifiants, Q-21 ouverte |

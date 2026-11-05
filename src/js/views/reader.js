@@ -101,13 +101,13 @@ export async function openReader(id) {
       if (!url) continue;
       const fig = document.createElement('figure');
       if (m.type === 'video') {
-        fig.innerHTML = `<video controls preload="metadata" src="${url}"></video>`;
+        fig.innerHTML = `<video controls preload="metadata" src="${esc(url)}"></video>`;
         // Les vidéos ne sont pas gardées pour le terrain : sans réseau, autant le dire plutôt que de montrer un lecteur vide
         fig.querySelector('video').onerror = () =>
           (fig.innerHTML =
             "<p class=\"hint\">Cette vidéo ne peut pas être lue pour l'instant. Sans réseau, c'est normal : les vidéos ne sont pas gardées sur l'appareil.</p>");
       } else {
-        fig.innerHTML = `<button type="button" class="zoom" aria-label="Agrandir"><img src="${url}" alt="${esc(m.name)}"></button>`;
+        fig.innerHTML = `<button type="button" class="zoom" aria-label="Agrandir"><img src="${esc(url)}" alt="${esc(m.name)}"></button>`;
         fig.querySelector('button').onclick = () => openPhoto(photos, photos.indexOf(m));
       }
       g.querySelector('.gallery').appendChild(fig);

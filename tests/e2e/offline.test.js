@@ -502,16 +502,14 @@ test('HOR-11 : une vidéo ne se précharge pas, et sans réseau la fiche l’exp
   assert.equal(await page.locator('#readGallery video').count(), 0);
 });
 
-test('une image déjà écrite dans le cours n’a rien à télécharger', async (t) => {
+test('une image déjà écrite dans une ancienne version du cours n’a rien à télécharger', async (t) => {
   const { site, teacher } = await setup(t);
   const inline = 'data:image/png;base64,' + PLAN.toString('base64');
-  const course = await publish(teacher, {
-    format: 'inventaire-botanique',
-    version: 3,
-    title: 'Sans fichier',
-    theme: {},
-    maps: [{ id: 'm1', name: 'Parc', image: inline, fiches: [fiche('f1', 'Noisetier', [photo('p1', inline)])] }]
-  });
+  const draft = { format: 'inventaire-botanique', version: 3, title: 'Sans fichier', theme: {} };
+  const course = await publish(teacher, { ...draft, maps: [{ id: 'm1', name: 'Parc', image: '', fiches: [fiche('f1', 'Noisetier', [])] }] });
+  // Le serveur refuse désormais ce contenu (COU-14) : il ne peut venir que d'une version publiée avant cette règle
+  const old = { ...draft, maps: [{ id: 'm1', name: 'Parc', image: inline, fiches: [fiche('f1', 'Noisetier', [photo('p1', inline)])] }] };
+  site.db.prepare('UPDATE course_versions SET content = ?').run(JSON.stringify(old));
   const page = await fieldStudent(t, site, await launch(teacher, course));
   assert.deepEqual((await cachedUrls(page))['cartopoint-media'], []);
 });

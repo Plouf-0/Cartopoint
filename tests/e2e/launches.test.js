@@ -41,17 +41,23 @@ const twoMaps = {
   ]
 };
 
-/** Un cours publié, par l'API de la page : plus rapide que de le remplir à la main, qui a ses propres tests. */
+/** Un cours publié, par l'API de la page : plus rapide que de le remplir à la main, qui a ses propres tests. Le plan part d'abord en fichier, comme depuis l'écran (COU-14). */
 async function publishedCourse(teacher, draft = twoMaps) {
-  return teacher.evaluate(async (draft) => {
-    const send = async (url, body) => {
-      const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (!response.ok) throw new Error(await response.text());
-      return response.json();
-    };
-    const course = await send('/api/courses', { draft });
-    return send(`/api/courses/${course.id}/publish`, { revision: course.revision });
-  }, draft);
+  return teacher.evaluate(
+    async ({ draft, plan }) => {
+      const send = async (url, body) => {
+        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!response.ok) throw new Error(await response.text());
+        return response.json();
+      };
+      const uploaded = await fetch('/api/media', { method: 'POST', body: await (await fetch(plan)).blob() });
+      const { url } = await uploaded.json();
+      const maps = draft.maps.map((map) => (map.image === plan ? { ...map, image: url } : map));
+      const course = await send('/api/courses', { draft: { ...draft, maps } });
+      return send(`/api/courses/${course.id}/publish`, { revision: course.revision });
+    },
+    { draft, plan: PNG_URL }
+  );
 }
 
 async function launch(teacher, course) {
@@ -436,6 +442,35 @@ test('un nom d’élève piégé reste du texte', async (t) => {
   assert.equal(await page.locator('#studentName').textContent(), trap);
   await teacher.locator('.participants li', { hasText: trap }).waitFor({ timeout: 8000 });
   assert.equal(await teacher.evaluate(() => window.piege), undefined);
+  assert.equal(await page.evaluate(() => window.piege), undefined);
+});
+
+test('SEC-04 : chez l’élève, l’adresse piégée d’une photo ou d’une vidéo reste une adresse, même dans une version publiée avant COU-14', async (t) => {
+  const { site, teacher } = await setup(t);
+  const plain = { ...twoMaps, maps: [{ id: 'm1', name: 'Parc', image: '', fiches: [fiche('f1', 'Olivier')] }] };
+  const course = await publishedCourse(teacher, plain);
+  const photoTrap = 'x" onerror="window.piege=1';
+  const videoTrap = 'y" onerror="window.piege=2';
+  const media = [
+    { id: 'p0', type: 'image', name: 'vignette', data: '' },
+    { id: 'p1', type: 'image', name: 'photo', data: photoTrap },
+    { id: 'v1', type: 'video', name: 'vidéo', data: videoTrap }
+  ];
+  // Le serveur refuse désormais ce contenu : il ne peut venir que d'une version plus ancienne
+  site.db
+    .prepare('UPDATE course_versions SET content = ?')
+    .run(JSON.stringify({ ...plain, maps: [{ ...plain.maps[0], fiches: [fiche('f1', 'Olivier', { media })] }] }));
+  const code = await launch(teacher, course);
+
+  const page = await student(t, site);
+  // Une vidéo illisible laisse sa place à un message : ici, elle doit rester pour qu'on puisse la relire
+  await page.addInitScript(() => Object.defineProperty(HTMLMediaElement.prototype, 'onerror', { set() {} }));
+  await enter(page, code);
+  await page.locator('.label h3').first().click();
+  await page.locator('#readGallery video').waitFor({ state: 'attached' });
+  assert.equal(await page.locator('#readGallery video').getAttribute('src'), videoTrap);
+  assert.equal(await page.locator('#readGallery img').getAttribute('src'), photoTrap);
+  assert.equal(await page.locator('#readGallery [onerror]').count(), 0);
   assert.equal(await page.evaluate(() => window.piege), undefined);
 });
 

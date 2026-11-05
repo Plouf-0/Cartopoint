@@ -78,15 +78,15 @@ async function renderGallery() {
     const fig = document.createElement('figure');
     if (m === thumb) fig.className = 'is-thumb';
     const visual =
-      m.type === 'video' ? `<video controls preload="metadata" ${url ? `src="${url}"` : ''}></video>` : `<img ${url ? `src="${url}"` : ''} alt="">`;
+      m.type === 'video' ? `<video controls preload="metadata" ${url ? `src="${esc(url)}"` : ''}></video>` : `<img ${url ? `src="${esc(url)}"` : ''} alt="">`;
     const thumbBtn =
       m.type !== 'image'
         ? ''
         : m === thumb
           ? '<span class="state" style="text-align:center">✓ Vignette</span>'
-          : `<button type="button" class="btn ghost sm" data-thumb-set="${m.id}">Utiliser comme vignette</button>`;
+          : `<button type="button" class="btn ghost sm" data-thumb-set="${esc(m.id)}">Utiliser comme vignette</button>`;
     fig.innerHTML = `${visual}<figcaption>${esc(m.name || (m.type === 'video' ? 'Vidéo' : 'Photo'))}</figcaption>
-      <div class="btns">${thumbBtn}<button type="button" class="btn danger sm" data-media-del="${m.id}">Retirer</button></div>`;
+      <div class="btns">${thumbBtn}<button type="button" class="btn danger sm" data-media-del="${esc(m.id)}">Retirer</button></div>`;
     fig.querySelector('img')?.addEventListener('click', () => openPhoto(photos, photos.indexOf(m)));
     g.appendChild(fig);
   }

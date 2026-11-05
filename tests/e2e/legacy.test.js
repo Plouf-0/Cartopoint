@@ -261,6 +261,49 @@ test('ouvrir un projet remplace celui du navigateur, et un mauvais fichier s’e
   await toast(page, '✓ Projet ouvert');
 });
 
+test('SEC-04 : un projet piégé ouvert dans le fichier de secours, où aucun serveur ne filtre, ne s’exécute pas', async (t) => {
+  const { page } = await openApp(t);
+  await enterManagement(page);
+  await page.locator('[data-tab=projet]').click();
+  const planTrap = 'x" onerror="window.piege=1';
+  const photoTrap = 'y" onerror="window.piege=2';
+  const project = {
+    format: 'inventaire-botanique',
+    version: 3,
+    title: 'Projet piégé',
+    maps: [
+      {
+        id: 'm1',
+        name: 'Plan',
+        image: planTrap,
+        fiches: [
+          {
+            id: 'f1',
+            common: 'Chêne',
+            visible: true,
+            media: [
+              { id: 'p0', type: 'image', name: 'vignette', data: '' },
+              { id: 'p1', type: 'image', name: 'photo', data: photoTrap }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.locator('#openProject').setInputFiles({ name: 'piege.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
+  await toast(page, '✓ Projet ouvert');
+
+  await page.locator('[data-tab=cartes]').click();
+  assert.equal(await page.locator('.map-row img').getAttribute('src'), planTrap);
+
+  await page.locator('#modeBtn').click();
+  await page.locator('.label h3').first().click();
+  await page.locator('#readGallery img').waitFor({ state: 'attached' });
+  assert.equal(await page.locator('#readGallery img').getAttribute('src'), photoTrap);
+  assert.equal(await page.evaluate(() => window.piege), undefined);
+});
+
 /* --- L'application d'origine : vérifier ses placements et télécharger --- */
 
 const CHECKED_PROJECT = {

@@ -150,6 +150,97 @@ test('un contenu qui n’est pas un cours est refusé, et ne remplace rien', asy
   assert.equal((await browser.get(`/api/courses/${course.id}`)).json().revision, 1);
 });
 
+test('COU-14 : un plan ou une photo est un fichier de ce serveur, ou rien', async (t) => {
+  const { base, db } = await site(t);
+  const browser = await loggedIn(base);
+  const course = await createCourse(browser);
+  const hash = 'a'.repeat(64);
+  const withPlan = (image) => ({ ...draftWith(), maps: [{ id: 'm1', name: 'Plan', image }] });
+  const withMedia = (media) => draftWith('Cours', [{ id: 'f1', media: [media] }]);
+
+  const refused = [
+    'x" onerror="alert(1)',
+    'https://ailleurs.example.org/plan.jpg',
+    '//ailleurs.example.org/plan.jpg',
+    'data:image/png;base64,AAAA',
+    'javascript:alert(1)',
+    'media/' + hash + '.jpg',
+    '/media/',
+    '/media/../api/courses',
+    `/media/${hash}.svg`,
+    `/media/${hash.toUpperCase()}.jpg`,
+    `/media/${hash}.jpg" onerror="alert(1)`,
+    `/media/${hash}.jpg?x`,
+    ` /media/${hash}.jpg`,
+    `x/media/${hash}.jpg`,
+    `https:/${hash}.jpg`,
+    12,
+    true,
+    {},
+    [`/media/${hash}.jpg`]
+  ];
+  const drafts = refused.flatMap((value) => [
+    withPlan(value),
+    withMedia({ id: 'p1', data: value }),
+    // Les anciens noms du champ, que le navigateur lit encore
+    withMedia({ id: 'p1', dataUrl: value }),
+    withMedia({ id: 'p1', src: value }),
+    { ...draftWith(), maps: [{ id: 'm1', locations: [{ id: 'f1', media: [{ id: 'p1', data: value }] }] }] }
+  ]);
+  for (const draft of drafts) {
+    assert.equal((await browser.post('/api/courses', { draft })).status, 400, JSON.stringify(draft));
+    assert.equal((await put(browser, course.id, 1, draft)).status, 400, JSON.stringify(draft));
+  }
+  assert.equal(count(db, 'courses'), 1, 'rien n’est créé');
+  assert.equal((await browser.get(`/api/courses/${course.id}`)).json().revision, 1, 'rien n’est remplacé');
+
+  const accepted = [...['jpg', 'png', 'webp', 'mp4', 'webm'].map((ext) => `/media/${hash}.${ext}`), '', null, undefined];
+  for (const value of accepted) {
+    await createCourse(browser, withPlan(value));
+    await createCourse(browser, withMedia({ id: 'p1', type: 'image', data: value }));
+  }
+});
+
+test('COU-14 : un contenu mal formé est refusé, et ne bloque ni son auteur ni le tableau de bord de l’admin', async (t) => {
+  const { base, db } = await site(t);
+  const browser = await loggedIn(base);
+  const malformed = [
+    [null],
+    [[]],
+    ['x'],
+    [12],
+    [{ fiches: 'x' }],
+    [{ fiches: {} }],
+    [{ fiches: null }],
+    [{ fiches: [null] }],
+    [{ fiches: ['x'] }],
+    [{ fiches: [[]] }],
+    [{ locations: 'x' }],
+    [{ locations: [null] }],
+    [{ fiches: [{ media: 'x' }] }],
+    [{ fiches: [{ media: {} }] }],
+    [{ fiches: [{ media: [null] }] }],
+    [{ fiches: [{ media: ['x'] }] }],
+    [{ fiches: [{ media: [[]] }] }],
+    [{}, null],
+    [{ fiches: [{}, null] }]
+  ];
+  for (const maps of malformed) {
+    const draft = { format: 'inventaire-botanique', maps };
+    assert.equal((await browser.post('/api/courses', { draft })).status, 400, JSON.stringify(maps));
+  }
+  assert.equal(count(db, 'courses'), 0);
+  assert.equal((await browser.get('/api/courses')).status, 200);
+  const admin = await loggedIn(base, ADMIN);
+  assert.equal((await admin.get('/api/admin/teachers')).status, 200);
+
+  // Une forme minimale reste un cours : le navigateur complète ce qui manque
+  await createCourse(browser, { format: 'inventaire-botanique', maps: [{}] });
+  await createCourse(browser, { format: 'inventaire-botanique', maps: [{ fiches: [{}] }] });
+  await createCourse(browser, { format: 'inventaire-botanique', maps: [{ locations: [{ media: [{}] }] }] });
+  assert.equal((await admin.get('/api/admin/teachers')).status, 200);
+});
+
 test('un contenu trop lourd est refusé avec un 413, sans erreur du serveur', async (t) => {
   const { base } = await site(t);
   const browser = await loggedIn(base);

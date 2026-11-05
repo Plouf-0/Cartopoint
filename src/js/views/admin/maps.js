@@ -12,7 +12,7 @@ export function html() {
       const current = m.id === S.map.id;
       return `
       <div class="map-row ${current ? 'current' : ''}">
-        <img src="${m.image}" alt="">
+        <img src="${esc(m.image)}" alt="">
         <div><h3>${esc(m.name)}</h3><small>${m.fiches.length} fiche(s)${current ? ' · carte affichée' : ''}</small></div>
         <div class="actions">
           ${current ? '' : `<button type="button" class="btn soft sm" data-map-open="${esc(m.id)}">Afficher</button>`}

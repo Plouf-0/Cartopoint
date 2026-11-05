@@ -241,6 +241,8 @@ refuse un enregistrement parti d'une révision périmée (409) : un autre onglet
 `/media/` et cachés pour toujours, car leur nom dépend de leur contenu. Le navigateur réduit les photos avant l'envoi (1280 px,
 qualité 78) et les plans (2600 px, qualité 88). Le serveur lit le type dans le contenu du fichier. Le nettoyage horaire oublie
 ce qu'aucun brouillon ni version ne cite, après un jour de délai, car un fichier est envoyé avant le brouillon qui le cite.
+Le serveur refuse un brouillon dont un plan ou une photo n'est pas l'un de ces fichiers, ou rien (`COU-14`). Une version déjà publiée n'est pas relue : à l'écran, tout
+ce qui vient d'un cours reste échappé (`SEC-04`), y compris dans le fichier de secours, où aucun serveur ne filtre.
 
 **`store.js` et ses backends.** Les vues appellent `changedMap()`, `storeFile()` et `storeMapImage()` sans savoir où vont les
 données. Le backend `local` écrit dans IndexedDB ; celui de `prof/course-backend.js` écrit sur le serveur. Une écriture à la

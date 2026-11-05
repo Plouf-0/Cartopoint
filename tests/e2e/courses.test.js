@@ -819,6 +819,68 @@ test('PRI-07 : un fichier qui n’est pas un projet s’explique, et un fichier 
   assert.equal(draft.maps[0].fiches[0].common, 'Olivier', 'le reste est importé');
 });
 
+test('COU-14 : importer un projet dont un plan ou une photo pointe ailleurs est refusé, sans rien créer', async (t) => {
+  const { site, page } = await setup(t);
+  const farPlan = projectFile({ title: 'Plan ailleurs' });
+  farPlan.maps[0].image = 'https://ailleurs.example.org/plan.jpg';
+  await importFile(page, 'plan-ailleurs.json', JSON.stringify(farPlan));
+  await page.getByRole('alert').filter({ hasText: "Ce contenu n'est pas un cours valable." }).waitFor();
+  assert.equal(onlyCourse(site), undefined);
+
+  const trapped = projectFile({ title: 'Photo piégée' });
+  trapped.maps[0].fiches[0].media[0].data = 'x" onerror="window.piege=1';
+  await importFile(page, 'photo-piegee.json', JSON.stringify(trapped));
+  await page.locator('.course-import [role=status]', { hasText: 'photo-piegee.json' }).waitFor({ state: 'hidden' });
+  await page.getByRole('alert').filter({ hasText: "Ce contenu n'est pas un cours valable." }).waitFor();
+  assert.equal(onlyCourse(site), undefined);
+  assert.equal(await page.evaluate(() => window.piege), undefined);
+});
+
+test('SEC-04 : une adresse ou un identifiant piégés restent du texte dans les cartes et l’éditeur, même dans un cours enregistré avant COU-14', async (t) => {
+  const { site, page } = await setup(t);
+  await createCourse(page);
+  const planTrap = 'x" onerror="window.piege=1';
+  const photoTrap = 'y" onerror="window.piege=2';
+  const videoTrap = 'z" onerror="window.piege=3';
+  const idTrap = '"><img src=w onerror="window.piege=4">';
+  const course = onlyCourse(site);
+  const draft = JSON.parse(course.draft);
+  draft.maps[0].image = planTrap;
+  draft.maps[0].fiches = [
+    {
+      id: 'f1',
+      common: 'Olivier',
+      visible: true,
+      media: [
+        { id: 'p0', type: 'image', name: 'vignette', data: photoTrap },
+        { id: idTrap, type: 'image', name: 'autre', data: '' },
+        { id: 'v1', type: 'video', name: 'vidéo', data: videoTrap }
+      ]
+    }
+  ];
+  // Le serveur refuse désormais ce contenu : il ne peut venir que d'un cours plus ancien
+  site.db.prepare('UPDATE courses SET draft = ? WHERE id = ?').run(JSON.stringify(draft), course.id);
+  await page.reload();
+
+  await page.locator('[data-tab=cartes]').click();
+  assert.equal(await page.locator('.map-row img').getAttribute('src'), planTrap);
+
+  await page.locator('[data-tab=fiches]').click();
+  await page.locator('.row[data-open="f1"] h3').click();
+  await page.locator('#eGallery figure').nth(2).waitFor();
+  assert.equal(await page.locator('#eGallery figure').nth(0).locator('img').getAttribute('src'), photoTrap);
+  assert.equal(await page.locator('#eGallery video').getAttribute('src'), videoTrap);
+  assert.equal(await page.locator('#eGallery [data-thumb-set]').getAttribute('data-thumb-set'), idTrap);
+  assert.equal(await page.locator('#eGallery [data-media-del]').nth(1).getAttribute('data-media-del'), idTrap);
+  assert.equal(await page.locator('#eGallery [onerror]').count(), 0);
+  assert.equal(await page.evaluate(() => window.piege), undefined);
+
+  // Un identifiant échappé désigne toujours la bonne photo : ses boutons fonctionnent encore
+  await page.locator('#eGallery [data-media-del]').nth(1).click();
+  await page.locator('#eGallery figure', { hasText: 'autre' }).waitFor({ state: 'detached' });
+  assert.equal(await page.locator('#eGallery figure').count(), 2);
+});
+
 test('un cours se télécharge avec ses photos, et se réimporte à l’identique', async (t) => {
   const { site, page } = await setup(t);
   await createCourse(page, 'À télécharger');

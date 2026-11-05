@@ -4,14 +4,28 @@
  */
 import { randomUUID } from 'node:crypto';
 import { HttpError } from './http.mjs';
+import { MEDIA_NAME } from './media.mjs';
 
 const FORMAT = 'inventaire-botanique';
 const CHANGED_ELSEWHERE = 'Ce cours a été modifié ailleurs, par exemple dans un autre onglet.';
+const MEDIA_PATH = '/media/';
 
 const iso = () => new Date().toISOString();
 
+const isObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
+const isListOf = (value, isValid) => value === undefined || (Array.isArray(value) && value.every(isValid));
+
+/** Un plan ou une photo est un fichier de ce serveur, ou rien : toute autre valeur partirait telle quelle chez les élèves (COU-14). */
+const isFileOrNothing = (value) =>
+  (value ?? '') === '' || (typeof value === 'string' && value.startsWith(MEDIA_PATH) && MEDIA_NAME.test(value.slice(MEDIA_PATH.length)));
+
+// Le navigateur lit aussi les anciens noms de ces champs (normalizeMedia, normalizeMap) : ils ne doivent pas servir de porte de côté
+const isMedia = (media) => isObject(media) && [media.data, media.dataUrl, media.src].every(isFileOrNothing);
+const isFiche = (fiche) => isObject(fiche) && isListOf(fiche.media, isMedia);
+const isMap = (map) => isObject(map) && isFileOrNothing(map.image) && isListOf(map.fiches, isFiche) && isListOf(map.locations, isFiche);
+
 function checkDraft(draft) {
-  if (!draft || typeof draft !== 'object' || draft.format !== FORMAT || !Array.isArray(draft.maps) || !draft.maps.length) {
+  if (!draft || typeof draft !== 'object' || draft.format !== FORMAT || !Array.isArray(draft.maps) || !draft.maps.length || !draft.maps.every(isMap)) {
     throw new HttpError(400, "Ce contenu n'est pas un cours valable.");
   }
   return JSON.stringify(draft);

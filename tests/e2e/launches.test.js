@@ -50,7 +50,8 @@ async function publishedCourse(teacher, draft = twoMaps) {
         if (!response.ok) throw new Error(await response.text());
         return response.json();
       };
-      const uploaded = await fetch('/api/media', { method: 'POST', body: await (await fetch(plan)).blob() });
+      const bytes = Uint8Array.from(atob(plan.split(',')[1]), (char) => char.charCodeAt(0));
+      const uploaded = await fetch('/api/media', { method: 'POST', headers: { 'Content-Type': 'image/png' }, body: bytes });
       const { url } = await uploaded.json();
       const maps = draft.maps.map((map) => (map.image === plan ? { ...map, image: url } : map));
       const course = await send('/api/courses', { draft: { ...draft, maps } });

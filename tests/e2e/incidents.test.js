@@ -52,6 +52,7 @@ const report = (page, action, reason) =>
   page.evaluate(({ action, reason }) => import('/js/incident.js').then((m) => m.reportIncident(action, reason)), { action, reason });
 
 /** Comme une vraie erreur : un script de la page, et non une évaluation de Playwright, que le journal prendrait pour une extension. */
+/** Il faut pour cela une page qui accepte un script ajouté (bypassCSP) : la règle du site le refuserait (SEC-06). */
 const runScript = (page, text) =>
   page.evaluate((text) => {
     const script = document.createElement('script');
@@ -136,7 +137,7 @@ async function finish(page) {
 test('INC-01 : une erreur du programme arrive de chaque page, avec son adresse, sa pile et la machine', async (t) => {
   const { site, teacher } = await teacherSite(t);
   const { id, code, launchId } = await course(teacher);
-  const page = await openPage(t, browser, { base: site.base, expectErrors: true });
+  const page = await openPage(t, browser, { base: site.base, expectErrors: true, bypassCSP: true });
   await logIn(page, TEACHER, '/prof');
   await heading(page, 'Mes cours');
   const addresses = ['/', '/admin', '/invitation', '/prof', `/prof/cours/${id}`, `/prof/lancements/${launchId}`, `/c/${code}`];
@@ -178,7 +179,7 @@ test('INC-01 : le compte de l’enseignant est noté, et la place manquante se v
 
 test('INC-01 : une promesse rejetée sans personne pour l’attraper arrive aussi', async (t) => {
   const { site } = await teacherSite(t);
-  const page = await openPage(t, browser, { base: site.base, expectErrors: true });
+  const page = await openPage(t, browser, { base: site.base, expectErrors: true, bypassCSP: true });
   await page.goto('/');
   await runScript(page, "Promise.reject(new TypeError('promesse perdue'))");
   const row = await waitForRow(site, /promesse perdue/);
@@ -188,7 +189,7 @@ test('INC-01 : une promesse rejetée sans personne pour l’attraper arrive auss
 
 test('INC-01 : ce qui ne vient pas du site reste dehors : le bruit du navigateur, les extensions', async (t) => {
   const { site, teacher } = await teacherSite(t);
-  const page = await openPage(t, browser, { base: site.base, expectErrors: true });
+  const page = await openPage(t, browser, { base: site.base, expectErrors: true, bypassCSP: true });
   await page.goto('/');
   await runScript(page, "throw new Error('x')");
   await waitForRow(site, /Error : x/);

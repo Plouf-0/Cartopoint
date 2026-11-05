@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.37** · 5 novembre 2026 · établie à partir du code
+**Version 0.38** · 5 novembre 2026 · établie à partir du code
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -396,6 +396,8 @@ Code : [`spreadsheet.js`](../src/js/spreadsheet.js), [`xlsx.js`](../src/js/xlsx.
 - **TAB-09** **Télécharger le modèle** fournit un CSV d'exemple avec les 18 colonnes.
 - **TAB-10** **Exporter les fiches (CSV)** produit le même format, masquées et mesures comprises, et se
   réimporte (positions arrondies à deux décimales, sans les photos). Il n'y a pas d'export `.xlsx`.
+- **TAB-11** Dans un CSV exporté, un texte qu'un tableur prendrait pour une formule (`=`, `+`, `-`, `@` au début) reçoit une
+  apostrophe devant lui. Un nombre négatif reste un nombre, et l'import retire l'apostrophe.
 
 ### 5.6 Séance en cours — `SEA`
 
@@ -595,8 +597,11 @@ Code : [`store.js`](../src/js/store.js), [`db.js`](../src/js/db.js)
   rien contenir de confidentiel. ⚠️ Q-03
 - **SEC-02** La seule protection réelle est le mot de passe de publication, vérifié par le serveur.
 - **SEC-03** Aucun secret ne doit figurer dans le projet ni dans le code.
-- **SEC-04** Tout texte venant d'un projet ou d'un utilisateur est échappé avant d'être affiché, adresses de fichiers et identifiants compris. La CSP de
-  Traefik ne le remplace pas : elle autorise les scripts en ligne, donc un `onerror=` injecté.
+- **SEC-04** Tout texte venant d'un projet ou d'un utilisateur est échappé avant d'être affiché, adresses de fichiers et identifiants compris. La règle de
+  `SEC-06` ne le remplace pas : c'est un second filet.
+- **SEC-06** Le serveur envoie lui-même sa `Content-Security-Policy`. Une page n'exécute que ses propres fichiers et les scripts en
+  ligne dont l'empreinte correspond à son code : un script ou un `onerror=` injecté est refusé. La route Traefik de Cartopoint
+  n'envoie pas de CSP, sans quoi elle remplacerait celle-ci.
 - **SEC-05** Aucune donnée personnelle des élèves n'arrive sur le serveur (`PRI-04`). E-08 est corrigé pour les polices dans la branche
   de la refonte
 
@@ -1188,3 +1193,4 @@ fichier `.log` : le journal arrive sans rien demander à la personne, et l'admin
 | 0.35    | 5 novembre 2026   | Q-21 tranchée : les corrections partent 30 secondes après la fin, et ce qui arrive ensuite est signalé (`CRG-14`) |
 | 0.36    | 5 novembre 2026   | Identification par IA retirée (`IAI-01` à `IAI-04`), avertissement sur le mot de passe du fichier de secours (`EXP-04`). La feuille de route quitte le dépôt public, et ce document ne décrit plus les personnes ni le serveur |
 | 0.37    | 5 novembre 2026   | Mise en service : la section 12 décrit le site en production, les demandes livrées sont closes |
+| 0.38    | 5 novembre 2026   | Formules neutralisées dans les CSV (`TAB-11`), règle de sécurité du navigateur envoyée par le serveur (`SEC-06`) |

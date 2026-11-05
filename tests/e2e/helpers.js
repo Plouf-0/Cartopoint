@@ -63,7 +63,11 @@ export async function startSite(t, { root = path.resolve('src'), ...options } = 
 }
 
 /** Une page dans un navigateur vierge : sans cookie, comme une autre personne sur un autre appareil. */
-export async function openPage(t, browser, { base, permissions = [], viewport = { width: 1280, height: 800 }, touch = false, expectErrors = false } = {}) {
+export async function openPage(
+  t,
+  browser,
+  { base, permissions = [], viewport = { width: 1280, height: 800 }, touch = false, expectErrors = false, bypassCSP = false } = {}
+) {
   const context = await browser.newContext({
     baseURL: base,
     permissions,
@@ -72,6 +76,7 @@ export async function openPage(t, browser, { base, permissions = [], viewport = 
     // Une heure affichée se compare telle quelle, sur le serveur comme sur le laptop
     timezoneId: 'Europe/Paris',
     hasTouch: touch,
+    bypassCSP,
     ...(ENGINE === 'firefox' ? {} : { isMobile: touch })
   });
   context.setDefaultTimeout(5000);
@@ -79,6 +84,10 @@ export async function openPage(t, browser, { base, permissions = [], viewport = 
   // Une erreur JavaScript fait toujours échouer le test, même si l'écran a l'air correct
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  // Ce que la règle du site bloque manque à l'écran : aucun test ne doit passer à côté (SEC-06)
+  page.on('console', (message) => {
+    if (/Content.Security.Policy/i.test(message.text())) errors.push(message.text());
+  });
   if (IS_CHROMIUM) await page.coverage.startJSCoverage({ resetOnNavigation: false });
   t.after(async () => {
     const entries = IS_CHROMIUM ? await page.coverage.stopJSCoverage() : [];

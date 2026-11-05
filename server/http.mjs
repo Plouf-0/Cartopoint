@@ -49,6 +49,38 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * Ce que le navigateur a le droit de charger (SEC-06). Les pages construites portent leur code en ligne : chacune
+ * n'autorise que l'empreinte de ses propres scripts, donc rien de ce qu'on y injecterait, ni un `onerror=`.
+ * Les styles en ligne restent permis : les écrans s'en servent, et ils n'exécutent rien.
+ */
+const contentPolicy = (scripts = []) =>
+  [
+    "default-src 'self'",
+    ["script-src 'self'", ...scripts.map((script) => `'sha256-${createHash('sha256').update(script).digest('base64')}'`)].join(' '),
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "media-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'"
+  ].join('; ');
+
+const pagePolicies = new Map();
+
+/** La règle d'une page, recalculée seulement quand le fichier change. */
+async function pagePolicy(file, stat) {
+  const version = `${stat.size}-${stat.mtimeMs}`;
+  const known = pagePolicies.get(file);
+  if (known?.version === version) return known.policy;
+  const html = await fs.readFile(file, 'utf8');
+  const policy = contentPolicy([...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1]));
+  pagePolicies.set(file, { version, policy });
+  return policy;
+}
+
 export function send(res, status, body, type = 'text/plain; charset=utf-8', extra = {}) {
   res.writeHead(status, { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff', ...extra });
   res.end(body);
@@ -125,6 +157,7 @@ export async function sendFile(req, res, file, cache) {
     'X-Content-Type-Options': 'nosniff',
     ...(compressible ? { Vary: 'Accept-Encoding' } : {})
   };
+  if (type.startsWith('text/html')) headers['Content-Security-Policy'] = await pagePolicy(file, stat);
   if (isFresh(req, headers.ETag)) return notModified(res, headers);
 
   if (!compressible) {
@@ -261,6 +294,8 @@ function parseUrl(req) {
 /** Fonction à donner à http.createServer. `fallback` reçoit les GET et HEAD qu'aucune route n'a pris. */
 export function createHandler(router, fallback) {
   return async (req, res) => {
+    // Le service worker et un fichier ouvert seul sont aussi concernés. Une page remplace cette règle par la sienne
+    res.setHeader('Content-Security-Policy', contentPolicy());
     try {
       const url = parseUrl(req);
       const { handler, params, allow } = router.find(req.method, url.pathname);

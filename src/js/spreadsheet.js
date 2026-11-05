@@ -108,7 +108,10 @@ export function decodeText(buffer) {
 
 /** Convertit une valeur de cellule selon la colonne. */
 export function cellValue(key, raw) {
-  const v = String(raw ?? '').trim();
+  // L'apostrophe ajoutée à l'export (TAB-11) ne fait pas partie de la valeur
+  const v = String(raw ?? '')
+    .trim()
+    .replace(/^'(?=\s*[=+\-@])/, '');
   if (key === 'date') {
     if (/^\d{5}(\.\d+)?$/.test(v)) return new Date(Math.round((+v - 25569) * 864e5)).toISOString().slice(0, 10); // n° de série Excel
     let m = v.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/);
@@ -211,8 +214,14 @@ export async function importSpreadsheet(file) {
 /* Écriture                                                             */
 /* ------------------------------------------------------------------ */
 
+/** Texte qu'un tableur prendrait pour une formule. Un nombre négatif reste un nombre. */
+const FORMULA = /^\s*[=+\-@]/;
+const NUMBER = /^[+-]?\d+([.,]\d+)?$/;
+
 const csvCell = (v) => {
   v = String(v ?? '');
+  // Un élève ou un fichier importé peut écrire « =HYPERLINK(…) » : l'apostrophe en fait du texte (TAB-11)
+  if (FORMULA.test(v) && !NUMBER.test(v)) v = "'" + v;
   return /[";\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
 };
 

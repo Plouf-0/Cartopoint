@@ -58,8 +58,7 @@ test('le guide ne cite que des images qui existent, et chacune de celles qui exi
 
 test('QUA-05 : chaque exigence de la section 12 du cahier a au moins un test qui la cite dans son titre', () => {
   const cahier = readFileSync(path.join(ROOT, 'docs/CAHIER_DES_CHARGES.md'), 'utf8');
-  // Quand la section 12 aura rejoint les sections 4 à 8, à la mise en service, cette recherche devra les suivre
-  const section = cahier.slice(cahier.indexOf('## 12. Fonctionnement cible'), cahier.indexOf('## 13. Historique'));
+  const section = cahier.slice(cahier.indexOf('## 12. Fonctionnement en service'), cahier.indexOf('## 13. Historique'));
   // Un identifiant retiré garde son ancien texte entre guillemets (12.11)
   const required = [...section.matchAll(/^- \*\*([A-Z]{2,4}-\d{2})\*\* (?!«)/gm)].map(([, id]) => id);
   assert.ok(required.length > 80, 'la recherche trouve bien les exigences');

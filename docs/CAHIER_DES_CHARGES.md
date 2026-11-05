@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.36** · 5 novembre 2026 · établie à partir du code
+**Version 0.37** · 5 novembre 2026 · établie à partir du code
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -18,7 +18,7 @@ et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demande
 9. [Règles de calcul et valeurs de référence](#9-règles-de-calcul-et-valeurs-de-référence)
 10. [Écarts constatés](#10-écarts-constatés)
 11. [Décisions à prendre](#11-décisions-à-prendre)
-12. [Fonctionnement cible](#12-fonctionnement-cible)
+12. [Fonctionnement en service](#12-fonctionnement-en-service)
 13. [Historique](#13-historique)
 
 ---
@@ -36,51 +36,51 @@ trace.
   Suggestion garde le texte d'origine et affiche la proposition jusqu'à sa validation.
 - **Répondre à une question de la section 11 :** écrire la réponse sous la question.
 - **Faire une remarque :** ajouter un commentaire sur le passage concerné.
-- **Où regarder :** les sections 4 à 6 décrivent ce que fait l'application, et la section 12 ce qu'elle
-  doit devenir. Les sections 7 à 10 sont plus techniques.
+- **Où regarder :** la section 12 décrit le site en service. Les sections 4 à 6 décrivent l'application d'origine, qui survit
+  dans le fichier de secours. Les sections 7 à 10 sont plus techniques.
 
 **Demandes en cours**
 
 | ID      | Date       | Demande : ce qui est souhaité, et pourquoi                                                                                                                                                   | Exigence concernée                       | Priorité | Statut et réponse                                                                      |
 | ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------- | -------------------------------------------------------------------------------------- |
 | Exemple | 01/11/2026 | Les élèves doivent pouvoir choisir leur carte, car une sortie peut couvrir plusieurs sites.                                                                                                  | E-01                                     | Haute    | Proposée                                                                               |
-| EV-01   | 01/11/2026 | De vrais espaces enseignants : chaque enseignant a son propre espace, séparé de ceux des autres. L'admin distribue des liens pour créer les comptes.                                         | ACC-01, SRV-05, Q-09, Q-11               | Haute    | En cours. Voir 12.1                                                                    |
-| EV-02   | 01/11/2026 | Préparer un cours, le publier quand il est prêt, le lancer et afficher un QR code que les élèves scannent pour le rejoindre, à la façon de Kahoot.                                           | PUB-01, DEM-01, MUL-01, Q-13, Q-14, Q-19 | Haute    | En cours : publier, lancer et le QR code sont faits. Voir 12.2 |
-| EV-03   | 01/11/2026 | Pas de compte pour les élèves. Leur nom, leur prénom et leurs réponses restent dans l'historique du cours, pour l'enseignant.                                                                | PRI-04, Q-02, Q-17                       | Haute    | En cours : entrer sans compte et rendre sont faits ; l'enseignant verra le détail des réponses à l'étape 8. Voir 12.3 |
-| EV-04   | 01/11/2026 | Revoir la publication des fiches, qui semble ne pas fonctionner.                                                                                                                             | PUB-01, DEM-02, E-02, E-16               | Moyenne  | En cours. Voir 12.9                                                                    |
-| EV-05   | 01/11/2026 | Suivre le cours : voir les noms des élèves qui ont commencé, et s'ils ont fini ou non.                                                                                                       | Q-10                                     | Haute    | Fait : la liste montre qui a commencé et qui a fini, sans recharger. Voir 12.4 |
-| EV-06   | 01/11/2026 | Travailler hors ligne une fois la page récupérée, avec l'avancement gardé dans le navigateur. La connexion ne sert qu'à rendre.                                                              | Q-04, Q-05, Q-15, E-06                   | Haute    | Fait, à essayer sur de vrais téléphones. Voir 12.5 |
-| EV-07   | 01/11/2026 | Alléger le cours, en particulier les photos, sans les rendre illisibles.                                                                                                                     | E-05                                     | Moyenne  | En cours. Voir 12.7                                                                    |
-| EV-08   | 01/11/2026 | Donner à l'élève la correction complète sur son téléphone quand l'enseignant termine le cours, s'il a du réseau et que sa page est toujours ouverte. Elle n'y reste que le temps de la page. | Q-03, Q-16, Q-20, VER-01                 | Haute    | Validée. Voir 12.6                                                                     |
-| EV-09   | 01/11/2026 | Afficher sous le QR code un code court à taper, comme alternative.                                                                                                                           | COU-04                                   | Moyenne  | Fait. Voir 12.2 |
-| EV-10   | 01/11/2026 | Ne plus dépendre de Google pour les polices.                                                                                                                                                 | E-08                                     | Basse    | Fait. Voir 12.5 |
-| EV-11   | 01/11/2026 | Garder le fichier autonome comme export de secours.                                                                                                                                          | PRI-02, Q-12                             | Moyenne  | Validée. Voir 12.8                                                                     |
+| EV-01   | 01/11/2026 | De vrais espaces enseignants : chaque enseignant a son propre espace, séparé de ceux des autres. L'admin distribue des liens pour créer les comptes.                                         | ACC-01, SRV-05, Q-09, Q-11               | Haute    | Livrée. Voir 12.1 |
+| EV-02   | 01/11/2026 | Préparer un cours, le publier quand il est prêt, le lancer et afficher un QR code que les élèves scannent pour le rejoindre, à la façon de Kahoot.                                           | PUB-01, DEM-01, MUL-01, Q-13, Q-14, Q-19 | Haute    | Livrée. Voir 12.2 |
+| EV-03   | 01/11/2026 | Pas de compte pour les élèves. Leur nom, leur prénom et leurs réponses restent dans l'historique du cours, pour l'enseignant.                                                                | PRI-04, Q-02, Q-17                       | Haute    | Livrée. Voir 12.3 |
+| EV-04   | 01/11/2026 | Revoir la publication des fiches, qui semble ne pas fonctionner.                                                                                                                             | PUB-01, DEM-02, E-02, E-16               | Moyenne  | Livrée : l'ancienne publication est retirée. La cause de la panne n'a jamais été établie. Voir 12.9 |
+| EV-05   | 01/11/2026 | Suivre le cours : voir les noms des élèves qui ont commencé, et s'ils ont fini ou non.                                                                                                       | Q-10                                     | Haute    | Livrée. Voir 12.4 |
+| EV-06   | 01/11/2026 | Travailler hors ligne une fois la page récupérée, avec l'avancement gardé dans le navigateur. La connexion ne sert qu'à rendre.                                                              | Q-04, Q-05, Q-15, E-06                   | Haute    | Livrée, à essayer sur de vrais téléphones. Voir 12.5 |
+| EV-07   | 01/11/2026 | Alléger le cours, en particulier les photos, sans les rendre illisibles.                                                                                                                     | E-05                                     | Moyenne  | Livrée. Voir 12.7 |
+| EV-08   | 01/11/2026 | Donner à l'élève la correction complète sur son téléphone quand l'enseignant termine le cours, s'il a du réseau et que sa page est toujours ouverte. Elle n'y reste que le temps de la page. | Q-03, Q-16, Q-20, VER-01                 | Haute    | Livrée. Voir 12.6 |
+| EV-09   | 01/11/2026 | Afficher sous le QR code un code court à taper, comme alternative.                                                                                                                           | COU-04                                   | Moyenne  | Livrée. Voir 12.2 |
+| EV-10   | 01/11/2026 | Ne plus dépendre de Google pour les polices.                                                                                                                                                 | E-08                                     | Basse    | Livrée. Voir 12.5 |
+| EV-11   | 01/11/2026 | Garder le fichier autonome comme export de secours.                                                                                                                                          | PRI-02, Q-12                             | Moyenne  | Livrée. Voir 12.8 |
 | EV-12   | 01/11/2026 | Carte collective anonyme : tous les placements, sans nom, sur l'écran de l'enseignant pour le débrief.                                                                                       |                                          | Basse    | Reportée                                                                               |
 | EV-13   | 01/11/2026 | Avancement des élèves en direct.                                                                                                                                                             | Q-10                                     | Basse    | Reportée                                                                               |
 | EV-14   | 01/11/2026 | Dupliquer un cours entre enseignants.                                                                                                                                                        |                                          | Basse    | Reportée, à revoir si le nombre d'utilisateurs le justifie                             |
-| EV-15   | 01/11/2026 | Garder un historique de chaque cours : une ligne par élève avec son nom et ses résultats, et le détail de ses réponses en cliquant dessus.                                                   | Q-02                                     | Haute    | Validée. Voir 12.4                                                                     |
-| EV-16   | 01/11/2026 | Tableau de bord de l'admin : voir les enseignants et des chiffres sur chacun, réinitialiser un mot de passe, désactiver un compte.                                                           | Q-18                                     | Moyenne  | En cours. Voir 12.1                                                                    |
-| EV-17   | 01/11/2026 | Côté élève, un bouton Terminer notifie l'enseignant et envoie les réponses s'il y a du réseau.                                                                                               | Q-05, Q-20                               | Haute    | Fait. Voir 12.5 |
-| EV-18   | 01/11/2026 | Sans réseau, permettre à l'élève de récupérer un fichier de réponses à donner à l'enseignant.                                                                                                | HOR-04                                   | Moyenne  | Validée. Voir 12.4 et 12.5                                                             |
-| EV-19   | 01/11/2026 | Exporter un lancement de l'historique dans un tableur.                                                                                                                                       | Q-21, REN-03                             | Moyenne  | Validée. Voir 12.4                                                                     |
-| EV-28   | 01/11/2026 | Ne pas négliger les tests, et arriver à une bonne couverture à la fin de la mise à jour. (Numéro choisi après EV-27 : les lignes EV-20 à EV-27 restent réservées dans la copie Google Docs.) | E-09, QUA-01                             | Haute    | Validée. Voir 12.12                                                                    |
-| EV-29   | 02/11/2026 | Un enseignant dont le compte est désactivé doit l'apprendre en se connectant : « mot de passe incorrect » porte à confusion.                                                                 | ADM-06                                   | Moyenne  | En cours. Voir 12.1                                                                    |
-| EV-30   | 02/11/2026 | Un bouton supprime un compte désactivé et ses cours, après avoir recopié un mot, pour ne pas le faire par erreur.                                                                            | ADM-10                                   | Moyenne  | En cours. Voir 12.1                                                                    |
-| EV-31   | 02/11/2026 | Un compte supprimé reste restaurable un temps, dans un tableau à part, avec un bouton Restaurer. Souhait de confort, pas une priorité.                                                       | ADM-10                                   | Basse    | En cours. Voir 12.1                                                                    |
-| EV-32   | 02/11/2026 | Le cadre des options, à droite de la page d'un cours, reste tout petit quand le plan est petit ou absent : il doit descendre plus bas. | EDI | Basse | Fait |
+| EV-15   | 01/11/2026 | Garder un historique de chaque cours : une ligne par élève avec son nom et ses résultats, et le détail de ses réponses en cliquant dessus.                                                   | Q-02                                     | Haute    | Livrée. Voir 12.4 |
+| EV-16   | 01/11/2026 | Tableau de bord de l'admin : voir les enseignants et des chiffres sur chacun, réinitialiser un mot de passe, désactiver un compte.                                                           | Q-18                                     | Moyenne  | Livrée. Voir 12.1 |
+| EV-17   | 01/11/2026 | Côté élève, un bouton Terminer notifie l'enseignant et envoie les réponses s'il y a du réseau.                                                                                               | Q-05, Q-20                               | Haute    | Livrée. Voir 12.5 |
+| EV-18   | 01/11/2026 | Sans réseau, permettre à l'élève de récupérer un fichier de réponses à donner à l'enseignant.                                                                                                | HOR-04                                   | Moyenne  | Livrée. Voir 12.4 et 12.5 |
+| EV-19   | 01/11/2026 | Exporter un lancement de l'historique dans un tableur.                                                                                                                                       | Q-21, REN-03                             | Moyenne  | Livrée. Voir 12.4 |
+| EV-28   | 01/11/2026 | Ne pas négliger les tests, et arriver à une bonne couverture à la fin de la mise à jour. (Numéro choisi après EV-27 : les lignes EV-20 à EV-27 restent réservées dans la copie Google Docs.) | E-09, QUA-01                             | Haute    | Livrée. Voir 12.12 |
+| EV-29   | 02/11/2026 | Un enseignant dont le compte est désactivé doit l'apprendre en se connectant : « mot de passe incorrect » porte à confusion.                                                                 | ADM-06                                   | Moyenne  | Livrée. Voir 12.1 |
+| EV-30   | 02/11/2026 | Un bouton supprime un compte désactivé et ses cours, après avoir recopié un mot, pour ne pas le faire par erreur.                                                                            | ADM-10                                   | Moyenne  | Livrée. Voir 12.1 |
+| EV-31   | 02/11/2026 | Un compte supprimé reste restaurable un temps, dans un tableau à part, avec un bouton Restaurer. Souhait de confort, pas une priorité.                                                       | ADM-10                                   | Basse    | Livrée. Voir 12.1 |
+| EV-32   | 02/11/2026 | Le cadre des options, à droite de la page d'un cours, reste tout petit quand le plan est petit ou absent : il doit descendre plus bas. | EDI | Basse | Livrée |
 | EV-33   | 02/11/2026 | Enlever l'identification par IA des réglages d'un cours. | IAI-01 | Basse | Fait : retirée partout le 5 novembre 2026, fichier de secours compris |
-| EV-34   | 02/11/2026 | Rendre le site générique : des valeurs par défaut liées à Cartopoint plutôt qu'à « Inventaire botanique », en gardant le vert comme couleur par défaut. | Q-01 | Moyenne | Fait pour le nom, les valeurs par défaut et les textes. Voir Q-01 |
-| EV-35   | 02/11/2026 | Plus aucune donnée d'utilisateur sur GitHub à partir de maintenant. L'historique sera réécrit plus tard si besoin. | Dépôt | Haute | Fait dans la branche : plan d'exemple inventé, captures retirées, `tests/repo.test.js`. Ce qui est déjà public le reste |
-| EV-36   | 04/11/2026 | Sur la page élève, une petite icône qui dit si l'on est en ligne ou hors ligne, avec le détail en passant le doigt dessus, plutôt qu'un bandeau qui reste. | HOR-10 | Moyenne | Fait dans la branche |
-| EV-37   | 04/11/2026 | Quand le site casse chez quelqu'un, un `.log` pour voir pourquoi, avec la signature de sa machine, des informations utiles et la raison. Pour récupérer par exemple les erreurs de chez le premier enseignant. | INC-01 à INC-07 | Haute | Fait dans la branche |
-| EV-38   | 04/11/2026 | Vérifier qu'un cours fonctionne avec au moins 30 élèves, 50 au plus. | QUA-09 | Haute | Fait dans la branche |
-| EV-39   | 04/11/2026 | Bloquer l'élève dès que le cours est fini, au lieu d'un simple message qui le laisse continuer. | CRG-11 | Haute | Fait dans la branche |
-| EV-40   | 04/11/2026 | Hors ligne, horodater chaque réponse pour voir lesquelles ont été faites avant et après la fin du cours. | CRG-13, Q-19 | Moyenne | Fait dans la branche |
+| EV-34   | 02/11/2026 | Rendre le site générique : des valeurs par défaut liées à Cartopoint plutôt qu'à « Inventaire botanique », en gardant le vert comme couleur par défaut. | Q-01 | Moyenne | Livrée. Voir Q-01 |
+| EV-35   | 02/11/2026 | Plus aucune donnée d'utilisateur sur GitHub à partir de maintenant. L'historique sera réécrit plus tard si besoin. | Dépôt | Haute | Livrée |
+| EV-36   | 04/11/2026 | Sur la page élève, une petite icône qui dit si l'on est en ligne ou hors ligne, avec le détail en passant le doigt dessus, plutôt qu'un bandeau qui reste. | HOR-10 | Moyenne | Livrée |
+| EV-37   | 04/11/2026 | Quand le site casse chez quelqu'un, un `.log` pour voir pourquoi, avec la signature de sa machine, des informations utiles et la raison. Pour récupérer par exemple les erreurs de chez le premier enseignant. | INC-01 à INC-07 | Haute | Livrée |
+| EV-38   | 04/11/2026 | Vérifier qu'un cours fonctionne avec au moins 30 élèves, 50 au plus. | QUA-09 | Haute | Livrée |
+| EV-39   | 04/11/2026 | Bloquer l'élève dès que le cours est fini, au lieu d'un simple message qui le laisse continuer. | CRG-11 | Haute | Livrée |
+| EV-40   | 04/11/2026 | Hors ligne, horodater chaque réponse pour voir lesquelles ont été faites avant et après la fin du cours. | CRG-13, Q-19 | Moyenne | Livrée |
 | EV-41   | 04/11/2026 | Le premier enseignant dit perdre « la localisation sur l'image de la fiche » quand il exporte. L'ajouter si l'export ne la prend pas. | TAB-10 | Moyenne | Vérifié : voir Q-20 |
-| EV-42   | 04/11/2026 | Un petit indicateur de version en bas de page, pour savoir si le navigateur a la bonne. | INC-01 | Basse | Fait dans la branche |
-| EV-44   | 04/11/2026 | Numéroter tout le projet en x.y.z : x pour un changement rétro-incompatible, y pour un ajout de fonctionnalité, z pour une correction. L'ancienne version était la 0.y.z, celle-ci la 1.y.z. | QUA | Basse | Fait dans la branche |
-| EV-43   | 04/11/2026 | L'enseignant peut sortir le JPG de chaque élève, pour l'imprimer et le lui rendre, et un Excel : une page par élève avec toutes ses réponses, et au début une page avec la précision moyenne et la moyenne des trois mesures. L'élève sort son JPG (déjà fait, `CRG-10`). | HIS-08, HIS-09 | Haute | Fait dans la branche |
-| EV-45   | 04/11/2026 | L'heure de lancement du cours sur le JPG et ailleurs, en plus du jour. | CRG-10, HIS-02, HIS-08, HIS-09 | Basse | Fait dans la branche |
+| EV-42   | 04/11/2026 | Un petit indicateur de version en bas de page, pour savoir si le navigateur a la bonne. | INC-01 | Basse | Livrée |
+| EV-44   | 04/11/2026 | Numéroter tout le projet en x.y.z : x pour un changement rétro-incompatible, y pour un ajout de fonctionnalité, z pour une correction. L'ancienne version était la 0.y.z, celle-ci la 1.y.z. | QUA | Basse | Livrée |
+| EV-43   | 04/11/2026 | L'enseignant peut sortir le JPG de chaque élève, pour l'imprimer et le lui rendre, et un Excel : une page par élève avec toutes ses réponses, et au début une page avec la précision moyenne et la moyenne des trois mesures. L'élève sort son JPG (déjà fait, `CRG-10`). | HIS-08, HIS-09 | Haute | Livrée |
+| EV-45   | 04/11/2026 | L'heure de lancement du cours sur le JPG et ailleurs, en plus du jour. | CRG-10, HIS-02, HIS-08, HIS-09 | Basse | Livrée |
 
 - **Exigence concernée :** son identifiant (`PLA-03`, `E-01`…), ou rien pour un besoin nouveau.
 - **Priorité :** Haute (empêche une séance), Moyenne (gêne réelle), Basse (confort).
@@ -91,8 +91,8 @@ trace.
 
 - Chaque exigence a un **identifiant stable** (`PLA-03`). On peut le citer dans un commit, un
   ticket ou une conversation. Un identifiant n'est jamais réutilisé, même si l'exigence disparaît.
-- Une exigence est **en place et doit le rester**, sauf mention contraire. La section 12 décrit ce qui
-  n'est pas encore en place.
+- Une exigence est **en place et doit le rester**, sauf mention contraire. Quand la section 12 contredit les sections 4 à 8,
+  c'est elle qui fait foi (voir 12.10).
 - ⚠️ signale une exigence en place, mais avec un écart ou une question : voir sections
   [10](#10-écarts-constatés) et [11](#11-décisions-à-prendre).
 
@@ -148,7 +148,7 @@ chaque espèce sur le plan, vérifient leurs placements et rendent un compte ren
 Pas de comptes utilisateurs, de collecte centralisée du travail des élèves, de suivi de classe, de
 notation automatique transmise à l'enseignant, ni de version dans une autre langue que le français.
 Certains de ces points sont discutés en section [11](#11-décisions-à-prendre). Les comptes enseignants et un
-historique des résultats par cours sont prévus : voir section [12](#12-fonctionnement-cible).
+historique des résultats par cours sont en service : voir section [12](#12-fonctionnement-en-service).
 
 **Vocabulaire**
 
@@ -717,14 +717,14 @@ jour, E-05 et E-09 en partie.
 - **E-06 — Le mode hébergé ne fonctionne pas sans réseau.** Il n'y a ni service worker ni manifeste :
   sans connexion, recharger la page échoue, alors que l'usage prévu est la sortie de terrain.
   `ARCHITECTURE.md` annonce « Tout fonctionne hors ligne », ce qui n'est vrai que pour le fichier autonome.
-  _Lié à `PRI-05`, Q-04._ **Corrigé dans la branche, étape 6.**
+  _Lié à `PRI-05`, Q-04._ **Corrigé, étape 6.**
 - **E-07 — Un `project.json` déposé à la main contient la progression.** Contrairement à la publication,
   le téléchargement inclut placements, mesures et état « vérifié » de ce navigateur. Un nouvel élève en
   hérite à sa première ouverture. _Lié à `FIL-02`, `PUB-05`._
 - **E-08 — Les polices viennent de Google.** La page charge Atkinson Hyperlegible et Fraunces depuis Google
   Fonts, y compris dans le fichier autonome. Ouvrir la page en ligne transmet donc l'adresse IP de
   l'élève à un tiers. C'est en tension avec `PRI-01` et `SEC-05`, et à regarder dans un contexte scolaire
-  (RGPD). Hors ligne, les polices du système prennent le relais. **Corrigé dans la branche, étape 6 :** le site sert ses polices.
+  (RGPD). Hors ligne, les polices du système prennent le relais. **Corrigé, étape 6 :** le site sert ses polices.
 - **E-09 — La partie la plus risquée n'est pas testée.** Aucun test ne couvre le choix du projet au
   démarrage et la publication côté navigateur (`project-io.js`), le stockage (`store.js`), les rendus
   (`report.js`), la lecture `.xlsx` (`xlsx.js`) ni les vues. _Lié à `QUA-01`._ **Corrigé en partie :** le serveur est
@@ -749,10 +749,10 @@ jour, E-05 et E-09 en partie.
 - **E-15 — Écarts mineurs de documentation et d'accessibilité.**
   - Le README dit de changer `PUBLISH_PASSWORD` dans `docker-compose.yml`, or il vient du `.env`. Il ne
     mentionne ni Traefik ni le réseau externe. Le routage est défini hors du dépôt, dans la configuration de
-    Traefik. **Corrigé sur la branche :** le README est réécrit.
+    Traefik. **Corrigé :** le README est réécrit.
   - Placer une fiche exige un pointeur : il n'y a pas d'alternative au clavier. **Reste à traiter :** voir Q-08.
   - La cible de construction annonce Firefox 100 et Safari 15.4, mais le compte rendu utilise
-    `CanvasRenderingContext2D.roundRect`, disponible à partir de Firefox 112 et Safari 16. **Corrigé sur la branche :** sans lui, le compte rendu garde des angles droits.
+    `CanvasRenderingContext2D.roundRect`, disponible à partir de Firefox 112 et Safari 16. **Corrigé :** sans lui, le compte rendu garde des angles droits.
 - **E-16 — « Plus récent » dépend de l'horloge de l'appareil.** Le navigateur choisit la version à garder en
   comparant des dates produites par les appareils, pas par le serveur. Le 1er novembre, une publication
   portait l'heure 15 h 16 alors que le serveur l'a reçue à 15 h 04. Un appareil en avance peut donc refuser
@@ -842,12 +842,11 @@ Toutes le 1er novembre 2026.
 
 ---
 
-## 12. Fonctionnement cible
+## 12. Fonctionnement en service
 
-Ce qui suit **n'est pas encore en place**. Une fois livrées, ces exigences rejoignent les sections 4 à 8
-et remplacent celles qu'elles contredisent. Les questions encore ouvertes (Q-06 et l'accessibilité de Q-08) ne bloquent pas ce fonctionnement.
+**En production depuis le 5 novembre 2026, en version 1.3.5.** Ces exigences remplacent celles des sections 4 à 8 qu'elles contredisent (voir 12.10). Les questions encore ouvertes (Q-06 et l'accessibilité de Q-08) ne bloquent pas ce fonctionnement.
 
-**Parcours visé**
+**Parcours**
 
 1. Au premier lancement de l'application, l'admin se connecte et distribue des liens de création de compte
    aux enseignants.
@@ -879,9 +878,6 @@ et remplacent celles qu'elles contredisent. Les questions encore ouvertes (Q-06 
 ### 12.1 Comptes et espaces enseignants — `ADM`, `ENS`
 
 Demandes : EV-01, EV-16, EV-29, EV-30, EV-31
-
-**État :** comptes, connexion, tableau de bord et cours sont en place dans la branche `refonte-espaces-profs`, pas encore
-en production.
 
 - **ADM-01** Au premier lancement de l'application, l'admin se connecte avec un accès prévu à l'installation :
   le premier visiteur venu ne peut pas prendre ce rôle.
@@ -1073,7 +1069,9 @@ Demande : EV-04. L'ancienne publication a pu échouer avec un message illisible,
 
 **À respecter par `COU-02` :** une erreur de publication ou d'enregistrement s'affiche toujours en clair, ne disparaît pas toute seule, et n'écrit jamais « undefined ».
 
-### 12.10 Exigences actuelles à revoir
+### 12.10 Exigences des sections 4 à 8 remplacées
+
+Ces exigences ne valent plus que pour le fichier de secours, quand elles s'y appliquent encore.
 
 - `ACC-01` à `ACC-06` et `SRV-05`, `SRV-06` : le mot de passe de gestion et le mot de passe unique de
   publication laissent place aux comptes.
@@ -1092,9 +1090,9 @@ Demande : EV-04. L'ancienne publication a pu échouer avec un message illisible,
 - `PRI-01` : les comptes demandent un stockage côté serveur. Ce principe est respecté : la base SQLite est celle
   fournie par Node (`SRV-12`).
 - `PRI-07` : pas de reprise automatique du projet en service. Ses fiches ont été exportées en CSV, sans les photos
-  ni le plan. Le projet complet pourra être réimporté depuis une copie de `data/project.json`.
+  ni le plan. Le projet complet se réimporte depuis une copie de `data/project.json`.
 - E-03, E-05, E-06, E-08, E-12 et E-14 : traités par ces évolutions.
-- E-04 : à corriger avant d'ouvrir les connexions, car la protection contre les essais répétés en dépend.
+- E-04 : corrigé avant l'ouverture des connexions.
 
 ### 12.11 Identifiants retirés
 
@@ -1189,3 +1187,4 @@ fichier `.log` : le journal arrive sans rien demander à la personne, et l'admin
 | 0.34    | 5 novembre 2026   | Revue de sécurité : plans et photos limités aux fichiers du serveur (`COU-14`), `SEC-04` étendu aux adresses et aux identifiants, Q-21 ouverte |
 | 0.35    | 5 novembre 2026   | Q-21 tranchée : les corrections partent 30 secondes après la fin, et ce qui arrive ensuite est signalé (`CRG-14`) |
 | 0.36    | 5 novembre 2026   | Identification par IA retirée (`IAI-01` à `IAI-04`), avertissement sur le mot de passe du fichier de secours (`EXP-04`). La feuille de route quitte le dépôt public, et ce document ne décrit plus les personnes ni le serveur |
+| 0.37    | 5 novembre 2026   | Mise en service : la section 12 décrit le site en production, les demandes livrées sont closes |

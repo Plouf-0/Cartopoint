@@ -18,8 +18,8 @@ before(async () => {
 });
 after(() => browser.close());
 
-async function setup(t) {
-  const site = await startSite(t);
+async function setup(t, options) {
+  const site = await startSite(t, options);
   addAccount(site.db, { email: TEACHER.email, hash: cheapHash(TEACHER.password) });
   const teacher = await openPage(t, browser, { base: site.base });
   await logIn(teacher, TEACHER, '/prof');
@@ -234,6 +234,47 @@ test('CRG-11 : l’élève qui avait déjà fini n’est pas signalé comme fig�
   await correctionArrived(page);
   assert.equal(participant(site).auto_closed, 0);
   await teacherRow(teacher).getByText('A fini', { exact: true }).waitFor({ timeout: 8000 });
+});
+
+/* --- CRG-14 : les corrections partent après un délai, et ce qui arrive ensuite est signalé --- */
+
+/** Le délai de 30 secondes écoulé, sans l'attendre pour de bon. */
+const delayOver = (site) => site.db.prepare('UPDATE launches SET ended_at = ?').run(new Date(Date.now() - 31000).toISOString());
+
+test('CRG-14 : la correction attend 30 secondes après la fin : la page demande de rester ouverte, puis la reçoit d’elle-même', async (t) => {
+  // undefined : le délai de la production, que les autres tests raccourcissent
+  const { site, teacher } = await setup(t, { correctionDelay: undefined });
+  const code = await launchedCourse(teacher);
+  const page = await newStudent(t, site, code);
+  await placeFirstFiche(page);
+  await finish(page);
+  await endCourse(teacher);
+  const refused = page.waitForResponse((response) => response.url().endsWith('/api/student/correction') && response.status() === 403);
+  await wakeUp(page);
+  await refused;
+  await page.locator('#courseBanner').getByText('gardez cette page ouverte').waitFor();
+  assert.equal(await page.locator('#seeCorrection').count(), 0);
+  assert.equal(await page.locator('.pin[data-kind="ref"]').count(), 0, 'aucune position réelle pendant le délai');
+  await teacherRow(teacher).getByText('A fini', { exact: true }).waitFor({ timeout: 8000 });
+
+  delayOver(site);
+  await wakeUp(page);
+  await correctionArrived(page);
+  await page.locator('#courseBanner', { hasText: 'Votre correction est arrivée' }).waitFor();
+});
+
+test('CRG-14 : un travail figé qui arrive après l’envoi des corrections est signalé à l’enseignant, et reçoit sa correction', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launchedCourse(teacher);
+  const page = await newStudent(t, site, code);
+  await placeFirstFiche(page);
+  await endCourse(teacher);
+  delayOver(site);
+
+  await wakeUp(page);
+  await correctionArrived(page);
+  assert.equal(participant(site).auto_closed, 1);
+  await teacherRow(teacher).getByText("Figé à la fin du cours · reçu après l'envoi des corrections").waitFor({ timeout: 8000 });
 });
 
 /* --- CRG-06, CRG-12 : la correction arrive d'elle-même --- */
@@ -680,7 +721,7 @@ test('CRG-13, Q-19 : sans réseau à la fin, la page ne sait rien : le travail f
   assert.equal(participant(site).auto_closed, 1);
   await page.locator('.label', { hasText: 'Noisetier' }).getByText('Bien placée').waitFor();
   await teacher.reload();
-  await teacherRow(teacher).getByText('Figé à la fin du cours · 1 réponse(s) après la fin').waitFor();
+  await teacherRow(teacher).getByText("Figé à la fin du cours · reçu après l'envoi des corrections · 1 réponse(s) après la fin").waitFor();
 });
 
 test('CRG-13 : terminer sans réseau avant la fin : l’enseignant voit que c’était avant, et reçu après', async (t) => {
@@ -718,5 +759,5 @@ test('CRG-13 : terminer sans réseau après la fin : l’enseignant le voit auss
   await page.context().setOffline(false);
   await correctionArrived(page);
   await teacher.reload();
-  await teacherRow(teacher).getByText('A fini après la fin du cours · 1 réponse(s) après la fin').waitFor();
+  await teacherRow(teacher).getByText("A fini après la fin du cours · reçu après l'envoi des corrections · 1 réponse(s) après la fin").waitFor();
 });

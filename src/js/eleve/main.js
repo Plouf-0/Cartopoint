@@ -30,7 +30,8 @@ const STORAGE_KEY = `cartopoint.eleve.${code}`;
 const STATE_EVERY = 20000;
 
 const COURSE_GONE = "Ce cours n'existe plus. Votre travail reste dans ce navigateur.";
-const COURSE_ENDED = "L'enseignant a terminé ce cours : votre travail est figé et envoyé.";
+const COURSE_ENDED =
+  "L'enseignant a terminé ce cours : votre travail est figé et envoyé. Votre correction arrive dans moins d'une minute : gardez cette page ouverte.";
 const COURSE_CORRECTED = "L'enseignant a terminé ce cours. Votre correction est arrivée.";
 const CLOSED_BEFORE_END = "Ce cours est terminé, et votre travail est envoyé. La correction n'est donnée qu'aux pages restées ouvertes jusqu'à la fin.";
 const SEND_STATES = {

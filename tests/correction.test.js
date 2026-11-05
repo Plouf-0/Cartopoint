@@ -37,8 +37,8 @@ const content = {
 const entry = (x, y, extra = {}) => ({ x, y, temperature: '', humidity: '', light: '', ...extra });
 const GOOD = { answers: { m1: { f1: entry(REF.x, REF.y) } } };
 
-async function site(t) {
-  const started = await startApp(t);
+async function site(t, options) {
+  const started = await startApp(t, options);
   const { db } = started.app;
   addAccount(db, { email: TEACHER, hash: cheapHash(PASSWORD) });
   const browser = client(started.base);
@@ -132,6 +132,94 @@ test('CRG-06 : chaque élève reçoit sa propre correction', async (t) => {
   await browser.post(`/api/launches/${launch.id}/end`);
   assert.equal(body(await correction(base, lea.token)).maps.m1.fiches.f1.state, 'ok');
   assert.equal(body(await correction(base, tom.token)).maps.m1.fiches.f1.state, 'far');
+});
+
+/* --- CRG-14 : les corrections partent après un délai, et ce qui arrive ensuite est signalé --- */
+
+const endedAgo = (db, launch, ms) => db.prepare('UPDATE launches SET ended_at = ? WHERE id = ?').run(new Date(Date.now() - ms).toISOString(), launch.id);
+const launchRow = async (browser, launch, path = '') => (await browser.get(`/api/launches/${launch.id}${path}`)).json().participants;
+
+test('CRG-14 : la correction part 30 secondes après la fin du cours, pas avant, même pour qui a déjà rendu', async (t) => {
+  // undefined : le délai de la production, que les autres tests raccourcissent
+  const { base, db, browser } = await site(t, { correctionDelay: undefined });
+  assert.equal(AFTER_END_GRACE, 30000, 'le délai annoncé par le cahier des charges');
+  const launch = await launched(browser);
+  const me = await join(base, launch.code);
+  await send(base, me.token, GOOD);
+  await browser.post(`/api/launches/${launch.id}/end`);
+
+  const early = await correction(base, me.token);
+  assert.equal(early.status, 403);
+  assert.match(early.body.toString(), /moins d'une minute/);
+  assert.doesNotMatch(early.body.toString(), /refX|score/);
+  endedAgo(db, launch, AFTER_END_GRACE - 2000);
+  assert.equal((await correction(base, me.token)).status, 403);
+  endedAgo(db, launch, AFTER_END_GRACE + 1);
+  assert.equal((await correction(base, me.token)).status, 200);
+});
+
+test('CRG-14 : un second nom ne lit les réponses qu’après le délai, et le rendu qui s’en sert est signalé d’après la seule horloge du serveur', async (t) => {
+  const { base, db, browser } = await site(t, { correctionDelay: undefined });
+  const launch = await launched(browser);
+  const main = await join(base, launch.code, 'Principal');
+  const second = await join(base, launch.code, 'Second nom');
+  await browser.post(`/api/launches/${launch.id}/end`);
+  await send(base, second.token, { answers: {} });
+  assert.equal((await correction(base, second.token)).status, 403, 'pendant le délai, rien à recopier');
+
+  endedAgo(db, launch, AFTER_END_GRACE + 1000);
+  const { refX, refY } = body(await correction(base, second.token)).maps.m1.fiches.f1;
+  // Tout ce que l'appareil peut déclarer dit que ce travail était fini avant la fin
+  const now = Date.now();
+  await send(base, main.token, { answers: { m1: { f1: entry(refX, refY, { at: now - HOUR }) } }, autoClosed: true, finishedAt: now - HOUR, sentAt: now });
+
+  const seen = await seenBy(browser, launch, 'Principal');
+  assert.equal(seen.autoClosed, true, 'ce qu’il déclare reste lisible');
+  assert.equal(seen.answersAfterEnd, 0);
+  assert.equal(seen.finishedAfterEnd, false);
+  assert.equal(seen.afterCorrection, true, 'le signalement ne se laisse pas tromper');
+  assert.equal(seen.score.ok, 1, 'Q-19 : le rendu compte quand même');
+  const sheets = await launchRow(browser, launch, '/sheets');
+  assert.equal(sheets.find((p) => p.names === 'Principal').afterCorrection, true, 'dans les comptes rendus et l’Excel aussi');
+});
+
+test('CRG-14 : un rendu arrivé avant l’envoi des corrections n’est pas signalé, et un élève qui n’a pas rendu non plus', async (t) => {
+  const { base, db, browser } = await site(t);
+  const launch = await launched(browser);
+  const before = await join(base, launch.code, 'Avant la fin');
+  const during = await join(base, launch.code, 'Pendant le délai');
+  const after = await join(base, launch.code, 'Après le délai');
+  await join(base, launch.code, 'Sans rendu');
+  await send(base, before.token, GOOD);
+  assert.equal((await seenBy(browser, launch, 'Avant la fin')).afterCorrection, false, 'cours encore en marche');
+  await browser.post(`/api/launches/${launch.id}/end`);
+  await send(base, during.token, { ...GOOD, autoClosed: true });
+  const flags = async () => Object.fromEntries((await launchRow(browser, launch)).map((p) => [p.names, p.afterCorrection]));
+  assert.deepEqual(await flags(), { 'Avant la fin': false, 'Pendant le délai': false, 'Après le délai': false, 'Sans rendu': false });
+
+  // Le même rendu, le délai écoulé. Déplacer la fin déplace aussi la limite des deux premiers : on ne regarde que celui-ci
+  endedAgo(db, launch, AFTER_END_GRACE + 1000);
+  await send(base, after.token, GOOD);
+  const moved = await flags();
+  assert.equal(moved['Après le délai'], true);
+  assert.equal(moved['Sans rendu'], false);
+});
+
+test('CRG-14 : un fichier de réponses importé après l’envoi des corrections est signalé aussi', async (t) => {
+  const { base, db, browser } = await site(t);
+  const launch = await launched(browser);
+  const me = await join(base, launch.code);
+  await browser.post(`/api/launches/${launch.id}/end`);
+  endedAgo(db, launch, AFTER_END_GRACE + 1000);
+  const imported = await browser.post(`/api/launches/${launch.id}/answers-file`, {
+    format: 'cartopoint-reponses',
+    participantId: me.id,
+    answers: GOOD.answers
+  });
+  assert.equal(imported.status, 200, imported.text);
+  const seen = await seenBy(browser, launch);
+  assert.equal(seen.byFile, true);
+  assert.equal(seen.afterCorrection, true);
 });
 
 /* --- CRG-11 : figé par la fin du cours --- */

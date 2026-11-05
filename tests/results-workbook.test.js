@@ -193,6 +193,16 @@ test('stateText : l’enseignant lit tout ce qui compte', () => {
   assert.equal(stateText({ ...base, autoClosed: true, answersAfterEnd: 2 }), 'Figé à la fin du cours · 2 réponse(s) après la fin');
 });
 
+test('CRG-14 : stateText : un rendu reçu après l’envoi des corrections le dit, quoi que l’appareil ait déclaré', () => {
+  const base = { submittedAt: 'x', late: false, autoClosed: false, byFile: false, answersAfterEnd: 0, finishedAfterEnd: false, afterCorrection: true };
+  const flag = "reçu après l'envoi des corrections";
+  assert.equal(stateText({ ...base, autoClosed: true }), `Figé à la fin du cours · ${flag}`);
+  assert.equal(stateText({ ...base, late: true }), `A fini avant la fin · ${flag}`);
+  assert.equal(stateText({ ...base, late: true, finishedAfterEnd: true }), `A fini après la fin du cours · ${flag}`);
+  assert.equal(stateText({ ...base, late: true, byFile: true, answersAfterEnd: 2 }), `A fini avant la fin · par fichier · ${flag} · 2 réponse(s) après la fin`);
+  assert.equal(stateText({ ...base, afterCorrection: false, late: true }), 'A fini avant la fin, reçu après');
+});
+
 /* --- Le fichier lui-même --- */
 
 const fileOf = async (sheets) => readZip(Buffer.from(await workbookBlob(sheets).arrayBuffer()));

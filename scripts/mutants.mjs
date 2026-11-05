@@ -1194,6 +1194,39 @@ const MUTANTS = [
   ['INC-02 : pile cachée', 'src/js/admin/incidents.js', ', incident.details]', ']'],
   // Fin du cours : la correction, côté serveur
   ['CRG-02 : correction avant la fin', 'server/routes/student.mjs', 'if (!endedAt) throw new HttpError(403, NOT_ENDED);', ''],
+  [
+    'CRG-14 : correction dès la fin du cours',
+    'server/routes/student.mjs',
+    'if (Date.now() < Date.parse(endedAt) + correctionDelay) throw new HttpError(403, NOT_YET);',
+    ''
+  ],
+  ['CRG-14 : pas de délai en production', 'server/app.mjs', 'correctionDelay = AFTER_END_GRACE', 'correctionDelay = 0'],
+  ['CRG-14 : délai non transmis', 'server/app.mjs', 'trustProxy, correctionDelay }', 'trustProxy, correctionDelay: 0 }'],
+  [
+    'CRG-14 : rendu tardif jamais signalé',
+    'server/launches.mjs',
+    'afterCorrection: Date.parse(p.submitted_at) >= Date.parse(row.ended_at) + AFTER_END_GRACE',
+    'afterCorrection: false'
+  ],
+  [
+    'CRG-14 : tout rendu après la fin signalé',
+    'server/launches.mjs',
+    'Date.parse(p.submitted_at) >= Date.parse(row.ended_at) + AFTER_END_GRACE',
+    'Date.parse(p.submitted_at) >= Date.parse(row.ended_at)'
+  ],
+  [
+    'CRG-14 : signalement d’après l’heure de l’appareil',
+    'server/launches.mjs',
+    'afterCorrection: Date.parse(p.submitted_at)',
+    'afterCorrection: Date.parse(p.finished_at)'
+  ],
+  [
+    'CRG-14 : signalement non affiché',
+    'src/js/prof/results-workbook.js',
+    `if (participant.afterCorrection) parts.push("reçu après l'envoi des corrections");`,
+    ''
+  ],
+  ['CRG-14 : « reçu après » écrit deux fois', 'src/js/prof/results-workbook.js', 'participant.afterCorrection\n', 'false\n'],
   ['CRG-07 : correction sans réponses', 'server/routes/student.mjs', 'if (!submittedAt) throw new HttpError(409, NOT_RECEIVED);', ''],
   ['CRG-06 : correction gardée en cache', 'server/routes/student.mjs', 'openedAt }, PRIVATE)', 'openedAt }, REVALIDATED)'],
   ['CRG-06 : positions réelles absentes', 'server/answers.mjs', '...(hasRef(fiche) ? { refX: fiche.refX, refY: fiche.refY } : {})', ''],
@@ -1805,7 +1838,7 @@ const TESTS_FOR = {
   'server/db.mjs': ['db', 'server-start'],
   'server/migrations/001-initial.sql': ['db'],
   'server/index.mjs': ['server-start'],
-  'server/app.mjs': ['server-start', 'courses', 'incidents', 'history'],
+  'server/app.mjs': ['server-start', 'courses', 'incidents', 'history', 'correction'],
   'src/js/model.js': ['model', 'e2e/courses', 'e2e/legacy', 'e2e/correction', 'history', 'results-workbook'],
   'src/js/themes.js': ['model', 'e2e/courses'],
   'src/js/views/reader.js': ['wording', 'e2e/offline', 'e2e/launches'],

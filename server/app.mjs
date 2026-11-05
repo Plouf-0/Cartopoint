@@ -5,6 +5,7 @@
 import { mkdirSync } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
+import { AFTER_END_GRACE } from './answers.mjs';
 import { createAuth } from './auth.mjs';
 import { createCourses } from './courses.mjs';
 import { backupDatabase, openDatabase } from './db.mjs';
@@ -20,7 +21,8 @@ import { launchRoutes } from './routes/launches.mjs';
 import { pageRoutes } from './routes/pages.mjs';
 import { studentRoutes } from './routes/student.mjs';
 
-export function createApp({ root, data, maxBody = 100 * 1024 * 1024, trustProxy = false }) {
+/** @param correctionDelay après la fin du cours, avant que les corrections partent (CRG-14). Seuls les tests le raccourcissent : 30 secondes à chaque fin de cours les rendraient inutilisables */
+export function createApp({ root, data, maxBody = 100 * 1024 * 1024, trustProxy = false, correctionDelay = AFTER_END_GRACE }) {
   mkdirSync(data, { recursive: true });
   const db = openDatabase(path.join(data, 'app.db'));
   const auth = createAuth(db, { trustProxy });
@@ -34,7 +36,7 @@ export function createApp({ root, data, maxBody = 100 * 1024 * 1024, trustProxy 
   incidentRoutes(router, { auth, incidents });
   courseRoutes(router, { auth, courses, media, maxBody });
   launchRoutes(router, { auth, courses, launches });
-  studentRoutes(router, { launches, trustProxy });
+  studentRoutes(router, { launches, trustProxy, correctionDelay });
   pageRoutes(router, root);
   const server = http.createServer(createHandler(router, staticFiles(root)));
   return {

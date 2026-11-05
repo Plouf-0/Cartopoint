@@ -26,13 +26,16 @@ export async function serve(t, router, fallback) {
   return `http://127.0.0.1:${server.address().port}`;
 }
 
-/** Démarre l'application complète dans ce processus, avec ses dossiers temporaires. */
+/**
+ * Démarre l'application complète dans ce processus, avec ses dossiers temporaires. Les corrections y partent dès la fin du cours ;
+ * `correctionDelay: undefined` remet le délai de la production (CRG-14).
+ */
 export async function startApp(t, options = {}) {
   t.mock.method(console, 'log', () => {});
   const data = await tempDir(t);
   const root = await tempDir(t);
   await writeFile(path.join(root, 'accueil.html'), '<!doctype html><title>ok</title>');
-  const app = createApp({ root, data, ...options });
+  const app = createApp({ root, data, correctionDelay: 0, ...options });
   await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
   t.after(() => app.close());
   return { app, data, root, base: `http://127.0.0.1:${app.server.address().port}` };

@@ -37,9 +37,12 @@ export function stateText(participant) {
         ? 'A fini'
         : participant.finishedAfterEnd
           ? 'A fini après la fin du cours'
-          : 'A fini avant la fin, reçu après'
+          : participant.afterCorrection
+            ? 'A fini avant la fin'
+            : 'A fini avant la fin, reçu après'
   ];
   if (participant.byFile) parts.push('par fichier');
+  if (participant.afterCorrection) parts.push("reçu après l'envoi des corrections");
   if (participant.answersAfterEnd) parts.push(`${participant.answersAfterEnd} réponse(s) après la fin`);
   return parts.join(' · ');
 }

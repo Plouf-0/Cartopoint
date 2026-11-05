@@ -81,10 +81,13 @@ dans **Mes cours**.
 
 ### Terminer le cours
 
-**Terminer le cours** ferme le QR code et le code : plus personne ne peut entrer. Le travail de chaque élève encore à l'écran se fige, et les élèves reçoivent leur correction.
+**Terminer le cours** ferme le QR code et le code : plus personne ne peut entrer. Le travail de chaque élève encore à l'écran se fige, et les élèves reçoivent leur correction dans la minute.
 
 Un élève sans réseau à ce moment-là garde son travail : ses réponses partent dès que le réseau revient. Chaque réponse étant datée, celles faites après la fin restent comptées, et la liste
 vous dit combien il y en a.
+
+Les corrections partent une trentaine de secondes après la fin. Un travail qui arrive ensuite compte toujours, mais la liste et l'Excel précisent **reçu après l'envoi des corrections** : cet élève
+a pu voir une correction avant de rendre. Ce n'est pas une preuve : c'est aussi ce que vous lirez pour un élève simplement resté sans réseau.
 
 ### Les résultats
 
@@ -153,7 +156,7 @@ Si l'icône signale un problème, restez sur le réseau et lisez ce qu'elle dit.
 
 ### La correction
 
-Quand l'enseignant termine le cours, votre correction arrive sur votre page : **Voir ma correction**.
+Quand l'enseignant termine le cours, votre correction arrive sur votre page en moins d'une minute : **Voir ma correction**. Gardez la page ouverte jusque-là : une page fermée avant ne la reçoit plus.
 
 <img src="images/eleve-correction.png" alt="La correction de l'élève" width="300">
 

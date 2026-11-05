@@ -7,7 +7,7 @@
  *   GET  /student/course   le cours, sans les réponses ni les fiches masquées
  *   PUT  /student/answers  rendre : le premier envoi fait foi, et la réponse ne contient ni résultat ni position
  *   GET  /student/state    le cours est-il terminé ? Les réponses de cet élève sont-elles arrivées ?
- *   GET  /student/correction  une fois le cours terminé et les réponses reçues : positions réelles, résultats et score (CRG-02, CRG-06)
+ *   GET  /student/correction  le cours terminé, le délai passé et les réponses reçues : positions réelles, résultats et score (CRG-02, CRG-06, CRG-14)
  */
 import { MAX_ANSWERS_BYTES, cleanAnswers, computeResults, correctionOf, countAfterEnd, onServerClock } from '../answers.mjs';
 import { HttpError, readJson, sendJson } from '../http.mjs';
@@ -24,11 +24,12 @@ const COURSE_CLOSED = "Ce cours n'accepte plus de nouveaux élèves.";
 const TOO_MANY = "Trop d'essais avec un code inconnu. Réessayez dans quelques minutes.";
 const NO_COURSE = "Ce cours n'existe plus.";
 const NOT_ENDED = "La correction arrive quand l'enseignant termine le cours.";
+const NOT_YET = "La correction arrive dans moins d'une minute.";
 const NOT_RECEIVED = 'Vos réponses ne sont pas encore arrivées.';
 const WINDOW = 15 * 60 * 1000;
 export const MAX_CODE_FAILURES = 200;
 
-export function studentRoutes(router, { launches, trustProxy }) {
+export function studentRoutes(router, { launches, trustProxy, correctionDelay }) {
   // Seuls les échecs comptent, et une classe de 50 partage souvent la même adresse : quelques erreurs de chacun ne doivent pas la bloquer
   // (E-04, QUA-09). Deviner un code reste hors de portée : à ce rythme, 19 200 essais par jour sur un milliard de codes
   const failures = createLimiter({ max: MAX_CODE_FAILURES, windowMs: WINDOW });
@@ -92,6 +93,8 @@ export function studentRoutes(router, { launches, trustProxy }) {
     .add('GET', '/api/student/correction', (req, res) => {
       const { opened_at: openedAt, ended_at: endedAt, submitted_at: submittedAt, content, results } = participantOf(req);
       if (!endedAt) throw new HttpError(403, NOT_ENDED);
+      // Le temps que les pages ouvertes envoient le travail figé : tout ce qui arrive ensuite a pu voir une correction, et l'enseignant le lit (CRG-14)
+      if (Date.now() < Date.parse(endedAt) + correctionDelay) throw new HttpError(403, NOT_YET);
       if (!submittedAt) throw new HttpError(409, NOT_RECEIVED);
       return sendJson(req, res, { ...correctionOf(normalizeProject(JSON.parse(content)), JSON.parse(results)), openedAt }, PRIVATE);
     });

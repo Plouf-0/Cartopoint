@@ -30,7 +30,7 @@ const FICHES = [
 ];
 
 const data = mkdtempSync(path.join(tmpdir(), 'cartopoint-captures-'));
-const app = createApp({ root: path.join(ROOT, 'dist'), data });
+const app = createApp({ root: path.join(ROOT, 'dist'), data, correctionDelay: 0 });
 await ensureAdmin(app.db, ADMIN);
 await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
 const base = `http://localhost:${app.server.address().port}`;

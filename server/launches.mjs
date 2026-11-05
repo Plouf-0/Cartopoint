@@ -112,6 +112,8 @@ export function createLaunches(db, { makeCode = newCode, now = Date.now } = {}) 
           autoClosed: Boolean(p.auto_closed),
           answersAfterEnd: p.answers_after_end,
           finishedAfterEnd: Boolean(row.ended_at && p.finished_at && Date.parse(p.finished_at) > Date.parse(row.ended_at) + AFTER_END_GRACE),
+          // Deux heures du serveur : rien de ce que dit l'appareil n'y entre (CRG-14). Sans rendu ou sans fin du cours, la comparaison est fausse
+          afterCorrection: Date.parse(p.submitted_at) >= Date.parse(row.ended_at) + AFTER_END_GRACE,
           byFile: Boolean(p.by_file),
           score: p.results ? JSON.parse(p.results).score : null,
           meanGap: p.results ? meanGap(project, JSON.parse(p.results)) : null

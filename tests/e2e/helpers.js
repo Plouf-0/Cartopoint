@@ -48,11 +48,14 @@ export function makePng(width, height, { pad = 0 } = {}) {
   ]);
 }
 
-/** Démarre un site neuf, avec son admin. `root` pour servir autre chose que src/. */
-export async function startSite(t, { root = path.resolve('src') } = {}) {
+/**
+ * Démarre un site neuf, avec son admin. `root` pour servir autre chose que src/. Les corrections y partent dès la fin du cours ;
+ * `correctionDelay: undefined` remet le délai de la production (CRG-14).
+ */
+export async function startSite(t, { root = path.resolve('src'), ...options } = {}) {
   const log = t.mock.method(console, 'log', () => {});
   const data = await tempDir(t);
-  const app = createApp({ root, data });
+  const app = createApp({ root, data, correctionDelay: 0, ...options });
   await ensureAdmin(app.db, ADMIN);
   await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
   t.after(() => app.close());

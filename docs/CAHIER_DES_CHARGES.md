@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.34** · 5 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.35** · 5 novembre 2026 · établie à partir du code (commit `fb3d952`)
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -808,11 +808,10 @@ Ces choix ne se déduisent pas du code. Les pistes sont des suggestions.
   ni le plan ni les photos (`TAB-08`, `TAB-10`). Les données GPS des photos disparaissent dès leur ajout à une fiche quand elles sont réduites : ses 16 photos n'en ont plus. À demander au premier enseignant : sur quel
   bouton il clique, et ce qu'il s'attendait à voir.
 
-- **Q-21 — Faut-il signaler un rendu reçu après la distribution des corrections ?** La correction ne part qu'une fois le cours terminé (`CRG-02`), mais un rendu
-  reste accepté ensuite, à juste titre : un élève sans réseau ne sait pas que le cours est fini (`CRG-11`). Un élève entré sous deux noms peut donc, après la fin, faire
-  rendre le second à vide, lire ses positions réelles, puis rendre le premier sans faute. S'il déclare son travail figé et donne de fausses heures (`CRG-13`), l'enseignant
-  ne voit aucun signalement, seulement un nom de plus. Constaté par la revue de sécurité du 5 novembre 2026. _Piste : ne distribuer les corrections qu'après le délai de
-  30 secondes de `CRG-13`, puis signaler tout rendu reçu ensuite, d'après la seule horloge du serveur. Un élève resté sans réseau serait alors signalé lui aussi._
+- **Q-21 — Faut-il signaler un rendu reçu après la distribution des corrections ?** **Tranchée le 5 novembre 2026 :** oui (`CRG-14`). La correction ne partait déjà qu'une fois le
+  cours terminé (`CRG-02`), mais un rendu reste accepté ensuite, à juste titre : un élève sans réseau ne sait pas que le cours est fini (`CRG-11`). Un second nom pouvait donc lire les
+  réponses pour le premier, qui rendait alors sans aucun signalement en se déclarant figé (`CRG-13`). Les corrections partent maintenant 30 secondes après la fin, et tout rendu reçu
+  ensuite est signalé d'après la seule horloge du serveur. Un élève resté sans réseau est signalé lui aussi, et son rendu compte toujours (Q-19).
 
 ### Décisions prises
 
@@ -1026,7 +1025,7 @@ Demandes : EV-08
 
 - **CRG-01** Le cours envoyé aux élèves ne contient ni les positions réelles ni les fiches masquées.
 - **CRG-02** La correction n'est disponible qu'une fois que l'enseignant a cliqué sur « Terminer le cours ». C'est
-  le serveur qui le vérifie.
+  le serveur qui le vérifie. Elle part 30 secondes plus tard (`CRG-14`).
 - **CRG-03** Seuls les élèves ayant rejoint ce lancement peuvent la recevoir.
 - **CRG-05** Rendre remplace la vérification actuelle (`VER-01` à `VER-06`) : un élève ne se corrige plus seul
   sur son appareil.
@@ -1051,6 +1050,9 @@ Demandes : EV-08
   les 30 secondes suivant la fin ne compte pas : la page ne l'apprend qu'à son contrôle suivant, toutes les 20 secondes.
 - **CRG-12** La page ouverte reçoit la correction d'elle-même, sans action de l'élève, y compris si le réseau ne
   revient qu'après la fin du cours.
+- **CRG-14** Les corrections partent 30 secondes après la fin du cours, le temps que les pages ouvertes envoient le travail figé (`CRG-11`) ; d'ici là, la page demande de rester
+  ouverte. Tout rendu reçu ensuite est signalé à l'enseignant, « reçu après l'envoi des corrections », d'après la seule horloge du serveur : cet élève a pu en voir une, quoi que
+  déclare son appareil. Le rendu est accepté et compte dans le score, car un élève sans réseau ne pouvait rien savoir (`HOR-07`, Q-19) : c'est une indication, pas une preuve (Q-21).
 
 ### 12.7 Cours plus léger — `LEG`
 
@@ -1198,3 +1200,4 @@ fichier `.log` : le journal arrive sans rien demander à la personne, et l'admin
 | 0.32    | 4 novembre 2026   | Étape 10, sur la branche : l'accueil à la racine, l'ancienne publication retirée (`SRV-02` à `SRV-08`, `MUL-01`, `MUL-02`), E-04 derrière Cloudflare, E-15 en partie. La section 12 rejoindra les sections 4 à 8 une fois la production passée |
 | 0.33    | 4 novembre 2026   | Q-07 tranchée (GPL v3), Q-08 tranchée pour les navigateurs, l'accessibilité reportée |
 | 0.34    | 5 novembre 2026   | Revue de sécurité : plans et photos limités aux fichiers du serveur (`COU-14`), `SEC-04` étendu aux adresses et aux identifiants, Q-21 ouverte |
+| 0.35    | 5 novembre 2026   | Q-21 tranchée : les corrections partent 30 secondes après la fin, et ce qui arrive ensuite est signalé (`CRG-14`) |

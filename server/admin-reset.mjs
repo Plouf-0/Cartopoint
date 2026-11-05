@@ -4,7 +4,7 @@
  * Aucun mot de passe ne passe par le terminal ni par l'historique du shell.
  *
  *   node server/admin-reset.mjs [--data data]
- *   docker compose exec inventaire node server/admin-reset.mjs
+ *   docker compose exec cartopoint-prod node server/admin-reset.mjs
  */
 import path from 'node:path';
 import { createAuth } from './auth.mjs';

@@ -1,5 +1,8 @@
+name: cartopoint
 services:
-  inventaire:
+  cartopoint-prod:
+    image: cartopoint-prod
+    container_name: cartopoint-prod
     build:
       context: .
       args:

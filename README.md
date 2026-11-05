@@ -64,7 +64,7 @@ APP_VERSION=$(git rev-parse --short HEAD) docker compose up -d --build
 ```
 
 `docker-compose.yml` rejoint le réseau externe `traefik_network`, sans publier de port. Le routage se règle hors du dépôt, dans la configuration de Traefik, qui
-vise le service par son nom : `http://inventaire:8080`. Avec un autre proxy, publiez le port et retirez ce réseau.
+vise le service par son nom : `http://cartopoint-prod:8080`. Avec un autre proxy, publiez le port et retirez ce réseau.
 
 | Variable                        | Rôle                                                                                               | Défaut |
 | ------------------------------- | -------------------------------------------------------------------------------------------------- | ------ |
@@ -96,7 +96,7 @@ L'espace enseignant est à l'adresse `/prof`, le tableau de bord de l'admin à `
 Mot de passe de l'admin perdu : lancez cette commande sur le serveur, puis ouvrez le lien affiché après l'adresse du site.
 
 ```bash
-docker compose exec inventaire node server/admin-reset.mjs
+docker compose exec cartopoint-prod node server/admin-reset.mjs
 ```
 
 ### Récupérer un projet existant

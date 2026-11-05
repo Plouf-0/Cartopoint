@@ -2,11 +2,10 @@
  * Le fichier Excel d'un lancement (HIS-08). La première page résume : une ligne par élève et une ligne pour la classe, puis une ligne par fiche. Suit une page par
  * élève ayant rendu, avec toutes ses réponses. Ce fichier ne contient que des calculs, sans rien à l'écran : il se teste sans navigateur.
  */
-import { MEASURES, meanGap, numberOf, placedPos, titleOf, usesMeters, visibleFiches } from '../model.js';
+import { MEASURES, gradeOf, meanGap, numberOf, placedPos, titleOf, usesMeters, visibleFiches } from '../model.js';
 import { dateAndTime, num } from '../util.js';
 import { bold } from '../xlsx-write.js';
 
-const GRADE_LABELS = { ok: 'Bien placée', near: 'Proche', far: 'À revoir', unplaced: 'Non placée', noref: 'Pas de position réelle' };
 const MEASURE_HEADERS = MEASURES.map(([, , unit, label]) => `${label} (${unit})`);
 const MEASURE_KEYS = MEASURES.map(([key]) => key);
 
@@ -151,7 +150,7 @@ function studentSheet(project, participant) {
         fiche.ref || null,
         fiche.common || null,
         fiche.species || null,
-        GRADE_LABELS[result.state],
+        gradeOf(result.state).label,
         round(gapInUnit(project, map, result.d)),
         round(entry.x ?? null, 3),
         round(entry.y ?? null, 3),

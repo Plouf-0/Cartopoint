@@ -110,7 +110,6 @@ export async function readLegacyProject(prefs) {
     version: 2,
     title: prefs.get('botMapPageTitle') || undefined,
     passwordHash: prefs.get('botMapPwHash') || null,
-    aiEndpoint: prefs.get('v37AiEndpoint') || '',
     currentMapId: current,
     maps
   };

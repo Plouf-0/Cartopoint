@@ -3,16 +3,14 @@
  * publication (COU-11). Le contenu est le JSON du projet, sans les photos, qui sont des fichiers à part.
  */
 import { randomUUID } from 'node:crypto';
-import { HttpError } from './http.mjs';
+import { FORMAT } from '../src/js/model.js';
+import { HttpError, isObject } from './http.mjs';
 import { MEDIA_NAME } from './media.mjs';
+import { iso } from './time.mjs';
 
-const FORMAT = 'inventaire-botanique';
 const CHANGED_ELSEWHERE = 'Ce cours a été modifié ailleurs, par exemple dans un autre onglet.';
 const MEDIA_PATH = '/media/';
 
-const iso = () => new Date().toISOString();
-
-const isObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 const isListOf = (value, isValid) => value === undefined || (Array.isArray(value) && value.every(isValid));
 
 /** Un plan ou une photo est un fichier de ce serveur, ou rien : toute autre valeur partirait telle quelle chez les élèves (COU-14). */

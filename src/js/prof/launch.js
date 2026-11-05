@@ -3,22 +3,15 @@
  * toute seule (SUI-02). Tout texte passe par des nœuds de texte : un nom d'élève ne peut pas injecter de code.
  */
 import { api } from '../api.js';
-import { card, dateAndTime, el, errorLine, show, showError } from '../compte/ui.js';
+import { button, card, dateAndTime, el, errorLine, show, showError } from '../compte/ui.js';
 import { resultsSection } from './launch-results.js';
 import { qrSvg } from './qr.js';
 import { stateText } from './results-workbook.js';
 
 const launchId = decodeURIComponent(location.pathname.split('/').pop());
-/** L'adresse à taper avec le code. Elle deviendra la racine du site à l'étape 10. */
 const READY_ADVICE =
   'Avant de quitter le réseau, attendez le message « ✓ Prêt pour le terrain » : l’icône du réseau, en haut de votre écran, garde ensuite une coche.';
 const REFRESH_EVERY = 5000;
-
-function button(label, className, onClick) {
-  const node = el('button', { className, type: 'button' }, label);
-  node.addEventListener('click', onClick);
-  return node;
-}
 
 /** Le QR code en grand, à projeter, avec le code et l'adresse pour ceux qui préfèrent les taper. */
 function qrDialog(code) {

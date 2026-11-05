@@ -1,4 +1,4 @@
--- Comptes, cours, lancements et élèves. Voir docs/FEUILLE_DE_ROUTE.md, section 5.
+-- Comptes, cours, lancements et élèves.
 
 CREATE TABLE accounts (
   id TEXT PRIMARY KEY,

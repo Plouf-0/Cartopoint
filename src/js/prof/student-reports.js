@@ -20,22 +20,38 @@ function useStudent(project, participant, map) {
   S.correction = participant.results;
 }
 
+/**
+ * report.js dessine à partir de l'état commun, et un dessin attend ses images et ses polices. Un seul à la fois : sinon, une carte ou un élève prendrait les
+ * repères d'un autre. Les fenêtres de détail et les téléchargements passent tous par ici, même lancés en même temps.
+ */
+let lastDrawing = Promise.resolve();
+function inTurn(draw) {
+  const turn = lastDrawing.then(draw);
+  lastDrawing = turn.catch(() => {});
+  return turn;
+}
+
 /** @returns [{ name, blob }], un fichier par carte */
 export async function studentReports(project, participant, date) {
   const several = project.maps.length > 1;
   const reports = [];
   for (const map of project.maps) {
-    useStudent(project, participant, map);
     const label = several ? `${participant.names} - ${map.name}` : participant.names;
-    reports.push({ name: `Compte rendu - ${safeFileName(label)}.jpg`, blob: await reportBlob(participant.names, { date }) });
+    const blob = await inTurn(() => {
+      useStudent(project, participant, map);
+      return reportBlob(participant.names, { date });
+    });
+    reports.push({ name: `Compte rendu - ${safeFileName(label)}.jpg`, blob });
   }
   return reports;
 }
 
 /** Le plan d'un élève, pour l'écran de détail : ses placements, les positions réelles et les écarts. */
-export async function studentPlan(project, participant, map) {
-  useStudent(project, participant, map);
-  return planImageBlob();
+export function studentPlan(project, participant, map) {
+  return inTurn(() => {
+    useStudent(project, participant, map);
+    return planImageBlob();
+  });
 }
 
 /** Tous les comptes rendus dans une seule archive : un navigateur refuse de télécharger des dizaines de fichiers d'un coup. */

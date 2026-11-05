@@ -2,7 +2,7 @@
  * Espace enseignant : connexion, puis ses cours. Un cours s'ouvre dans sa propre page (prof/course.js).
  */
 import { api, currentAccount } from '../api.js';
-import { accountBar, card, changePasswordForm, dateAndTime, el, errorLine, field, loginForm, show, showError } from '../compte/ui.js';
+import { accountBar, actionRunner, card, changePasswordForm, dateAndTime, el, errorLine, field, loginForm, show, showError } from '../compte/ui.js';
 import { DEFAULT_TITLE, draftOf, newProject } from '../model.js';
 import { importProject } from './course-io.js';
 
@@ -18,16 +18,7 @@ function showLogin() {
   ]);
 }
 
-/** Exécute une action. Une session expirée ramène à la connexion. */
-async function run(error, action) {
-  error.hidden = true;
-  try {
-    await action();
-  } catch (e) {
-    if (e.status === 401) showLogin();
-    else showError(error, e);
-  }
-}
+const run = actionRunner(showLogin);
 
 function publicationText(course) {
   if (!course.published) return 'Pas encore publié';

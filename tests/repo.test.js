@@ -82,7 +82,22 @@ test('Q-07 : package.json annonce la licence du fichier LICENSE', () => {
   assert.equal(JSON.parse(readFileSync(path.join(ROOT, 'package-lock.json'), 'utf8')).packages[''].license, 'GPL-3.0-only');
 });
 
-test('Git ignore les données, les bases et les secrets', () => {
+test('Git ignore les données, les bases, les secrets et les notes de travail', () => {
   const ignored = readFileSync(path.join(ROOT, '.gitignore'), 'utf8').split('\n');
-  for (const entry of ['data/', '.dev-data/', '.env', '*.db', '*.sqlite']) assert.ok(ignored.includes(entry), entry);
+  for (const entry of ['data/', '.dev-data/', '.env', '*.db', '*.sqlite', 'docs/FEUILLE_DE_ROUTE.md']) assert.ok(ignored.includes(entry), entry);
+});
+
+test('le dépôt public ne décrit ni les personnes ni le serveur', options, () => {
+  assert.deepEqual(
+    files.filter((file) => /FEUILLE_DE_ROUTE/.test(file)),
+    []
+  );
+  // Écrit en deux morceaux, pour que ce fichier-ci reste propre lui aussi
+  const domain = ['giau', 'fer'].join('');
+  const forbidden = new RegExp(`/home/\\w+|${domain}|\\b[Pp]ère\\b|gmail\\.com`);
+  for (const file of files.filter(
+    (name) => /\.(md|js|mjs|html|css|yml|sql|json)$/.test(name) && !name.includes('vendor/') && existsSync(path.join(ROOT, name))
+  )) {
+    assert.doesNotMatch(readFileSync(path.join(ROOT, file), 'utf8'), forbidden, file);
+  }
 });

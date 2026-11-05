@@ -10,12 +10,11 @@
  *   GET  /student/correction  le cours terminé, le délai passé et les réponses reçues : positions réelles, résultats et score (CRG-02, CRG-06, CRG-14)
  */
 import { MAX_ANSWERS_BYTES, cleanAnswers, computeResults, correctionOf, countAfterEnd, onServerClock } from '../answers.mjs';
-import { HttpError, readJson, sendJson } from '../http.mjs';
+import { HttpError, PRIVATE, readJson, sendJson } from '../http.mjs';
 import { normalizeProject } from '../../src/js/model.js';
 import { clientIp, createLimiter, sameOriginOnly } from '../security.mjs';
 import { studentCourse } from '../student-view.mjs';
 
-const PRIVATE = { cache: 'no-store' };
 /** Le cours ne change pas pour un lancement donné : l'ETag évite de le renvoyer. `private` : il ne regarde qu'un élève. */
 const REVALIDATED = { cache: 'private, no-cache' };
 const UNKNOWN_CODE = "Ce code n'existe pas. Vérifiez-le.";

@@ -9,19 +9,24 @@
  *   GET  /media/<hash>.<ext>    lire un fichier, sans compte : les élèves en ont besoin
  */
 import path from 'node:path';
-import { readBody, readJson, send, sendFile, sendJson } from '../http.mjs';
+import { PRIVATE, readBody, readJson, send, sendFile, sendJson } from '../http.mjs';
 import { MEDIA_NAME } from '../media.mjs';
 import { sameOriginOnly } from '../security.mjs';
 
-const PRIVATE = { cache: 'no-store' };
 /** Le contenu d'un cours ne contient que du texte : 8 Mo laissent la place à des milliers de fiches. */
 const MAX_DRAFT = 8 * 1024 * 1024;
 /** Le nom d'un fichier dépend de son contenu : il peut rester en cache pour toujours. */
 const FOREVER = 'public, max-age=31536000, immutable';
 
+/** Le cours demandé, s'il appartient au compte connecté. Sinon, 404 (ENS-03). */
+export const courseOfRequest =
+  ({ auth, courses }) =>
+  (req, params) =>
+    courses.require(auth.requireAccount(req).id, params.id);
+
 export function courseRoutes(router, { auth, courses, media, maxBody }) {
   const teacher = (req) => auth.requireRole(req, 'teacher');
-  const courseOf = (req, params) => courses.require(auth.requireAccount(req).id, params.id);
+  const courseOf = courseOfRequest({ auth, courses });
 
   router
     .add('GET', '/api/courses', (req, res) => sendJson(req, res, courses.list(teacher(req).id), PRIVATE))

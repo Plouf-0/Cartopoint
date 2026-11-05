@@ -34,6 +34,11 @@ export function askFallbackPassword() {
         'div',
         { className: 'dlg-body' },
         el('p', {}, 'Ce mot de passe protège le mode gestion du fichier. Le site ne le garde pas : notez-le.'),
+        el(
+          'p',
+          { className: 'hint' },
+          "N'utilisez pas celui de votre compte : ce fichier est fait pour circuler, et une personne déterminée pourrait le retrouver."
+        ),
         el('div', { className: 'field' }, el('label', { htmlFor: 'fallbackPassword' }, `Mot de passe de gestion (${MIN_PASSWORD} caractères au moins)`), input),
         error
       ),

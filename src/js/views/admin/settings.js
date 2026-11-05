@@ -1,5 +1,5 @@
 /**
- * Onglet « Réglages » : apparence (thème, icône), mot de passe, identification par IA.
+ * Onglet « Réglages » : apparence (thème, icône) et mot de passe.
  */
 import { $, esc, toast } from '../../util.js';
 import { S, changedMeta } from '../../store.js';
@@ -36,16 +36,7 @@ export function html() {
       </div>
     </div>
 
-    ${S.teacherSpace ? '' : passwordHTML()}
-    ${S.teacherSpace ? '' : aiHTML()}`;
-}
-
-function aiHTML() {
-  return `<div class="section">
-      <h3>Identification par IA</h3>
-      <p>Adresse d'un serveur qui reçoit les photos d'une fiche et renvoie une proposition (nom commun, nom scientifique, famille, besoins…). Laissez vide pour masquer le bouton. Ne mettez jamais de clé d'API dans ce champ : elle serait visible par tous.</p>
-      <div class="inline"><input id="aiUrl" class="text-input" type="url" value="${esc(S.project.aiEndpoint)}" placeholder="https://…"><button type="button" class="btn soft sm" id="saveAi">Enregistrer</button></div>
-    </div>`;
+    ${S.teacherSpace ? '' : passwordHTML()}`;
 }
 
 function passwordHTML() {
@@ -85,10 +76,5 @@ export function bind(panel) {
     changedMeta();
     $('#pw1').value = $('#pw2').value = '';
     toast('Mot de passe changé');
-  });
-  $('#saveAi')?.addEventListener('click', () => {
-    S.project.aiEndpoint = $('#aiUrl').value.trim();
-    changedMeta();
-    toast('Adresse enregistrée');
   });
 }

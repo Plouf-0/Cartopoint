@@ -24,7 +24,7 @@ const MP4 = Buffer.from('\0\0\0\x18ftypisom\0\0\0\0', 'latin1');
 const WEBM = Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3]);
 
 function draftWith(title = 'Mon cours', fiches = [], image = '') {
-  return { format: 'inventaire-botanique', version: 3, title, theme: {}, aiEndpoint: '', maps: [{ id: 'm1', name: 'Plan', image, widthMeters: null, fiches }] };
+  return { format: 'inventaire-botanique', version: 3, title, theme: {}, maps: [{ id: 'm1', name: 'Plan', image, widthMeters: null, fiches }] };
 }
 
 async function site(t, options) {

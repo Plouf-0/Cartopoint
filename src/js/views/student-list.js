@@ -4,7 +4,7 @@
  */
 import { $, esc } from '../util.js';
 import { S, listed, verified, locked, posOf, evaluationOf } from '../store.js';
-import { numberOf, titleOf, evaluate, matches } from '../model.js';
+import { numberOf, titleOf, matches } from '../model.js';
 import { render } from '../render.js';
 import { photoHTML, measuresHTML, bindMeasures, bindCards, bindSearch } from './cards.js';
 

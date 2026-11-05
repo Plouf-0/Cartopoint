@@ -161,7 +161,6 @@ export function normalizeProject(raw, fallbackImage = '') {
     title: str(raw.title) || DEFAULT_TITLE,
     theme: normalizeTheme(raw.theme),
     passwordHash: raw.passwordHash || null,
-    aiEndpoint: str(raw.aiEndpoint),
     currentMapId: maps.some((m) => m.id === raw.currentMapId) ? raw.currentMapId : maps[0].id,
     maps,
     progress
@@ -169,8 +168,7 @@ export function normalizeProject(raw, fallbackImage = '') {
 }
 
 /**
- * Contenu d'un cours sur le serveur : ni progression, ni carte affichée, ni mot de passe de gestion, ni service
- * d'identification. Changer de carte à l'écran ne compte donc pas comme une modification du cours.
+ * Contenu d'un cours sur le serveur : ni progression, ni carte affichée, ni mot de passe de gestion. Changer de carte à l'écran ne compte donc pas comme une modification du cours.
  */
 export function draftOf(project) {
   const { format, version, title, theme, maps } = project;
@@ -232,6 +230,9 @@ const GRADES = {
   near: { label: 'Proche', cls: 'near' },
   far: { label: 'À revoir', cls: 'far' }
 };
+/** Combien de fiches comptent dans un score : celles qui ont une position réelle. */
+export const scoredCount = ({ ok, near, far, unplaced }) => ok + near + far + unplaced;
+
 /** Comment présenter un résultat : calculé ici ou reçu du serveur, il se lit pareil. */
 export const gradeOf = (state) => GRADES[state];
 

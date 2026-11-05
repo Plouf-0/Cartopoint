@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.35** · 5 novembre 2026 · établie à partir du code (commit `fb3d952`)
+**Version 0.36** · 5 novembre 2026 · établie à partir du code
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -68,7 +68,7 @@ trace.
 | EV-30   | 02/11/2026 | Un bouton supprime un compte désactivé et ses cours, après avoir recopié un mot, pour ne pas le faire par erreur.                                                                            | ADM-10                                   | Moyenne  | En cours. Voir 12.1                                                                    |
 | EV-31   | 02/11/2026 | Un compte supprimé reste restaurable un temps, dans un tableau à part, avec un bouton Restaurer. Souhait de confort, pas une priorité.                                                       | ADM-10                                   | Basse    | En cours. Voir 12.1                                                                    |
 | EV-32   | 02/11/2026 | Le cadre des options, à droite de la page d'un cours, reste tout petit quand le plan est petit ou absent : il doit descendre plus bas. | EDI | Basse | Fait |
-| EV-33   | 02/11/2026 | Enlever l'identification par IA des réglages d'un cours. | IAI-01 | Basse | Fait pour l'espace enseignant ; l'application d'origine la garde jusqu'à l'étape 10 |
+| EV-33   | 02/11/2026 | Enlever l'identification par IA des réglages d'un cours. | IAI-01 | Basse | Fait : retirée partout le 5 novembre 2026, fichier de secours compris |
 | EV-34   | 02/11/2026 | Rendre le site générique : des valeurs par défaut liées à Cartopoint plutôt qu'à « Inventaire botanique », en gardant le vert comme couleur par défaut. | Q-01 | Moyenne | Fait pour le nom, les valeurs par défaut et les textes. Voir Q-01 |
 | EV-35   | 02/11/2026 | Plus aucune donnée d'utilisateur sur GitHub à partir de maintenant. L'historique sera réécrit plus tard si besoin. | Dépôt | Haute | Fait dans la branche : plan d'exemple inventé, captures retirées, `tests/repo.test.js`. Ce qui est déjà public le reste |
 | EV-36   | 04/11/2026 | Sur la page élève, une petite icône qui dit si l'on est en ligne ou hors ligne, avec le détail en passant le doigt dessus, plutôt qu'un bandeau qui reste. | HOR-10 | Moyenne | Fait dans la branche |
@@ -103,7 +103,6 @@ trace.
 | `docs/CAHIER_DES_CHARGES.md` (celui-ci)   | Que doit faire l'application ?                     |
 | Copie Google Docs                         | Quels changements sont proposés ? Où en sont-ils ? |
 | [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) | Comment c'est construit ? Quel format de données ? |
-| [`docs/FEUILLE_DE_ROUTE.md`](FEUILLE_DE_ROUTE.md) | Comment et dans quel ordre appliquer la section 12 ? |
 | [`docs/GUIDE.md`](GUIDE.md)               | Comment s'en servir ?                              |
 | [`README.md`](../README.md)               | Comment l'installer et l'héberger ?                |
 
@@ -440,17 +439,8 @@ Code : [`themes.js`](../src/js/themes.js), [`views/admin/settings.js`](../src/js
 
 ### 5.9 Identification par IA (facultative) — `IAI`
 
-Code : [`ai.js`](../src/js/ai.js)
-
-- **IAI-01** L'enseignant règle l'adresse d'un service qu'il fournit lui-même. Sans adresse, le bouton
-  n'apparaît pas.
-  _Dans l'application d'origine seulement : un cours de l'espace enseignant n'a pas cette identification (EV-33)._
-- **IAI-02** Le service reçoit jusqu'à 4 photos de la fiche et renvoie une proposition en JSON. Le
-  contrat est décrit en tête de [`ai.js`](../src/js/ai.js).
-- **IAI-03** Seuls les champs **vides** du formulaire sont remplis, et l'enseignant vérifie avant
-  d'enregistrer.
-- **IAI-04** Aucune clé d'API ne doit figurer dans l'application : l'adresse est visible par quiconque lit
-  le projet.
+Retirée le 5 novembre 2026 (`IAI-01` à `IAI-04`). Elle ne restait que dans le fichier de secours, fait pour marcher sans réseau, alors qu'elle en a besoin. Un fichier qui
+porte encore `aiEndpoint` s'ouvre normalement : ce champ est ignoré.
 
 ---
 
@@ -479,7 +469,7 @@ Code : [`project-io.js`](../src/js/project-io.js), [`store.js`](../src/js/store.
   projet, photos et progression comprises. Disponible seulement dans la version construite.
 - **FIL-02** **Données du projet (.json)** exporte le même contenu, sans l'application. ⚠️ E-07
 - **FIL-03** Un enregistrement complet efface l'indication de modifications en attente.
-- **FIL-04** **Version pour les élèves** exporte le projet sans les fiches masquées ni l'adresse de l'IA,
+- **FIL-04** **Version pour les élèves** exporte le projet sans les fiches masquées,
   avec l'état « vérifié » remis à zéro. ⚠️ E-14
 - **FIL-05** La version élèves propose d'effacer les placements (coché par défaut) et les mesures (décoché
   par défaut).
@@ -642,8 +632,7 @@ Code : [`model.js`](../src/js/model.js), [`db.js`](../src/js/db.js) · Tests :
 
 - **QUA-01** `npm test` couvre le modèle, le tableur, les mots de passe, le serveur, la base et les comptes.
   `npm run test:e2e` vérifie les écrans de compte dans un vrai navigateur. `npm run test:coverage` lance le tout et
-  mesure la couverture par fichier. Les chiffres à jour sont dans la
-  [feuille de route](FEUILLE_DE_ROUTE.md#11-tests-et-couverture). ⚠️ E-09
+  mesure la couverture par fichier. ⚠️ E-09
 - **QUA-02** Le code est formaté avec `prettier` (`npm run format`).
 - **QUA-03** `npm run dev` sert `src/` directement, sans construction, avec ses données dans `.dev-data/`, jamais
   dans `data/`.
@@ -674,7 +663,6 @@ réelle, placées ou non. Les fiches « Proche » sont indiquées à part et ne 
 | Compte rendu                            | 1600 px de large, JPEG 0,9  | `report.js`                 |
 | Regroupement des écritures              | 250 ms                      | `store.js`                  |
 | Mot de passe de gestion                 | 4 caractères au moins       | `views/admin/settings.js`   |
-| Photos envoyées à l'IA                  | 4 au plus                   | `ai.js`                     |
 | Liste compacte                          | plus de 6 fiches            | `views/panel.js`            |
 | Liste très compacte                     | plus de 14 fiches           | `views/panel.js`            |
 | Taille maximale d'un projet publié      | 100 Mo (`MAX_BODY_MB`)      | `server/index.mjs`          |
@@ -784,7 +772,7 @@ Ces choix ne se déduisent pas du code. Les pistes sont des suggestions.
 
 - **Q-01 — Outil botanique ou outil générique ?** Le dossier s'appelle Cartopoint, l'application Inventaire
   botanique. Les thèmes sont annoncés « pour d'autres sujets que les plantes », mais les besoins, les
-  mesures, les libellés et la demande à l'IA restent botaniques et codés en dur. _À trancher en premier :
+  mesures, et les libellés restent botaniques et codés en dur. _À trancher en premier :
   ce choix conditionne le nom, le vocabulaire et le modèle de données. Piste : ne généraliser que s'il
   existe un vrai second usage._
   **Tranchée le 2 novembre 2026 pour le nom et les valeurs par défaut (EV-34) :** le site s'appelle Cartopoint. Un nouveau cours
@@ -1010,7 +998,7 @@ Demandes : EV-06, EV-10
   un message qui repart. Ce qui demande d'agir (image manquante, navigateur incapable) s'ouvre de soi-même, car il sera trop tard une fois le
   réseau quitté. « Hors ligne » veut dire que rien ne répond, même si le téléphone annonce du réseau. L'enseignant est invité à attendre le
   message avant de quitter le réseau.
-- **HOR-11** Les vidéos ne sont pas gardées sur l'appareil (section 9 de la feuille de route). Sans réseau, la fiche l'explique.
+- **HOR-11** Les vidéos ne sont pas gardées sur l'appareil. Sans réseau, la fiche l'explique.
 - **HOR-06** Dès que l'élève clique sur Terminer, ses placements et ses mesures sont figés.
 - **HOR-07** Un élève peut rendre après la fin du cours : son rendu est accepté et signalé à l'enseignant. Depuis EV-39, cela ne concerne plus que
   celui qui ne pouvait pas savoir que le cours était fini, faute de réseau (`CRG-11`).
@@ -1077,7 +1065,7 @@ Demande : EV-11
   exigences de la section 12.6 ne s'y appliquent pas.
 - **EXP-03** L'enseignant le télécharge depuis l'onglet « Cours » : un seul fichier `.html`, qui marche d'un double-clic, sans serveur ni réseau. Il emporte le plan et les photos, sans les
   fiches masquées, et ne cherche jamais aucun serveur, même déposé sur un site.
-- **EXP-04** L'enseignant choisit à ce moment le mot de passe de gestion du fichier, 4 caractères au moins : `admin` n'y ouvre plus rien (E-03). Le site ne le garde pas.
+- **EXP-04** L'enseignant choisit à ce moment le mot de passe de gestion du fichier, 4 caractères au moins : `admin` n'y ouvre plus rien (E-03). Le site ne le garde pas, et demande de ne pas réutiliser celui du compte : ce fichier est fait pour circuler.
 
 ### 12.9 Publication des fiches
 
@@ -1125,8 +1113,7 @@ Demande : EV-28
 - **QUA-04** Chaque évolution arrive avec ses tests, dans le même commit. Un défaut corrigé garde un test qui le
   reproduit.
 - **QUA-05** Chaque exigence de la section 12 est couverte par au moins un test automatique, dont le titre cite
-  l'identifiant. Si l'automatisation est impossible, comme sur de vrais téléphones, un essai à la main est noté dans
-  la feuille de route.
+  l'identifiant. Si l'automatisation est impossible, comme sur de vrais téléphones, un essai à la main est noté à part.
 - **QUA-09** Un cours tient 50 élèves arrivant et rendant au même instant, sans refus, sans réponse perdue ni mélangée, et 30 aussi. Une classe de 50
   derrière une seule adresse peut se tromper de code plusieurs fois sans se bloquer. `npm test` le vérifie, `npm run test:charge` donne les chiffres.
 - **QUA-06** La couverture se mesure sur **tous** les fichiers : un fichier qu'aucun test ne charge compte pour 0 %.
@@ -1201,3 +1188,4 @@ fichier `.log` : le journal arrive sans rien demander à la personne, et l'admin
 | 0.33    | 4 novembre 2026   | Q-07 tranchée (GPL v3), Q-08 tranchée pour les navigateurs, l'accessibilité reportée |
 | 0.34    | 5 novembre 2026   | Revue de sécurité : plans et photos limités aux fichiers du serveur (`COU-14`), `SEC-04` étendu aux adresses et aux identifiants, Q-21 ouverte |
 | 0.35    | 5 novembre 2026   | Q-21 tranchée : les corrections partent 30 secondes après la fin, et ce qui arrive ensuite est signalé (`CRG-14`) |
+| 0.36    | 5 novembre 2026   | Identification par IA retirée (`IAI-01` à `IAI-04`), avertissement sur le mot de passe du fichier de secours (`EXP-04`). La feuille de route quitte le dépôt public, et ce document ne décrit plus les personnes ni le serveur |

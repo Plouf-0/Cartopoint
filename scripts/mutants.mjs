@@ -403,7 +403,8 @@ const MUTANTS = [
     '.account-card p, .confirm-dialog p, .account-bar span {',
     '.account-card p, .confirm-dialog p {'
   ],
-  ['écran : session expirée non détectée', 'src/js/admin/main.js', 'if (e.status === 401) showLogin();', 'if (false) showLogin();'],
+  ['écran : session expirée non détectée', 'src/js/admin/main.js', 'actionRunner(showLogin)', 'actionRunner(() => {})'],
+  ['écran : session expirée jamais reconnue', 'src/js/compte/ui.js', 'if (e.status === 401) onExpired();', 'if (false) onExpired();'],
   ['SRV-10 : vidéo sans plages d’octets', 'server/http.mjs', 'if (range) {', 'if (false) {'],
   ['SRV-10 : plage impossible servie', 'server/http.mjs', 'return start <= end ? { start, end } : false;', 'return { start, end };'],
   ['SRV-10 : fin de plage non bornée', 'server/http.mjs', 'Math.min(Number(match[2]), size - 1)', 'Number(match[2])'],
@@ -447,9 +448,9 @@ const MUTANTS = [
   ['COU-14 : liste absente refusée', 'server/courses.mjs', 'value === undefined || (Array.isArray', '(Array.isArray'],
   ['COU-14 : liste qui n’en est pas une', 'server/courses.mjs', '(Array.isArray(value) && value.every(isValid))', 'value.every(isValid)'],
   ['COU-14 : contenu d’une liste non vérifié', 'server/courses.mjs', 'Array.isArray(value) && value.every(isValid)', 'Array.isArray(value)'],
-  ['COU-14 : un tableau pris pour un objet', 'server/courses.mjs', ' && !Array.isArray(value);', ';'],
-  ['COU-14 : un texte pris pour un objet', 'server/courses.mjs', "typeof value === 'object' && value !== null", 'value !== null'],
-  ['COU-14 : null pris pour un objet', 'server/courses.mjs', "typeof value === 'object' && value !== null", "typeof value === 'object'"],
+  ['COU-14 : un tableau pris pour un objet', 'server/http.mjs', ' && !Array.isArray(value);', ';'],
+  ['COU-14 : un texte pris pour un objet', 'server/http.mjs', "typeof value === 'object' && value !== null", 'value !== null'],
+  ['COU-14 : null pris pour un objet', 'server/http.mjs', "typeof value === 'object' && value !== null", "typeof value === 'object'"],
   ['cours : nom sans limite', 'server/courses.mjs', '.slice(0, 200)', ''],
   ['cours : nom vide accepté', 'server/courses.mjs', " || 'Cours sans nom'", ''],
   ['ADM-04 : place occupée sans les fichiers', 'server/courses.mjs', "scalar('SELECT COALESCE(SUM(size), 0) AS n FROM media WHERE account_id = ?') +", '0 +'],
@@ -869,15 +870,6 @@ const MUTANTS = [
   ['écran : éditeur non branché', 'src/js/views/editor.js', '  useEditor(openEditor);\n', ''],
   ['EV-32 : panneau de droite trop court', 'src/css/app.css', 'max-height: max(420px, calc(100dvh - 150px));', 'max-height: 420px;'],
   ['EV-32 : panneau plus haut que l’écran', 'src/css/app.css', 'max-height: max(420px, calc(100dvh - 150px));', 'max-height: 100dvh;'],
-  ['EV-33 : IA dans les réglages d’un cours', 'src/js/views/admin/settings.js', "${S.teacherSpace ? '' : aiHTML()}", '${aiHTML()}'],
-  ['EV-33 : bouton IA dans un cours', 'src/js/views/editor.js', 'S.teacherSpace || !S.project.aiEndpoint', '!S.project.aiEndpoint'],
-  [
-    'EV-33 : adresse du service gardée dans un cours',
-    'src/js/model.js',
-    'return { format, version, title, theme, maps };',
-    'return { format, version, title, theme, maps, aiEndpoint: project.aiEndpoint };'
-  ],
-  ['EV-33 : IA retirée aussi de l’application d’origine', 'src/js/views/admin/settings.js', "${S.teacherSpace ? '' : aiHTML()}", ''],
   ['EV-34 : ancien titre par défaut', 'src/js/model.js', "DEFAULT_TITLE = 'Cartopoint'", "DEFAULT_TITLE = 'Inventaire botanique'"],
   ['EV-34 : ancienne icône par défaut', 'src/js/model.js', "raw?.icon || 'pin'", "raw?.icon || 'leaf'"],
   ['EV-34 : le vert n’est plus la couleur par défaut', 'src/js/model.js', "raw?.preset || 'vegetal'", "raw?.preset || 'ocean'"],
@@ -922,7 +914,7 @@ const MUTANTS = [
     'course.modified ? `Version ${course.published.number} publiée, modifications en attente` : `Version ${course.published.number} publiée`',
     '`Version ${course.published.number} publiée`'
   ],
-  ['liste : session expirée non détectée', 'src/js/prof/main.js', 'if (e.status === 401) showLogin();\n    else showError(error, e);', 'showError(error, e);'],
+  ['liste : session expirée non détectée', 'src/js/prof/main.js', 'actionRunner(showLogin)', 'actionRunner(() => {})'],
   [
     'écran : long titre hors du téléphone',
     'src/css/app.css',
@@ -1005,8 +997,8 @@ const MUTANTS = [
   [
     'INC-02 : journal lisible par tous',
     'server/routes/incidents.mjs',
-    "auth.requireRole(req, 'admin');\n      sendJson(req, res, incidents.list(), PRIVATE);",
-    'sendJson(req, res, incidents.list(), PRIVATE);'
+    "auth.requireRole(req, 'admin');\n      return sendJson(req, res, incidents.list(), PRIVATE);",
+    'return sendJson(req, res, incidents.list(), PRIVATE);'
   ],
   ['INC-02 : journal effaçable par tous', 'server/routes/incidents.mjs', "auth.requireRole(req, 'admin');\n        incidents.clear();", 'incidents.clear();'],
   [
@@ -1141,8 +1133,8 @@ const MUTANTS = [
   [
     'INC-01 : le fichier de secours embarque le journal',
     'src/js/main.js',
-    "import { $, fatal, errorText } from './util.js';",
-    "import './incident.js';\nimport { $, fatal, errorText } from './util.js';"
+    "import { fatal, errorText } from './util.js';",
+    "import './incident.js';\nimport { fatal, errorText } from './util.js';"
   ],
   ['INC-03 : le secret d’un lien part dans le journal', 'src/js/incident.js', 'page: location.pathname', 'page: location.href'],
   [
@@ -1194,6 +1186,26 @@ const MUTANTS = [
   ['INC-02 : pile cachée', 'src/js/admin/incidents.js', ', incident.details]', ']'],
   // Fin du cours : la correction, côté serveur
   ['CRG-02 : correction avant la fin', 'server/routes/student.mjs', 'if (!endedAt) throw new HttpError(403, NOT_ENDED);', ''],
+  ['fiche : photo envoyée à la fiche suivante', 'src/js/views/editor.js', 'if (edit !== target) return forgetFile(stored.key);', ''],
+  [
+    'fiche : Enregistrer reste bloqué après une fiche fermée',
+    'src/js/views/editor.js',
+    "  $('#uploadStatus').textContent = '';\n  $('#eSave').disabled = false;\n",
+    ''
+  ],
+  [
+    'HIS-04 : un dessin n’attend pas le précédent',
+    'src/js/prof/student-reports.js',
+    'const turn = lastDrawing.then(draw);',
+    'const turn = Promise.resolve().then(draw);'
+  ],
+  ['HIS-04 : un dessin raté bloque les suivants', 'src/js/prof/student-reports.js', 'lastDrawing = turn.catch(() => {});', 'lastDrawing = turn;'],
+  [
+    'EXP-04 : réutiliser le mot de passe du compte sans avertissement',
+    'src/js/prof/fallback-file.js',
+    "N'utilisez pas celui de votre compte",
+    'Choisissez-en un'
+  ],
   [
     'CRG-14 : correction dès la fin du cours',
     'server/routes/student.mjs',
@@ -1527,8 +1539,8 @@ const MUTANTS = [
   [
     'HIS-09 : un compte rendu sans le jour du cours',
     'src/js/prof/student-reports.js',
-    'await reportBlob(participant.names, { date })',
-    'await reportBlob(participant.names, {})'
+    'return reportBlob(participant.names, { date });',
+    'return reportBlob(participant.names, {});'
   ],
   [
     'HIS-09 : l’archive sans le jour du cours',
@@ -1858,7 +1870,6 @@ const TESTS_FOR = {
   'src/js/prof/course-tab.js': ['e2e/courses', 'e2e/launches', 'e2e/incidents', 'e2e/fallback', 'e2e/history'],
   'src/js/prof/main.js': ['e2e/courses', 'e2e/launches'],
   'src/js/api.js': ['e2e/courses', 'e2e/incidents'],
-  'src/js/ai.js': ['e2e/legacy'],
   'src/js/admin/main.js': ['e2e/accounts', 'e2e/courses', 'e2e/launches', 'e2e/incidents'],
   'src/js/compte/main.js': ['e2e/accounts'],
   'src/js/compte/ui.js': ['e2e/accounts'],

@@ -33,7 +33,6 @@ export const S = {
   ui: { filter: 'all', query: '', adminQuery: '', tab: 'fiches', placing: null },
   /** Rapport largeur / hauteur de l'image du plan affiché. */
   ratio: 1.16,
-  /** D'où vient le projet : 'local', 'remote' (serveur), 'embedded' (fichier autonome). */
   /** Le stockage du navigateur fonctionne-t-il ? */
   storageOk: true
 };
@@ -350,7 +349,6 @@ export async function exportProject({ studentsOnly = false, withProgress = true,
     title: S.project.title,
     theme: S.project.theme,
     passwordHash: S.project.passwordHash,
-    aiEndpoint: studentsOnly ? '' : S.project.aiEndpoint,
     currentMapId: S.map.id,
     maps,
     progress: progressOut

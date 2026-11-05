@@ -8,7 +8,7 @@
  *   4. appliquer le thème et dessiner.
  */
 import './version.js';
-import { $, fatal, errorText } from './util.js';
+import { fatal, errorText } from './util.js';
 import { S, flush } from './store.js';
 import { openDb } from './db.js';
 import { applyTheme } from './themes.js';

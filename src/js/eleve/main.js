@@ -49,7 +49,7 @@ let token = null;
 let courseEnded = false;
 /**
  * Le rendu de cet élève. Il reste dans le navigateur une fois reçu : une coupure de courant peut faire perdre au serveur un
- * rendu déjà confirmé (section 4 de la feuille de route), et la page le renvoie alors.
+ * rendu déjà confirmé, et la page le renvoie alors.
  */
 let submission = null;
 /** Cet onglet : voir eleve/correction.js. */

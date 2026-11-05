@@ -35,6 +35,12 @@ const TYPES = {
 const MIN_GZIP = 1024;
 const COMPRESSIBLE = /^(text\/|application\/json|image\/svg\+xml)/;
 
+/** Un objet au sens de JSON : ni null, ni une liste. */
+export const isObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** Une réponse qui ne regarde qu'une personne : personne ne la garde en cache. */
+export const PRIVATE = { cache: 'no-store' };
+
 /** Erreur à transmettre telle quelle au client. Les autres donnent un 500 sans détail. */
 export class HttpError extends Error {
   constructor(status, message) {
@@ -204,7 +210,7 @@ export async function readJson(req, maxBytes = 64 * 1024) {
   } catch {
     throw new HttpError(400, 'Requête invalide');
   }
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new HttpError(400, 'Requête invalide');
+  if (!isObject(value)) throw new HttpError(400, 'Requête invalide');
   return value;
 }
 

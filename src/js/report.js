@@ -2,7 +2,7 @@
  * Exports image : plan avec repères, et compte rendu complet des élèves en JPG
  * (noms, plan, résultats, mesures), facile à rendre sur l'ENT ou à imprimer.
  */
-import { $, toast, dateAndTime, download, safeFileName, loadImage, errorText } from './util.js';
+import { toast, dateAndTime, download, safeFileName, loadImage, errorText } from './util.js';
 import { S, verified, progress, evaluationOf } from './store.js';
 import { visibleFiches, numberOf, titleOf, hasRef, placedPos, MEASURES } from './model.js';
 import { paletteOf } from './themes.js';

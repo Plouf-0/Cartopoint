@@ -8,7 +8,6 @@ garde les résultats de la classe : un **Excel** et le compte rendu de chaque é
 - Guide d'utilisation (enseignant et élèves) : [docs/GUIDE.md](docs/GUIDE.md)
 - Fonctionnement interne, format des données : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - Exigences du projet (source de vérité) : [docs/CAHIER_DES_CHARGES.md](docs/CAHIER_DES_CHARGES.md)
-- Suivi de la grande mise à jour : [docs/FEUILLE_DE_ROUTE.md](docs/FEUILLE_DE_ROUTE.md)
 
 ## En bref
 
@@ -116,7 +115,6 @@ npm run convert -- "Ancien projet.html" projet.json
 - Le cours envoyé aux élèves ne contient pas les positions réelles, qui n'arrivent qu'avec la correction. Le **fichier de secours les contient**, puisqu'il corrige seul
   sans serveur : son mot de passe de gestion évite les accès par hasard, sans résister à une personne déterminée.
 - Le serveur refuse les chemins sortant de `ROOT`, et ne sert rien de `DATA_DIR` hors des photos des cours. Les SVG ne sont pas acceptés.
-- L'identification par IA (facultative) appelle une adresse fournie par l'enseignant : ne mettez jamais de clé d'API dans l'application, passez par votre propre service.
 
 **Données d'élèves.** Le serveur conserve le nom que l'élève a saisi et ses réponses, jusqu'à ce que l'enseignant supprime le lancement, et un an au plus. Le journal des
 problèmes note des informations techniques sur l'appareil, sans le nom de l'élève, 90 jours au plus. Ce sont des données personnelles : l'établissement doit en être

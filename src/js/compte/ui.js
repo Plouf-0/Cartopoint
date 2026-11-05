@@ -16,6 +16,12 @@ export function el(tag, props = {}, ...children) {
   return node;
 }
 
+export function button(label, className, onClick) {
+  const node = el('button', { className, type: 'button' }, label);
+  node.addEventListener('click', onClick);
+  return node;
+}
+
 export function field(label, props) {
   const id = 'champ-' + props.name;
   return el('div', { className: 'field' }, el('label', { htmlFor: id }, label), el('input', { id, ...props }));
@@ -38,6 +44,17 @@ export function showError(line, error) {
   line.textContent = error.message;
   line.hidden = false;
 }
+
+/** Pour exécuter une action d'un écran connecté : une erreur s'affiche sur sa ligne, et une session expirée ramène à la connexion. */
+export const actionRunner = (onExpired) => async (error, action) => {
+  error.hidden = true;
+  try {
+    await action();
+  } catch (e) {
+    if (e.status === 401) onExpired();
+    else showError(error, e);
+  }
+};
 
 /** Branche un formulaire : le bouton est bloqué pendant l'envoi et une erreur s'affiche au-dessus de lui. */
 export function onSubmit(form, action) {

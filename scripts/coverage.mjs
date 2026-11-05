@@ -12,7 +12,7 @@
  * fonctions, on retient le meilleur des deux chiffres, sans les additionner : ils ne se comparent pas fonction par
  * fonction, et ce choix ne peut pas embellir le résultat. Les branches ne viennent que de Node.
  *
- * Les seuils ne font que monter (voir docs/FEUILLE_DE_ROUTE.md, section 11).
+ * Les seuils ne font que monter.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';

@@ -3,7 +3,20 @@
  * désactiver puis supprimer un compte. Il ne montre jamais le contenu des cours (ADM-07).
  */
 import { api, currentAccount } from '../api.js';
-import { accountBar, card, changePasswordForm, dateAndTime, el, errorLine, linkBox, loginForm, shortDate, show, showError } from '../compte/ui.js';
+import {
+  accountBar,
+  actionRunner,
+  card,
+  changePasswordForm,
+  dateAndTime,
+  el,
+  errorLine,
+  linkBox,
+  loginForm,
+  shortDate,
+  show,
+  showError
+} from '../compte/ui.js';
 import { formatSize } from '../util.js';
 import { incidentsCard } from './incidents.js';
 
@@ -27,16 +40,7 @@ function showRefused(account) {
   ]);
 }
 
-/** Exécute une action du tableau de bord. Une session expirée ramène à la connexion. */
-async function run(error, action) {
-  error.hidden = true;
-  try {
-    await action();
-  } catch (e) {
-    if (e.status === 401) showLogin();
-    else showError(error, e);
-  }
-}
+const run = actionRunner(showLogin);
 
 /** Sur un téléphone, le tableau devient une liste : chaque valeur y porte son libellé. */
 const cell = (label, value) => el('td', { 'data-label': label }, value);

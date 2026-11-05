@@ -6,7 +6,7 @@
  * chargement qui n'a plus son onglet.
  */
 import { Progress, openDb } from '../db.js';
-import { THRESHOLDS, emptyProgress, titleOf } from '../model.js';
+import { THRESHOLDS, emptyProgress, scoredCount, titleOf } from '../model.js';
 import { downloadReport, resultRows } from '../report.js';
 import { S, posOf } from '../store.js';
 import { $, dateAndTime, esc, prefs } from '../util.js';
@@ -49,8 +49,6 @@ export function applyCorrection(correction) {
   }
   S.correction = correction;
 }
-
-const scoredCount = ({ ok, near, far, unplaced }) => ok + near + far + unplaced;
 
 const scoreFigure = ({ score }) => `${score.ok} / ${scoredCount(score)}`;
 

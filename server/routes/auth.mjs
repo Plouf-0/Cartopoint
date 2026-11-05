@@ -5,14 +5,13 @@
  *   POST /password                  changer son mot de passe
  *   POST /invite, /reset            utiliser un lien à usage unique, jeton dans le corps
  */
-import { HttpError, readJson, sendJson } from '../http.mjs';
+import { HttpError, PRIVATE, readJson, sendJson } from '../http.mjs';
 import { clientIp, createLimiter, sameOriginOnly } from '../security.mjs';
 
 const TEN_MINUTES = 10 * 60 * 1000;
 const BAD_LOGIN = 'Adresse e-mail ou mot de passe incorrect.';
 const DISABLED = "Votre compte a été désactivé. Contactez l'administrateur du site.";
 const TOO_MANY = 'Trop de tentatives, réessayez dans 10 minutes.';
-const PRIVATE = { cache: 'no-store' };
 
 const profile = (account) => ({ email: account.email, role: account.role });
 

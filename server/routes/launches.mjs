@@ -9,15 +9,15 @@
  *   POST /launches/:id/answers-file   le fichier de réponses d'un élève
  */
 import { MAX_ANSWERS_BYTES, cleanAnswers, computeResults, countAfterEnd, onServerClock } from '../answers.mjs';
-import { HttpError, readJson, sendJson } from '../http.mjs';
+import { HttpError, PRIVATE, readJson, sendJson } from '../http.mjs';
+import { courseOfRequest } from './courses.mjs';
 import { normalizeProject } from '../../src/js/model.js';
 import { sameOriginOnly } from '../security.mjs';
 
-const PRIVATE = { cache: 'no-store' };
 const ANSWERS_FORMAT = 'cartopoint-reponses';
 
 export function launchRoutes(router, { auth, courses, launches }) {
-  const courseOf = (req, params) => courses.require(auth.requireAccount(req).id, params.id);
+  const courseOf = courseOfRequest({ auth, courses });
   const launchOf = (req, params) => launches.require(auth.requireAccount(req).id, params.id);
 
   router
@@ -38,7 +38,7 @@ export function launchRoutes(router, { auth, courses, launches }) {
       '/api/launches/:id',
       sameOriginOnly((req, res, { params }) => {
         launches.remove(launchOf(req, params));
-        sendJson(req, res, { ok: true }, PRIVATE);
+        return sendJson(req, res, { ok: true }, PRIVATE);
       })
     )
     .add('GET', '/api/launches/:id/sheets', (req, res, { params }) => sendJson(req, res, launches.sheets(launchOf(req, params)), PRIVATE))
@@ -60,7 +60,7 @@ export function launchRoutes(router, { auth, courses, launches }) {
           afterEnd: row.ended_at ? countAfterEnd(timed.answers, Date.parse(row.ended_at)) : 0,
           finishedAt: new Date(Number.isFinite(file.finishedAt) ? Math.min(file.finishedAt, now) : now).toISOString()
         });
-        sendJson(req, res, { names: participant.names, alreadyReceived: false }, PRIVATE);
+        return sendJson(req, res, { names: participant.names, alreadyReceived: false }, PRIVATE);
       })
     );
 }

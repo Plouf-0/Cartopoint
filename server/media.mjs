@@ -7,8 +7,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { promises as fs, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { HttpError } from './http.mjs';
+import { DAY } from './time.mjs';
 
-const DAY = 24 * 60 * 60 * 1000;
 const REFUSED = 'Ce type de fichier est refusé. Envoyez une photo JPEG, PNG ou WebP, ou une vidéo MP4 ou WebM.';
 /** Formats d'image dans la même enveloppe que MP4, qu'un navigateur ne saurait pas afficher comme une vidéo. */
 const IMAGE_BRANDS = /^(heic|heix|hevc|hevx|heim|heis|mif1|msf1|avif|avis)/;

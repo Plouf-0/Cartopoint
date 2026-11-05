@@ -7,6 +7,7 @@ import { meanGap, normalizeProject, usesMeters } from '../src/js/model.js';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { hashToken } from './auth.mjs';
 import { HttpError } from './http.mjs';
+import { DAY, iso } from './time.mjs';
 
 /** Sans O, 0, I ni 1 : un code se lit au tableau et se tape sur un téléphone. */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -14,9 +15,7 @@ const CODE_LENGTH = 6;
 const CODE_ATTEMPTS = 5;
 export const MAX_PARTICIPANTS = 200;
 export const MAX_NAMES = 120;
-export const KEEP_LAUNCH_MS = 365 * 24 * 60 * 60 * 1000;
-
-const iso = () => new Date().toISOString();
+export const KEEP_LAUNCH_MS = 365 * DAY;
 
 export function newCode() {
   return Array.from({ length: CODE_LENGTH }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('');

@@ -10,7 +10,6 @@ import { S, fiches, byId, entryOf, mediaURL, storeFile, forgetFile, deleteFiches
 import { normalizeFiche, normalizeMedia, numberOf, titleOf, thumbOf } from '../model.js';
 import { render } from '../render.js';
 import { openPhoto } from './viewer.js';
-import { identifyWithAI } from '../ai.js';
 import { useEditor } from './fiche.js';
 
 /** Champ du formulaire → propriété de la fiche. */
@@ -49,8 +48,9 @@ export function openEditor(id) {
   for (const [field, key] of Object.entries(measureFields())) $('#' + field).value = e[key] || '';
   $('#eVisible').checked = d.visible;
   $('#eDelete').hidden = edit.isNew;
-  $('#aiBtn').hidden = S.teacherSpace || !S.project.aiEndpoint;
-  $('#aiStatus').textContent = '';
+  // Un envoi encore en route appartient à la fiche précédente : il ne bloque pas celle-ci
+  $('#uploadStatus').textContent = '';
+  $('#eSave').disabled = false;
   renderGallery();
   $('#dlgEdit').showModal();
   $$('#dlgEdit textarea').forEach(autosize);
@@ -190,26 +190,29 @@ export function bindEditor() {
   $('#eFiles').onchange = async (e) => {
     const files = [...e.target.files];
     e.target.value = '';
+    // La fiche peut être fermée, et une autre ouverte, pendant l'envoi : ces fichiers ne vont qu'à la fiche qui les a demandés
+    const target = edit;
     // L'envoi peut prendre du temps : enregistrer la fiche entre-temps ferait perdre les photos encore en route.
     $('#eSave').disabled = true;
     for (const [i, file] of files.entries()) {
-      $('#aiStatus').textContent = `Envoi de ${file.name} (${i + 1} / ${files.length})…`;
+      if (edit !== target) return;
+      $('#uploadStatus').textContent = `Envoi de ${file.name} (${i + 1} / ${files.length})…`;
       try {
         const stored = await storeFile(file);
-        if (!edit) return;
+        if (edit !== target) return forgetFile(stored.key);
         if (stored.key) edit.added.push(stored.key);
         edit.draft.media.push(normalizeMedia({ type: file.type.startsWith('video/') ? 'video' : 'image', name: file.name, ...stored }));
       } catch (error) {
         toast(`⚠ Impossible d'enregistrer ${file.name} : ${errorText(error)}`);
       }
     }
-    $('#aiStatus').textContent = '';
+    if (edit !== target) return;
+    $('#uploadStatus').textContent = '';
     $('#eSave').disabled = false;
     renderGallery();
   };
   $('#eSave').onclick = save;
   $('#eDelete').onclick = remove;
-  $('#aiBtn').onclick = () => identifyWithAI(edit.draft, $('#aiStatus'));
   dlg.addEventListener('close', () => {
     if (edit && !edit.saved) edit.added.forEach(forgetFile); // annulation : on retire les photos ajoutées
     edit = null;

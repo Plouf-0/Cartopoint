@@ -9,10 +9,9 @@
  *   POST /teachers/:id/delete, /restore   supprimer un compte désactivé (avec le mot à recopier) ou le restaurer
  */
 import { eraseDate } from '../auth.mjs';
-import { HttpError, readJson, sendJson } from '../http.mjs';
+import { HttpError, PRIVATE, readJson, sendJson } from '../http.mjs';
 import { sameOriginOnly } from '../security.mjs';
 
-const PRIVATE = { cache: 'no-store' };
 const DELETE_WORD = 'SUPPRIMER';
 
 export function adminRoutes(router, auth, courses) {

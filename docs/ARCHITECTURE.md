@@ -60,7 +60,6 @@ C'est le contenu d'un cours exporté en `.json`, et du bloc `<script id="embedde
   "title": "Sortie au parc",
   "theme": { "preset": "vegetal", "accent": "", "icon": "leaf" },
   "passwordHash": "sha256:…",  // null = mot de passe « admin »
-  "aiEndpoint": "",
   "currentMapId": "map-…",
   "maps": [
     {
@@ -328,7 +327,7 @@ Ce qui échoue dans un navigateur arrive tout seul à l'admin, avec la machine e
   signale pas lui-même.
 - **Côté serveur, `server/incidents.mjs`.** `POST /api/incidents` est ouverte à tous, puisqu'un problème peut arriver avant toute connexion :
   seuls les champs prévus entrent, et le nombre de lignes et d'envois est limité. La limite vaut pour tout le site et non par adresse : derrière
-  Cloudflare, des inconnus partagent la même adresse (section 10 de la feuille de route). `GET /api/admin/incidents` et
+  Cloudflare, des inconnus partagent la même adresse. `GET /api/admin/incidents` et
   `POST /api/admin/incidents/clear` sont réservées à l'admin. La purge passe par `app.purge()`, chaque heure.
 - **Pour lire le journal depuis le serveur,** sans passer par la page : la table `incidents` de `app.db`.
 
@@ -353,7 +352,7 @@ La page d'un lancement (`prof/launch.js`, `prof/launch-results.js`) reste celle 
 
 - **La liste** vient de `GET /api/launches/:id`, toutes les 5 secondes : état, score et précision moyenne de chacun. Elle ne se redessine que si quelque chose a changé.
 - **Le reste** vient de `GET /api/launches/:id/sheets`, à la demande : le cours avec ses positions réelles, et les réponses de chacun. Un autre enseignant reçoit 404 (`ANO-06`).
-- **Les comptes rendus** (`prof/student-reports.js`) réutilisent `report.js`, qui dessine à partir de l'état commun : cette page y met tour à tour chaque élève. `S.admin` y fait apparaître les positions réelles et les écarts. Plusieurs fichiers partent dans un `.zip` (`zip.js`, sans compression : les JPG ne se compressent plus), car un navigateur bloque les téléchargements multiples.
+- **Les comptes rendus** (`prof/student-reports.js`) réutilisent `report.js`, qui dessine à partir de l'état commun : cette page y met tour à tour chaque élève, un seul dessin à la fois (`inTurn()`), sinon une carte ou un élève prendrait les repères d'un autre. `S.admin` y fait apparaître les positions réelles et les écarts. Plusieurs fichiers partent dans un `.zip` (`zip.js`, sans compression : les JPG ne se compressent plus), car un navigateur bloque les téléchargements multiples.
 - **L'Excel** (`prof/results-workbook.js` pour le contenu, `xlsx-write.js` pour le fichier, tous deux sans écran, donc testés sans navigateur). `xlsx.js` reste le lecteur. Un texte y est toujours écrit comme du texte : aucune formule possible. La précision moyenne vient de `meanGap()` (`model.js`), partagée avec le serveur.
 - **Le fichier de réponses** (`format: cartopoint-reponses`) est proposé à l'élève quand l'envoi n'aboutit pas. `POST /api/launches/:id/answers-file` suit le même chemin qu'un envoi : le premier rendu reçu fait foi (`HIS-07`). Sans signature : un enseignant qui importe un fichier fait confiance à celui qui le lui donne.
 - **La purge** (`launches.purge()`, chaque heure, avant celle des fichiers) efface un lancement un an après sa fin ou, s'il n'a jamais été terminé, après sa dernière activité.

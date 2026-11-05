@@ -84,6 +84,12 @@ async function downloadFile(t, teacher, password = PASSWORD) {
   return { name: download.suggestedFilename(), target, text: await readFile(target, 'utf8') };
 }
 
+test('EXP-04 : la fenêtre du mot de passe demande de ne pas réutiliser celui du compte', async (t) => {
+  const { teacher } = await setup(t);
+  await teacher.locator('#exportFallback').click();
+  await teacher.locator('dialog[open]').getByText("N'utilisez pas celui de votre compte").waitFor();
+});
+
 /** Comme chez quelqu'un qui a reçu le fichier : pas de réseau, et rien n'a le droit de sortir. */
 async function openOffline(t, target) {
   const page = await openPage(t, browser, {});

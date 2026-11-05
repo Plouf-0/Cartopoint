@@ -21,7 +21,7 @@ test('toutes les pages se construisent en un seul fichier ; celle de l’élève
   }
   const student = read('eleve.html');
   assert.match(student, /Fiches à placer/);
-  for (const marker of ['identifyWithAI', 'publishCourse', 'renderFicheRow', 'saveProject', 'verifyExercise', 'adminPanelHTML', 'openEditor']) {
+  for (const marker of ['publishCourse', 'renderFicheRow', 'saveProject', 'verifyExercise', 'adminPanelHTML', 'openEditor']) {
     assert.ok(!student.includes(marker), marker);
   }
   assert.match(read('prof-cours.html'), /publishCourse/, 'la recherche trouve bien ces noms dans le code');

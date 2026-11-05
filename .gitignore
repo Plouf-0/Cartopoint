@@ -8,3 +8,6 @@ data/
 .DS_Store
 
 .env
+
+# Notes de travail, gardées hors du dépôt public
+docs/FEUILLE_DE_ROUTE.md

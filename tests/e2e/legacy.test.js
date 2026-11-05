@@ -210,28 +210,24 @@ test('une erreur reste le temps d’être lue, un message ordinaire disparaît v
   assert.equal(await page.locator('#toast.show', { hasText: '⚠' }).count(), 1, 'l’erreur est toujours là');
 });
 
-test('l’identification par IA envoie les photos enregistrées dans le navigateur, et remplit les champs vides', async (t) => {
+test('EV-33 : un projet qui portait une adresse d’identification par IA s’ouvre dans le fichier de secours, et il n’en reste rien', async (t) => {
   const { page } = await openApp(t);
   await enterManagement(page);
+  await page.locator('[data-tab=projet]').click();
+  page.once('dialog', (dialog) => dialog.accept());
+  const project = {
+    format: 'inventaire-botanique',
+    version: 3,
+    title: 'Avec IA',
+    aiEndpoint: 'https://ia.example.org/identifier',
+    maps: [{ id: 'm1', name: 'Plan', image: '', fiches: [{ id: 'f1', common: 'Chêne' }] }]
+  };
+  await page.locator('#openProject').setInputFiles({ name: 'projet.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
+  await toast(page, '✓ Projet ouvert');
   await page.locator('[data-tab=reglages]').click();
-  await page.locator('#aiUrl').fill('https://ia.example.org/identifier');
-  await page.locator('#saveAi').click();
-  await page.locator('[data-tab=fiches]').click();
-
-  let sent;
-  await page.route('https://ia.example.org/**', async (route) => {
-    const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type' };
-    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
-    sent = JSON.parse(route.request().postData());
-    return route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify({ family: 'Oleaceae' }) });
-  });
-  await page.locator('#newFiche').click();
-  await page.locator('#eCommon').fill('Olivier');
-  await page.locator('#eFiles').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
-  await page.locator('#eGallery img').waitFor();
-  await page.locator('#aiBtn').click();
-  await page.waitForFunction(() => document.querySelector('#eFamily').value === 'Oleaceae');
-  assert.match(sent.images[0], /^data:image\/png;base64,/);
+  await page.getByRole('heading', { name: 'Apparence' }).waitFor();
+  assert.doesNotMatch(await page.locator('#panel').textContent(), /IA\b/);
+  assert.doesNotMatch(JSON.stringify(await downloadJson(page)), /ia\.example\.org|aiEndpoint/);
 });
 
 test('EV-34 : sans projet, la page s’appelle Cartopoint, avec une carte « Plan », et la recherche parle de fiches', async (t) => {

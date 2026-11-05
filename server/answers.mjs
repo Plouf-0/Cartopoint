@@ -3,7 +3,7 @@
  * (CRG-09). Le résultat reste en base : rien de ce qui est calculé ici ne repart chez l'élève avant la fin du cours.
  */
 import { MEASURES, evaluate, hasRef, visibleFiches } from '../src/js/model.js';
-import { HttpError } from './http.mjs';
+import { HttpError, isObject } from './http.mjs';
 
 export const MAX_ANSWERS_BYTES = 256 * 1024;
 export const MAX_MEASURE = 50;
@@ -14,7 +14,6 @@ const INVALID = 'Ces réponses ne correspondent pas à ce cours.';
 const refuse = () => {
   throw new HttpError(400, INVALID);
 };
-const isObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 const isPosition = (value) => typeof value === 'number' && value >= 0 && value <= 100;
 
 function cleanEntry(raw) {

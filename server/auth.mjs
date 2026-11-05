@@ -10,13 +10,13 @@ import { promisify } from 'node:util';
 import { transaction } from './db.mjs';
 import { HttpError } from './http.mjs';
 import { isHttps } from './security.mjs';
+import { DAY, iso } from './time.mjs';
 
 const scryptAsync = promisify(scrypt);
 const COST = { N: 2 ** 15, r: 8, p: 1 };
 const MAX_MEMORY = 64 * 1024 * 1024;
 const KEY_LENGTH = 32;
 
-const DAY = 24 * 60 * 60 * 1000;
 const SESSION_LIFETIME = 30 * DAY;
 const INVITE_LIFETIME = 7 * DAY;
 const RESET_LIFETIME = 3 * DAY;
@@ -26,7 +26,6 @@ const COOKIE = 'session';
 const EMAIL = /^[^\s@]+@[^\s@]+$/;
 const DEAD_LINK = "Ce lien n'est plus valable. Demandez-en un nouveau.";
 
-const iso = (ms = Date.now()) => new Date(ms).toISOString();
 export const hashToken = (token) => createHash('sha256').update(String(token)).digest('hex');
 
 /** Date à laquelle un compte supprimé sera effacé pour de bon. */

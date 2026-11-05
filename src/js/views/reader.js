@@ -4,7 +4,7 @@
  */
 import { $, esc, frDate } from '../util.js';
 import { S, byId, verified, locked, entryOf, stamped, posOf, evaluationOf, mediaURL, changedProgress } from '../store.js';
-import { NEEDS, MEASURES, numberOf, titleOf, thumbOf, evaluate } from '../model.js';
+import { NEEDS, MEASURES, numberOf, titleOf, thumbOf } from '../model.js';
 import { render } from '../render.js';
 import { openPhoto } from './viewer.js';
 import { startPlacing } from './map.js';

@@ -3,28 +3,14 @@
  * comptes rendus et le fichier Excel. Tout texte passe par des nœuds de texte : un nom d'élève ne peut pas injecter de code.
  */
 import { api } from '../api.js';
-import { el, errorLine, showError } from '../compte/ui.js';
-import { MEASURES, numberOf, titleOf, visibleFiches } from '../model.js';
+import { button, el, errorLine, showError } from '../compte/ui.js';
+import { MEASURES, gradeOf, numberOf, scoredCount, titleOf, visibleFiches } from '../model.js';
 import { download, errorText, fileStamp, safeFileName } from '../util.js';
 import { workbookBlob } from '../xlsx-write.js';
 import { resultsWorkbook, stateText } from './results-workbook.js';
 import { allReportsZip, readSheets, studentPlan, studentReports } from './student-reports.js';
 
-const GRADES = {
-  ok: ['Bien placée', 'ok'],
-  near: ['Proche', 'near'],
-  far: ['À revoir', 'far'],
-  unplaced: ['Non placée', 'none'],
-  noref: ['Pas de position réelle', 'none']
-};
 const frNumber = (value) => (value === null || value === undefined ? '—' : value.toLocaleString('fr-FR', { maximumFractionDigits: 1 }));
-const scoredCount = ({ ok, near, far, unplaced }) => ok + near + far + unplaced;
-
-function button(label, className, onClick) {
-  const node = el('button', { className, type: 'button' }, label);
-  node.addEventListener('click', onClick);
-  return node;
-}
 
 function detailDialog(project, participant) {
   const close = button('×', 'x', () => dialog.close());
@@ -51,13 +37,13 @@ function detailDialog(project, participant) {
     const rows = visibleFiches(map).map((fiche) => {
       const entry = participant.answers?.[map.id]?.[fiche.id] ?? {};
       const result = participant.results.maps[map.id]?.fiches[fiche.id] ?? { state: 'unplaced' };
-      const [label, look] = GRADES[result.state];
+      const { label, cls } = gradeOf(result.state);
       return el(
         'tr',
         {},
         el('td', { className: 'n' }, String(numberOf(map, fiche))),
         el('td', {}, titleOf(fiche)),
-        el('td', {}, el('span', { className: `grade ${look}` }, label)),
+        el('td', {}, el('span', { className: `grade ${cls}` }, label)),
         el('td', {}, result.dist ?? '—'),
         ...MEASURES.map(([key]) => el('td', {}, entry[key] || '—'))
       );

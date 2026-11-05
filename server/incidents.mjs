@@ -5,8 +5,8 @@
  */
 import { createHash } from 'node:crypto';
 import { HttpError } from './http.mjs';
+import { DAY } from './time.mjs';
 
-const DAY = 24 * 60 * 60 * 1000;
 export const KEEP_DAYS = 90;
 const MAX_ROWS = 500;
 const SHOWN = 200;

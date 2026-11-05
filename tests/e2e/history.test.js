@@ -287,6 +287,23 @@ test('HIS-04 : le détail d’un élève montre ses réponses fiche par fiche, e
   await teacher.locator('.detail-dialog').waitFor({ state: 'detached' });
 });
 
+test('HIS-04 : sur un cours à plusieurs cartes, chaque plan du détail porte les repères de sa propre carte', async (t) => {
+  const { site, teacher, launch, openLaunch } = await setup(t, {
+    maps: (plan, fiche) => [
+      { id: 'm1', name: 'Parc', image: plan, fiches: [fiche('f1', 'Noisetier', 40, 60), fiche('f2', 'Sureau', 10, 60), fiche('f3', 'Tilleul', 20, 20)] },
+      { id: 'm2', name: 'Bois', image: plan, fiches: [fiche('f4', 'Chêne', 50, 50)] }
+    ]
+  });
+  await handIn(site, await join(site, launch, 'Léa'), { f1: entry(40, 60) });
+  await openLaunch();
+  await row(teacher, 'Léa').getByRole('button', { name: 'Détail' }).click();
+  await teacher.waitForFunction(() => [...document.querySelectorAll('.detail-plan')].filter((plan) => plan.naturalWidth > 0).length === 2);
+  const { texts } = await teacher.evaluate(() => window.drawn);
+  // Les numéros 2 et 3 n'existent que sur la première carte : sans eux, elle a reçu les repères de la seconde
+  assert.equal(texts.includes('2'), true, texts.join(' | '));
+  assert.equal(texts.includes('3'), true, texts.join(' | '));
+});
+
 test('HIS-09 : une panne à la préparation le dit, et le bouton reste utilisable', async (t) => {
   const { site, teacher, launch, openLaunch } = await setup(t);
   await handIn(site, await join(site, launch, 'Léa'), { f1: entry(40, 60) });
@@ -298,6 +315,18 @@ test('HIS-09 : une panne à la préparation le dit, et le bouton reste utilisabl
   await teacher.unroute('**/sheets');
   await saved(teacher, () => teacher.getByRole('button', { name: 'Télécharger l’Excel' }).click());
   assert.equal(await teacher.getByText('Lecture impossible pour le moment.').isVisible(), false);
+});
+
+test('HIS-09 : un compte rendu qui ne peut pas se dessiner n’empêche pas les suivants', async (t) => {
+  const { site, teacher, launch, openLaunch } = await setup(t);
+  await handIn(site, await join(site, launch, 'Léa'), { f1: entry(40, 60) });
+  await openLaunch();
+  await teacher.route('**/media/**', (route) => route.abort());
+  await row(teacher, 'Léa').getByRole('button', { name: 'JPG' }).click();
+  await teacher.getByText('image illisible').waitFor();
+  await teacher.unroute('**/media/**');
+  const { name } = await saved(teacher, () => row(teacher, 'Léa').getByRole('button', { name: 'JPG' }).click());
+  assert.match(name, /^Compte rendu - Léa/);
 });
 
 /* --- HIS-05 : supprimer --- */

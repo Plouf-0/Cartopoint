@@ -20,8 +20,7 @@ export function setCourse(value) {
 
 export function publishStateText() {
   if (!course.published) return "Ce cours n'a pas encore été publié : les élèves n'y ont pas accès.";
-  const date = new Date(course.published.publishedAt).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
-  const version = `Version ${course.published.number}, publiée le ${date}.`;
+  const version = `Version ${course.published.number}, publiée le ${dateAndTime(course.published.publishedAt)}.`;
   return course.modified ? `${version} Des modifications ne sont pas encore publiées.` : `${version} Elle est à jour.`;
 }
 

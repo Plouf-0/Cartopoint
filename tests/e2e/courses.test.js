@@ -382,12 +382,74 @@ test('tant qu’un fichier est en route, la fiche ne peut pas être enregistrée
     await route.continue();
   });
   await page.locator('#eFiles').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
-  await page.locator('#aiStatus', { hasText: 'Envoi de photo.png (1 / 1)…' }).waitFor();
+  await page.locator('#uploadStatus', { hasText: 'Envoi de photo.png (1 / 1)…' }).waitFor();
   assert.equal(await page.locator('#eSave').isDisabled(), true);
   release();
   await page.locator('#eGallery img[src^="/media/"]').waitFor();
   assert.equal(await page.locator('#eSave').isEnabled(), true);
-  assert.equal(await page.locator('#aiStatus').textContent(), '');
+  assert.equal(await page.locator('#uploadStatus').textContent(), '');
+});
+
+/** Une fiche ouverte, un fichier retenu en route, et la fiche refermée pendant ce temps. */
+async function closeDuringUpload(page, name) {
+  let release;
+  const held = new Promise((resolve) => (release = resolve));
+  await page.route('**/api/media', async (route) => {
+    await held;
+    await route.continue();
+  });
+  const answered = page.waitForResponse('**/api/media');
+  await page.locator('.row', { hasText: name }).locator('h3').click();
+  await page.locator('#eFiles').setInputFiles({ name: 'photo-en-route.png', mimeType: 'image/png', buffer: PNG });
+  await page.locator('#uploadStatus', { hasText: 'Envoi de photo-en-route.png' }).waitFor();
+  await page.locator('#dlgEdit [data-close]').first().click();
+  await page.locator('#dlgEdit').waitFor({ state: 'hidden' });
+  return async () => {
+    release();
+    await answered;
+    await page.waitForTimeout(200);
+  };
+}
+
+test('une fiche fermée pendant un envoi garde son fichier pour elle : la fiche ouverte ensuite ne reçoit rien, et s’enregistre', async (t) => {
+  const { site, page } = await setup(t);
+  await createCourse(page);
+  await addFiche(page, 'Fiche A');
+  await addFiche(page, 'Fiche B');
+  const finishUpload = await closeDuringUpload(page, 'Fiche A');
+
+  await page.locator('.row', { hasText: 'Fiche B' }).locator('h3').click();
+  assert.equal(await page.locator('#eCommon').inputValue(), 'Fiche B');
+  assert.equal(await page.locator('#eSave').isEnabled(), true, 'cette fiche n’attend aucun envoi');
+  assert.equal(await page.locator('#uploadStatus').textContent(), '');
+  await finishUpload();
+  assert.equal(await page.locator('#eGallery figure').count(), 0, 'le fichier ne va pas à une autre fiche');
+  assert.equal(await page.locator('#eSave').isEnabled(), true);
+
+  await page.locator('#eDesc').fill('Modifiée');
+  await page.locator('#eSave').click();
+  await page.locator('#saveState', { hasText: '✓ Enregistré' }).waitFor();
+  const { fiches } = draftInDb(site, onlyCourse(site).id).maps[0];
+  assert.deepEqual(
+    fiches.map((fiche) => [fiche.common, fiche.media.length]),
+    [
+      ['Fiche A', 0],
+      ['Fiche B', 0]
+    ]
+  );
+});
+
+test('une fiche fermée pendant un envoi ne bloque pas le bouton Enregistrer de la suivante', async (t) => {
+  const { page } = await setup(t);
+  await createCourse(page);
+  await addFiche(page, 'Fiche A');
+  await addFiche(page, 'Fiche B');
+  const finishUpload = await closeDuringUpload(page, 'Fiche A');
+  await finishUpload();
+
+  await page.locator('.row', { hasText: 'Fiche B' }).locator('h3').click();
+  assert.equal(await page.locator('#eSave').isEnabled(), true);
+  assert.equal(await page.locator('#uploadStatus').textContent(), '');
 });
 
 /* --- COU-02 : publication --- */
@@ -1049,7 +1111,7 @@ test('l’onglet Réglages enregistre le thème dans le cours', async (t) => {
   assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--accent') !== ''), true);
 });
 
-test('EV-33 : un cours n’a pas d’identification par IA, même importé d’un projet qui en avait une', async (t) => {
+test('EV-33 : un projet qui portait une adresse d’identification par IA s’importe et s’ouvre, sans rien en garder', async (t) => {
   const { site, page } = await setup(t);
   await importFile(page, 'projet.json', JSON.stringify(projectFile({ aiEndpoint: 'https://ia.example.org/identifier' })));
   await page.locator('.course-row', { hasText: 'Projet importé' }).waitFor();
@@ -1061,13 +1123,7 @@ test('EV-33 : un cours n’a pas d’identification par IA, même importé d’u
   await page.goto(`/prof/cours/${course.id}`);
   await tab(page, 'Réglages');
   await page.getByRole('heading', { name: 'Apparence' }).waitFor();
-  assert.equal(await page.locator('#aiUrl').count(), 0);
   assert.doesNotMatch(await page.locator('#panel').textContent(), /IA\b/);
-
-  await tab(page, 'Fiches');
-  await page.locator('#newFiche').click();
-  await page.locator('#eCommon').waitFor();
-  assert.equal(await page.locator('#aiBtn').isVisible(), false);
 });
 
 for (const [what, plan, screen] of [

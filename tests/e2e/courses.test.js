@@ -153,18 +153,39 @@ test('ENS-02 : modifier une fiche, retirer sa photo et la supprimer s’enregist
   assert.deepEqual(draftInDb(site, id).maps[0].fiches, []);
 });
 
+/** Retient l'écriture regroupée, pour lire l'écran sans courir contre elle : sur une machine chargée, un clic peut durer plus longtemps que ce délai. */
+const holdWrites = (page) =>
+  page.evaluate(() => {
+    const { setTimeout: later } = window;
+    window.heldWrite = null;
+    window.releaseWrite = () => {
+      window.setTimeout = later;
+      window.heldWrite();
+    };
+    window.setTimeout = (run, delay, ...rest) => {
+      if (delay !== 250) return later(run, delay, ...rest);
+      window.heldWrite = run;
+      return 0;
+    };
+  });
+
 test('l’écran n’affiche jamais « Enregistré » tant qu’une modification n’est pas partie', async (t) => {
   const { page } = await setup(t);
   await createCourse(page);
   await addFiche(page, 'Olivier');
   await saved(page);
 
+  await holdWrites(page);
   await page.locator('[data-vis]').uncheck();
   assert.equal(await page.locator('#saveState').textContent(), 'Enregistrement…', 'dès le clic, avant l’envoi');
+  await page.evaluate(() => window.releaseWrite());
   await saved(page);
+
+  await holdWrites(page);
   await page.locator('[data-vis]').check();
   await page.locator('[data-vis]').uncheck();
   assert.equal(await page.locator('#saveState').textContent(), 'Enregistrement…');
+  await page.evaluate(() => window.releaseWrite());
   await saved(page);
 });
 

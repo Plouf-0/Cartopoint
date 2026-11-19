@@ -1,5 +1,5 @@
 /**
- * Cours, publication et fichiers, au niveau de l'API (cahier des charges, sections 12.1 et 12.2). Les écrans sont
+ * Cours, publication et fichiers, au niveau de l'API (cahier des charges, sections 5.1, 5.2 et 6.1). Les écrans sont
  * vérifiés dans tests/e2e/courses.test.js.
  */
 import { test } from 'node:test';
@@ -451,7 +451,7 @@ test('ADM-04 : l’admin voit des chiffres sur chaque enseignant, et ADM-07 : ri
 
 /* --- Fichiers : LEG-02, SEC --- */
 
-test('le type d’un fichier se lit dans son contenu : ni son nom ni l’en-tête annoncé n’y changent rien', async () => {
+test('SRV-15 : le type d’un fichier se lit dans son contenu : ni son nom ni l’en-tête annoncé n’y changent rien', async () => {
   assert.equal(sniffType(JPEG), 'jpg');
   assert.equal(sniffType(PNG), 'png');
   assert.equal(sniffType(WEBP), 'webp');
@@ -493,7 +493,7 @@ test('un fichier envoyé est servi sans compte, avec son type, en cache pour lon
   }
 });
 
-test('un fichier piégé est refusé, quel que soit le type annoncé', async (t) => {
+test('SRV-15 : un fichier piégé est refusé, quel que soit le type annoncé', async (t) => {
   const { base, db, mediaDir } = await site(t);
   const browser = await loggedIn(base);
   const r = await upload(base, browser, Buffer.from('<svg onload="alert(1)"/>'), { 'Content-Type': 'image/jpeg' });
@@ -555,7 +555,7 @@ test('POST /api/media et les routes de lecture refusent les mauvaises méthodes'
 
 /* --- Vidéos : plages d'octets, sans lesquelles Safari ne lit rien --- */
 
-test('une vidéo se lit par plages d’octets', async (t) => {
+test('SRV-17 : une vidéo se lit par plages d’octets', async (t) => {
   const { base } = await site(t);
   const browser = await loggedIn(base);
   const body = Buffer.concat([MP4, Buffer.from('0123456789')]);
@@ -614,7 +614,7 @@ test('une page ou un texte compressé n’annonce pas de plages', async (t) => {
 
 /* --- Nettoyage des fichiers --- */
 
-test('un fichier qui ne sert plus est effacé après un jour, pas avant', async (t) => {
+test('SRV-16 : un fichier qui ne sert plus est effacé après un jour, pas avant', async (t) => {
   const { app, base, db, mediaDir } = await site(t);
   const browser = await loggedIn(base);
   const { url } = await uploaded(base, browser, JPEG);
@@ -670,7 +670,7 @@ test('COU-11 : un fichier cité par le brouillon ou par une version publiée res
   assert.equal(count(db, 'media'), 0);
 });
 
-test('un fichier partagé reste tant qu’un autre compte l’utilise', async (t) => {
+test('SRV-16 : un fichier partagé reste tant qu’un autre compte l’utilise', async (t) => {
   const { app, base, db, ids, mediaDir } = await site(t);
   const owner = await loggedIn(base);
   const other = await loggedIn(base, OTHER);

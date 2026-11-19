@@ -99,7 +99,7 @@ async function placeOnPlan(page, name) {
 
 /* --- ENS-02 : créer et remplir un cours --- */
 
-test('ENS-02, LEG-02 : créer un cours, y ajouter un plan, des fiches et des photos, et tout retrouver après un rechargement', async (t) => {
+test('ENS-02, LEG-02, STO-01 : créer un cours, y ajouter un plan, des fiches et des photos, et tout retrouver après un rechargement', async (t) => {
   const { site, page } = await setup(t);
   await see(page, 'Aucun cours pour le moment.');
   await createCourse(page);
@@ -234,7 +234,7 @@ test('une écriture sans changement n’envoie rien', async (t) => {
   assert.deepEqual(sent, []);
 });
 
-test('annuler une fiche ne laisse rien dans le cours', async (t) => {
+test('EDI-02 : annuler une fiche ne laisse rien dans le cours', async (t) => {
   const { site, page } = await setup(t);
   await createCourse(page);
   await page.locator('#newFiche').click();
@@ -246,7 +246,7 @@ test('annuler une fiche ne laisse rien dans le cours', async (t) => {
   assert.deepEqual(draftInDb(site, onlyCourse(site).id).maps[0].fiches, []);
 });
 
-test('plusieurs cartes : en ajouter, changer de carte et en supprimer', async (t) => {
+test('CAR-02, CAR-04 : plusieurs cartes : en ajouter, changer de carte et en supprimer', async (t) => {
   const { site, page } = await setup(t);
   await createCourse(page);
   await choosePlan(page);
@@ -542,7 +542,7 @@ test('COU-02 : une publication attend que les dernières modifications soient en
 
 /* --- EV-04 : une erreur reste à l'écran, en clair --- */
 
-test('EV-04 : sans réseau, l’erreur reste affichée en clair, rien n’est perdu, et Réessayer enregistre', async (t) => {
+test('EV-04, STO-03 : sans réseau, l’erreur reste affichée en clair, rien n’est perdu, et Réessayer enregistre', async (t) => {
   const { site, page } = await setup(t);
   await createCourse(page);
   await page.route('**/api/courses/*', (route) => (route.request().method() === 'PUT' ? route.abort() : route.continue()));
@@ -1067,10 +1067,16 @@ test('EDI-10 : le tableur de l’espace enseignant n’a plus de colonnes de mes
   await page.locator('.row', { hasText: 'Laurier' }).waitFor();
   assert.match(messages[0], /Colonnes non reconnues \(ignorées\) : Température/);
   await saved(page);
-  assert.doesNotMatch(onlyCourse(site).draft, /temperature/);
+  // Le modèle du cours cite la question « temperature » (MOD-01) : ce sont les fiches qui ne doivent porter aucune mesure
+  const fiches = JSON.parse(onlyCourse(site).draft).maps.flatMap((map) => map.fiches);
+  assert.deepEqual(
+    fiches.filter((fiche) => ['temperature', 'humidity', 'light'].some((key) => key in fiche)),
+    []
+  );
+  assert.equal(fiches.length, 2, 'Olivier, puis Laurier');
 });
 
-test('TAB : un vrai fichier .xlsx s’importe dans un cours', async (t) => {
+test('TAB-01 : un vrai fichier .xlsx s’importe dans un cours', async (t) => {
   const { site, page } = await setup(t);
   await createCourse(page);
   const messages = answerDialogs(page, true);
@@ -1098,7 +1104,7 @@ test('TAB : un vrai fichier .xlsx s’importe dans un cours', async (t) => {
   assert.equal(fiches[1].exposure, '☀️☀️☀️ Plein soleil', 'les émojis sont gardés');
 });
 
-test('l’onglet Réglages enregistre le thème dans le cours', async (t) => {
+test('APP-03 : l’onglet Réglages enregistre le thème dans le cours', async (t) => {
   const { site, page } = await setup(t);
   await createCourse(page);
   await tab(page, 'Réglages');
@@ -1178,7 +1184,7 @@ test('EV-34 : l’espace enseignant s’appelle Cartopoint, garde le vert par d�
   assert.equal((await download).suggestedFilename(), 'Modèle de fiches.csv');
 });
 
-test('cliquer sur un repère du plan ouvre sa fiche pour la modifier', async (t) => {
+test('POS-03 : cliquer sur un repère du plan ouvre sa fiche pour la modifier', async (t) => {
   const { page } = await setup(t);
   await createCourse(page);
   await choosePlan(page);
@@ -1189,7 +1195,7 @@ test('cliquer sur un repère du plan ouvre sa fiche pour la modifier', async (t)
   assert.equal(await page.locator('#eCommon').inputValue(), 'Olivier');
 });
 
-test('la visionneuse montre les photos du serveur, et passe de l’une à l’autre', async (t) => {
+test('CON-04 : la visionneuse montre les photos du serveur, et passe de l’une à l’autre', async (t) => {
   const { page } = await setup(t);
   await createCourse(page);
   await page.locator('#newFiche').click();

@@ -7,35 +7,39 @@
  * Vue d'ensemble (détails dans docs/ARCHITECTURE.md) :
  *
  *   Projet ──┬─ métadonnées (titre, thème, mot de passe…)
+ *            ├─ modèle de fiche : ses champs  ← fields.js
  *            └─ cartes[] ── fiches[]          ← contenu préparé par l'enseignant
  *
  *   Progression (par projet et par carte)     ← travail des élèves, stocké à part
- *     { verified, entries: { [ficheId]: { x, y, temperature, humidity, light } } }
+ *     { verified, entries: { [ficheId]: { x, y, at, [question]: réponse } } }
+ *
+ * Une fiche range la valeur de chaque champ sous l'identifiant du champ. Un contenu sans modèle (format 3 et avant) se lit avec le
+ * modèle botanique, dont les identifiants sont les clés de toujours : rien n'est à convertir (MOD-02).
  */
 import { uid, str, num, natural } from './util.js';
+import { ficheFields, isHeading, normalizeTemplate, normalizeValue, questionFields, searchFields, subtitleField, titleField } from './fields.js';
+import { BOTANIQUE } from './templates/botanique.js';
 
 /** Identifiant technique : tous les fichiers déjà enregistrés le portent, il ne change pas avec le nom du site. */
 export const FORMAT = 'inventaire-botanique';
-export const VERSION = 3;
+export const VERSION = 4;
 export const DEFAULT_TITLE = 'Cartopoint';
 /** Mot de passe de gestion tant que l'enseignant n'en a pas choisi un. */
 export const DEFAULT_PASSWORD = 'admin';
 
-/** Besoins : clé, icône, libellé. */
-export const NEEDS = [
-  ['exposure', '☀️', 'Exposition'],
-  ['watering', '💧', 'Arrosage'],
-  ['soil', '🌱', 'Sol'],
-  ['heat', '🌡️', 'Chaleur'],
-  ['care', '✂️', 'Entretien']
-];
+/** Le modèle d'un contenu qui n'en a pas : une copie, que l'éditeur pourra modifier sans toucher à l'original figé. */
+export const defaultTemplate = () => structuredClone(BOTANIQUE);
 
-/** Mesures relevées par les élèves : clé, icône, unité, libellé, clavier mobile. */
-export const MEASURES = [
-  ['temperature', '🌡', '°C', 'Température', 'decimal'],
-  ['humidity', '💧', '%', 'Hygrométrie', 'decimal'],
-  ['light', '☀️', 'lux', 'Éclairement', 'numeric']
-];
+/**
+ * Besoins : clé, icône, libellé ; les champs du groupe « Besoins » du modèle botanique. Les vues qui ne lisent pas encore le
+ * modèle du cours s'en servent, jusqu'à l'étape 2 de la version 2.0.0.
+ */
+const needsStart = BOTANIQUE.fields.findIndex((field) => field.id === 'h-needs') + 1;
+const needsEnd = BOTANIQUE.fields.findIndex((field, i) => i >= needsStart && isHeading(field));
+export const NEEDS = BOTANIQUE.fields.slice(needsStart, needsEnd).map((field) => [field.id, field.icon, field.label]);
+
+/** Mesures relevées par les élèves : clé, icône, unité, libellé, clavier mobile ; les questions du modèle botanique. */
+export const MEASURES = questionFields(BOTANIQUE).map((field) => [field.id, field.icon, field.unit, field.label, field.keyboard]);
 
 /** Seuils d'évaluation, en % de la largeur du plan. */
 export const THRESHOLDS = { ok: 4, near: 10 };
@@ -55,22 +59,15 @@ export function normalizeMedia(m) {
   };
 }
 
-/** Une fiche (contenu enseignant uniquement : pas de placement élève ici). */
-export function normalizeFiche(raw = {}) {
+/**
+ * Une fiche (contenu enseignant uniquement : pas de placement élève ici). Elle garde la valeur de chaque champ que
+ * l'enseignant remplit, sous l'identifiant du champ ; ce que le modèle ne connaît pas disparaît.
+ */
+export function normalizeFiche(raw = {}, template = BOTANIQUE) {
   return {
     id: raw.id || uid(),
     ref: str(raw.ref ?? raw.code).trim(), // réf. photo / étiquette terrain (ex. « 12b »)
-    common: str(raw.common),
-    species: str(raw.species),
-    family: str(raw.family),
-    date: str(raw.date),
-    exposure: str(raw.exposure),
-    watering: str(raw.watering),
-    soil: str(raw.soil),
-    heat: str(raw.heat),
-    care: str(raw.care),
-    description: str(raw.description),
-    notes: str(raw.notes),
+    ...Object.fromEntries(ficheFields(template).map((field) => [field.id, normalizeValue(field, raw[field.id])])),
     visible: raw.visible ?? raw.studentEnabled !== false,
     refX: num(raw.refX), // position réelle, en % de l'image
     refY: num(raw.refY),
@@ -81,14 +78,14 @@ export function normalizeFiche(raw = {}) {
   };
 }
 
-export function normalizeMap(raw = {}, fallbackImage = '') {
+export function normalizeMap(raw = {}, fallbackImage = '', template = BOTANIQUE) {
   return {
     id: raw.id || 'map-' + uid(),
     name: str(raw.name) || 'Plan',
     image: raw.image || fallbackImage, // URL data: de l'image du plan
     widthMeters: num(raw.widthMeters), // largeur réelle du terrain (facultatif)
     ratio: num(raw.ratio), // largeur / hauteur du plan, mesurée à la publication : le serveur calcule les écarts sans voir l'image
-    fiches: (Array.isArray(raw.fiches) ? raw.fiches : Array.isArray(raw.locations) ? raw.locations : []).map(normalizeFiche)
+    fiches: (Array.isArray(raw.fiches) ? raw.fiches : Array.isArray(raw.locations) ? raw.locations : []).map((fiche) => normalizeFiche(fiche, template))
   };
 }
 
@@ -96,15 +93,17 @@ export function emptyProgress() {
   return { verified: false, entries: {} };
 }
 
-export function normalizeProgress(raw) {
+/** La progression d'une carte : un placement, son heure, et la réponse à chaque question du modèle, sous son identifiant. */
+export function normalizeProgress(raw, template = BOTANIQUE) {
   const p = emptyProgress();
   if (!raw) return p;
   p.verified = !!raw.verified;
+  const questions = questionFields(template);
   for (const [id, e] of Object.entries(raw.entries || {})) {
     const entry = { x: num(e.x), y: num(e.y) };
     if (entry.x === null || entry.y === null) entry.x = entry.y = null;
     if (Number.isFinite(e.at)) entry.at = e.at;
-    for (const [k] of MEASURES) entry[k] = str(e[k]);
+    for (const field of questions) entry[field.id] = normalizeValue(field, e[field.id]);
     p.entries[id] = entry;
   }
   return p;
@@ -137,19 +136,21 @@ export function normalizeTheme(raw) {
 
 /**
  * Projet complet, quel que soit le format d'origine :
- *  - version 3 (actuelle) ;
+ *  - version 4 (actuelle) : le cours porte son modèle de fiche ;
+ *  - version 3 : sans modèle, il se lit avec le modèle botanique (MOD-02) ;
  *  - version 2 (fichiers « Inventaire botanique N.html » de 2026) : la progression des
  *    élèves était dans les fiches et le projet n'avait pas d'identifiant stable.
  */
 export function normalizeProject(raw, fallbackImage = '') {
   if (!raw || raw.format !== FORMAT || !Array.isArray(raw.maps)) throw new Error('fichier de projet non reconnu');
   const legacy = (raw.version || 1) < 3;
-  const maps = raw.maps.map((m) => normalizeMap(m, fallbackImage));
-  if (!maps.length) maps.push(normalizeMap({}, fallbackImage));
+  const template = raw.template === undefined ? defaultTemplate() : normalizeTemplate(raw.template);
+  const maps = raw.maps.map((m) => normalizeMap(m, fallbackImage, template));
+  if (!maps.length) maps.push(normalizeMap({}, fallbackImage, template));
 
   let progress = {};
   if (legacy) for (const m of raw.maps) progress[m.id] = legacyProgressOf(m);
-  else for (const [mapId, p] of Object.entries(raw.progress || {})) progress[mapId] = normalizeProgress(p);
+  else for (const [mapId, p] of Object.entries(raw.progress || {})) progress[mapId] = normalizeProgress(p, template);
 
   return {
     format: FORMAT,
@@ -160,6 +161,7 @@ export function normalizeProject(raw, fallbackImage = '') {
     savedAt: raw.savedAt || raw.createdAt || new Date().toISOString(),
     title: str(raw.title) || DEFAULT_TITLE,
     theme: normalizeTheme(raw.theme),
+    template,
     passwordHash: raw.passwordHash || null,
     currentMapId: maps.some((m) => m.id === raw.currentMapId) ? raw.currentMapId : maps[0].id,
     maps,
@@ -171,8 +173,8 @@ export function normalizeProject(raw, fallbackImage = '') {
  * Contenu d'un cours sur le serveur : ni progression, ni carte affichée, ni mot de passe de gestion. Changer de carte à l'écran ne compte donc pas comme une modification du cours.
  */
 export function draftOf(project) {
-  const { format, version, title, theme, maps } = project;
-  return { format, version, title, theme, maps };
+  const { format, version, title, theme, template, maps } = project;
+  return { format, version, title, theme, template, maps };
 }
 
 /**
@@ -199,7 +201,8 @@ export function newProject(title = DEFAULT_TITLE, image = '') {
 /* Calculs                                                              */
 /* ------------------------------------------------------------------ */
 
-export const titleOf = (f) => f.common || f.species || f.name || 'Fiche sans nom';
+/** Le champ titre, sinon le sous-titre, sinon l'ancien nom d'emplacement (format 2). */
+export const titleOf = (f, template = BOTANIQUE) => f[titleField(template)?.id] || f[subtitleField(template)?.id] || f.name || 'Fiche sans nom';
 export const hasRef = (f) => f.refX !== null && f.refY !== null;
 export const thumbOf = (f) => f.media.find((m) => m.id === f.thumbnailId && m.type === 'image') || f.media.find((m) => m.type === 'image');
 export const visibleFiches = (map) => map.fiches.filter((f) => f.visible);
@@ -280,8 +283,8 @@ export function sortByRef(fiches) {
     .map((x) => x.f);
 }
 
-/** Recherche plein texte simple dans une fiche. */
-export function matches(fiche, query) {
+/** Recherche plein texte simple dans une fiche : sa réf. photo et les champs du modèle qui servent à la recherche. */
+export function matches(fiche, query, template = BOTANIQUE) {
   const q = query.trim().toLowerCase();
-  return !q || [fiche.ref, fiche.common, fiche.species, fiche.family].join(' ').toLowerCase().includes(q);
+  return !q || [fiche.ref, ...searchFields(template).map((field) => fiche[field.id])].join(' ').toLowerCase().includes(q);
 }

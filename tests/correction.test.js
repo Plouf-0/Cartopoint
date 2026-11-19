@@ -178,7 +178,7 @@ test('CRG-14 : un second nom ne lit les réponses qu’après le délai, et le r
   assert.equal(seen.answersAfterEnd, 0);
   assert.equal(seen.finishedAfterEnd, false);
   assert.equal(seen.afterCorrection, true, 'le signalement ne se laisse pas tromper');
-  assert.equal(seen.score.ok, 1, 'Q-19 : le rendu compte quand même');
+  assert.equal(seen.score.ok, 1, 'Q-22 : le rendu compte quand même');
   const sheets = await launchRow(browser, launch, '/sheets');
   assert.equal(sheets.find((p) => p.names === 'Principal').afterCorrection, true, 'dans les comptes rendus et l’Excel aussi');
 });
@@ -292,7 +292,7 @@ test('CRG-13 : une heure dans le futur, ou qui n’en est pas une, ne fausse rie
   assert.ok(Date.parse(row(db, me.id).finished_at) <= Date.now());
 });
 
-test('CRG-13 : l’enseignant voit combien de réponses ont été faites après la fin, et elles comptent dans le score (Q-19)', async (t) => {
+test('CRG-13 : l’enseignant voit combien de réponses ont été faites après la fin, et elles comptent dans le score (Q-22)', async (t) => {
   const { base, db, browser } = await site(t);
   const launch = await launched(browser);
   const me = await join(base, launch.code);
@@ -311,7 +311,7 @@ test('CRG-13 : l’enseignant voit combien de réponses ont été faites après 
   const seen = await seenBy(browser, launch);
   assert.equal(seen.answersAfterEnd, 2);
   assert.equal(seen.autoClosed, true);
-  assert.equal(body(await correction(base, me.token)).score.ok, 2, 'Q-19 : elles comptent');
+  assert.equal(body(await correction(base, me.token)).score.ok, 2, 'Q-22 : elles comptent');
 });
 
 test('CRG-13 : un rendu fini avant la fin et reçu après n’est pas compté comme fini après', async (t) => {

@@ -59,7 +59,7 @@ async function dirs(t) {
   return { root, data: path.join(await tempDir(t), 'donnees') };
 }
 
-test('au démarrage : dossier de données, base et copie du jour sont créés', async (t) => {
+test('DEP-05 : au démarrage : dossier de données, base et copie du jour sont créés', async (t) => {
   const { root, data } = await dirs(t);
   const { output, port } = await launch(t, { args: ['--root', root, '--data', data, '--port', '0'] });
   assert.ok(port > 0, output.stdout);
@@ -88,7 +88,7 @@ test('le port demandé est celui qui sert et qui est annoncé, y compris s’il 
 });
 
 for (const signal of ['SIGTERM', 'SIGINT']) {
-  test(`${signal} ferme la base proprement et termine sans erreur`, async (t) => {
+  test(`SRV-14 : ${signal} ferme la base proprement et termine sans erreur`, async (t) => {
     const { root, data } = await dirs(t);
     const { child, exited } = await launch(t, { args: ['--root', root, '--data', data, '--port', '0'] });
     child.kill(signal);
@@ -110,7 +110,7 @@ test('un redémarrage le même jour réutilise la base, sans refaire de copie', 
   assert.deepEqual(await readdir(path.join(data, 'backups')), [`app-${today()}.db`]);
 });
 
-test('les variables d’environnement priment sur les options', async (t) => {
+test('SRV-03 : les variables d’environnement priment sur les options', async (t) => {
   const { root, data } = await dirs(t);
   const other = await dirs(t);
   const { port } = await launch(t, {

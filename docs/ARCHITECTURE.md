@@ -46,19 +46,23 @@ Au premier lancement, si la base est vide, `db.readLegacyProject()` relit les do
 par les versions de 2026 (bases `botMapMapsV37` et `BotanicalMapDB`, clés `botMap…`) : rien
 n'est perdu en passant à cette version. Les anciennes bases ne sont pas supprimées.
 
-## Format d'un projet (version 3)
+## Format d'un projet (version 4)
 
 C'est le contenu d'un cours exporté en `.json`, et du bloc `<script id="embedded-project">` d'un fichier de secours.
 
 ```jsonc
 {
   "format": "inventaire-botanique",
-  "version": 3,
+  "version": 4,
   "id": "proj-…",            // stable : relie un projet à la progression des élèves
   "revision": "…",           // change à chaque enregistrement
   "savedAt": "2026-10-12T15:04:59.952Z",
   "title": "Sortie au parc",
   "theme": { "preset": "vegetal", "accent": "", "icon": "leaf" },
+  "template": {               // le modèle de fiche : voir « Modèle de fiche » ci-dessous
+    "name": "Inventaire botanique",
+    "fields": [{ "id": "common", "type": "text", "label": "Nom commun", "audience": "info", "role": "title", "search": true }, …]
+  },
   "passwordHash": "sha256:…",  // null = mot de passe « admin »
   "currentMapId": "map-…",
   "maps": [
@@ -101,6 +105,24 @@ C'est le contenu d'un cours exporté en `.json`, et du bloc `<script id="embedde
 - `normalizeProject()` accepte aussi le format 2 (`locations`, `code`, `studentEnabled`, placements
   dans les fiches) et le convertit.
 
+## Modèle de fiche
+
+`src/js/fields.js` décrit le modèle d'un cours : la liste ordonnée de ses champs, chacun avec un identifiant, un type
+(`text`, `longtext`, `number`, `date`, `choice`, `yesno`, `scale`, `heading`) et un public (`info` lu par l'élève,
+`question` à laquelle il répond, `correction` révélé à la fin du cours, `teacher` pour l'enseignant seul).
+`templateProblems()` dit ce qui ne va pas dans un modèle, `normalizeTemplate()` refuse un modèle qui ne va pas.
+
+- **Où vont les valeurs.** Une fiche range la valeur de chaque champ que remplit l'enseignant sous l'identifiant du champ ;
+  une entrée de progression, la réponse à chaque question, de la même façon. Les noms des propriétés d'une fiche et d'une
+  réponse (`RESERVED`) sont interdits comme identifiants, et un nouveau champ reçoit un identifiant préfixé (`c-…`).
+- **Le format 3 est un format 4.** Ses fiches et ses réponses ont exactement cette forme, avec les champs du modèle botanique
+  (`src/js/templates/botanique.js`). Un contenu sans `template` reçoit donc ce modèle à la lecture, et rien n'est converti :
+  ni la base, ni les versions publiées, ni les cours gardés sur les téléphones, ni les fichiers de réponses.
+- **Le modèle botanique est figé** (`tests/model.test.js`) : tout ce qui a été publié sans modèle se relit avec lui.
+  `defaultTemplate()` en donne une copie, que le cours peut modifier.
+- **Seul ce que connaît le modèle reste.** Un champ inconnu disparaît de la fiche, une propriété inconnue rend le modèle
+  invalide : rien d'imprévu ne part chez un élève.
+
 ## Fichier de secours : le choix du projet au démarrage
 
 L'application d'origine, avec son backend `local`, est devenue la page du fichier de secours (`src/secours.html`, `js/main.js`). Elle ne connaît aucun serveur.
@@ -129,11 +151,9 @@ sont fixes, pour garder le même sens d'un thème à l'autre.
 
 ## Ajouter un champ à une fiche
 
-1. `model.normalizeFiche()` : ajouter la propriété (avec valeur par défaut) ;
-2. `prof-cours.html` et `secours.html` : le champ dans le formulaire d'édition, et `views/editor.js` : `FIELDS` ;
-3. `views/reader.js` : l'affichage côté élèves (ou l'ajouter à `NEEDS` dans `model.js` pour
-   qu'il apparaisse avec les besoins) ;
-4. `spreadsheet.js` : une entrée dans `COLUMNS` pour l'import / export.
+Un champ s'ajoute au modèle d'un cours, jamais au modèle botanique, figé (voir « Modèle de fiche »). Pendant la version 2.0.0,
+les vues lisent encore les champs botaniques (`NEEDS`, `MEASURES`, déduits du modèle botanique dans `model.js`, et `FIELDS`
+dans `views/editor.js`), puis le modèle du cours.
 
 ## Serveur
 

@@ -12,7 +12,11 @@ const BOTANICAL = /botani|inventaire|la plante|espèce/i;
 const KEPT = {
   'js/db.js': /./,
   'js/ai.js': /./,
-  'js/model.js': /FORMAT = |fichiers « Inventaire/,
+  // Le nom du modèle des cours d'avant la version 2.0.0, dans le code et ses commentaires, jamais à l'écran
+  'js/model.js': /FORMAT = |fichiers « Inventaire|modèle botanique|BOTANIQUE/,
+  'js/fields.js': /modèle botanique/,
+  // Le modèle des cours enregistrés avant la version 2.0.0 : ce sont leurs fiches, botaniques par nature (MOD-02)
+  'js/templates/botanique.js': /./,
   'js/spreadsheet.js': /famille botanique/
 };
 

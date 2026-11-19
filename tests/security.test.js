@@ -144,7 +144,7 @@ test('retirer un échec ne fait jamais descendre le compte sous zéro', () => {
   assert.equal(limit.blocked('a'), true);
 });
 
-test('seul le proxy peut dire que la requête est en HTTPS', () => {
+test('DEP-07 : seul le proxy peut dire que la requête est en HTTPS', () => {
   const request = (proto) => ({ headers: proto ? { 'x-forwarded-proto': proto } : {} });
   assert.equal(isHttps(request('https'), true), true);
   assert.equal(isHttps(request('http, https'), true), true);

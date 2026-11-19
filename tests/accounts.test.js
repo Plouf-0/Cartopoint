@@ -1,6 +1,6 @@
 /**
  * Comptes, sessions, liens et rôles, au niveau de l'API. Les titres citent les exigences du cahier
- * des charges (section 12.1). Les écrans sont vérifiés dans tests/e2e/.
+ * des charges (sections 5.1 et 6.1). Les écrans sont vérifiés dans tests/e2e/.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

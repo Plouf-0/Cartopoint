@@ -590,7 +590,34 @@ const MUTANTS = [
   ['cours : pas d’avertissement en quittant', 'src/js/prof/course.js', 'if (hasPendingChanges()) event.preventDefault();', ''],
   ['cours : plan absent non signalé', 'src/js/prof/course.js', "$('#planEmpty').hidden = !!S.map.image;", "$('#planEmpty').hidden = true;"],
   ['cours : pas de renvoi vers la connexion', 'src/js/prof/course.js', "if (e.status === 401) return location.replace('/prof');", ''],
-  ['cours : contenu hors de son format', 'src/js/model.js', 'return { format, version, title, theme, maps };', 'return project;'],
+  ['cours : contenu hors de son format', 'src/js/model.js', 'return { format, version, title, theme, template, maps };', 'return project;'],
+  [
+    'MOD-01 : le modèle ne part pas avec le cours',
+    'src/js/model.js',
+    'return { format, version, title, theme, template, maps };',
+    'return { format, version, title, theme, maps };'
+  ],
+  [
+    'MOD-02 : un contenu sans modèle perd ses champs',
+    'src/js/model.js',
+    'raw.template === undefined ? defaultTemplate() : normalizeTemplate(raw.template)',
+    'raw.template === undefined ? { fields: [] } : normalizeTemplate(raw.template)'
+  ],
+  [
+    'MOD-02 : le modèle botanique se modifie en place',
+    'src/js/model.js',
+    'export const defaultTemplate = () => structuredClone(BOTANIQUE);',
+    'export const defaultTemplate = () => BOTANIQUE;'
+  ],
+  [
+    'MOD-01 : un champ inconnu reste dans la fiche',
+    'src/js/model.js',
+    '...Object.fromEntries(ficheFields(template)',
+    '...raw,\n    ...Object.fromEntries(ficheFields(template)'
+  ],
+  ['CHP-01 : un champ peut écraser une propriété de la fiche', 'src/js/fields.js', ' || RESERVED.has(field.id)', ''],
+  ['CHP-01 : une propriété inconnue passe', 'src/js/fields.js', 'if (!KEPT[field.type].includes(key))', 'if (false)'],
+  ['CHP-01 : un modèle invalide se lit quand même', 'src/js/fields.js', 'if (problems.length) throw new Error', 'if (false) throw new Error'],
   [
     'publication : pas d’avertissement',
     'src/js/prof/course-tab.js',
@@ -1865,6 +1892,7 @@ const TESTS_FOR = {
   'server/index.mjs': ['server-start'],
   'server/app.mjs': ['server-start', 'courses', 'incidents', 'history', 'correction'],
   'src/js/model.js': ['model', 'e2e/courses', 'e2e/legacy', 'e2e/correction', 'history', 'results-workbook'],
+  'src/js/fields.js': ['fields', 'model'],
   'src/js/themes.js': ['model', 'e2e/courses'],
   'src/js/views/reader.js': ['wording', 'e2e/offline', 'e2e/launches'],
   'src/prof-cours.html': ['wording', 'e2e/courses'],

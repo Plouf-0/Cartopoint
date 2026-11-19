@@ -1,0 +1,383 @@
+{
+ "project": {
+  "id": "proj-essai",
+  "revision": "rev-7",
+  "savedAt": "2026-10-12T15:04:59.952Z",
+  "format": "inventaire-botanique",
+  "version": 3,
+  "title": "Sortie au parc",
+  "theme": {
+   "preset": "ocean",
+   "accent": "",
+   "icon": "leaf"
+  },
+  "passwordHash": null,
+  "currentMapId": "map-b",
+  "maps": [
+   {
+    "id": "map-a",
+    "name": "Jardin",
+    "image": "/media/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef.jpg",
+    "widthMeters": 180,
+    "ratio": 1.25,
+    "fiches": [
+     {
+      "id": "f1",
+      "ref": "12b",
+      "common": "Tamaris",
+      "species": "Tamarix gallica",
+      "family": "Tamaricaceae",
+      "date": "2026-09-28",
+      "exposure": "☀️☀️☀️ Plein soleil",
+      "watering": "💧💧 Modéré",
+      "soil": "Sableux",
+      "heat": "Très bonne tolérance",
+      "care": "Taille après floraison",
+      "description": "Arbuste des bords de mer.",
+      "notes": "Près du portail",
+      "visible": true,
+      "refX": 8.204,
+      "refY": 39.858,
+      "thumbnailId": "m1",
+      "media": [
+       {
+        "id": "m1",
+        "type": "image",
+        "name": "tamaris.jpg",
+        "data": "/media/aaaa.jpg"
+       }
+      ]
+     },
+     {
+      "id": "f2",
+      "ref": "3",
+      "common": "",
+      "species": "Olea europaea",
+      "family": "Oleaceae",
+      "date": "",
+      "exposure": "",
+      "watering": "",
+      "soil": "",
+      "heat": "",
+      "care": "",
+      "description": "",
+      "notes": "",
+      "visible": false,
+      "refX": 50,
+      "refY": 50,
+      "thumbnailId": null,
+      "media": []
+     },
+     {
+      "id": "f3",
+      "ref": "5a",
+      "common": "Chêne vert",
+      "species": "",
+      "family": "",
+      "date": "",
+      "exposure": "12",
+      "watering": "",
+      "soil": "",
+      "heat": "",
+      "care": "",
+      "description": "",
+      "notes": "",
+      "visible": true,
+      "refX": 20,
+      "refY": null,
+      "thumbnailId": null,
+      "media": []
+     },
+     {
+      "id": "f4",
+      "ref": "",
+      "common": "",
+      "species": "",
+      "family": "",
+      "date": "",
+      "exposure": "",
+      "watering": "",
+      "soil": "",
+      "heat": "",
+      "care": "",
+      "description": "",
+      "notes": "",
+      "visible": true,
+      "refX": null,
+      "refY": null,
+      "thumbnailId": null,
+      "media": [],
+      "name": "Ancien emplacement"
+     }
+    ]
+   },
+   {
+    "id": "map-b",
+    "name": "Bord de mer",
+    "image": "",
+    "widthMeters": null,
+    "ratio": null,
+    "fiches": [
+     {
+      "id": "f5",
+      "ref": "1",
+      "common": "Euphorbe",
+      "species": "Euphorbia characias",
+      "family": "",
+      "date": "",
+      "exposure": "",
+      "watering": "",
+      "soil": "",
+      "heat": "",
+      "care": "",
+      "description": "",
+      "notes": "",
+      "visible": true,
+      "refX": 70,
+      "refY": 10,
+      "thumbnailId": null,
+      "media": []
+     }
+    ]
+   }
+  ],
+  "progress": {
+   "map-a": {
+    "verified": true,
+    "entries": {
+     "f1": {
+      "x": 10,
+      "y": 41,
+      "at": 1762300000000,
+      "temperature": "21",
+      "humidity": "",
+      "light": "nuageux"
+     },
+     "f3": {
+      "x": null,
+      "y": null,
+      "temperature": "19",
+      "humidity": "",
+      "light": ""
+     }
+    }
+   }
+  }
+ },
+ "views": [
+  [
+   {
+    "id": "f1",
+    "title": "Tamaris",
+    "number": "1",
+    "found": [
+     "",
+     "tama",
+     "12B"
+    ],
+    "ev": {
+     "state": "ok",
+     "label": "Bien placée",
+     "cls": "ok",
+     "d": 2.015013885808235,
+     "dist": "3,6 m"
+    }
+   },
+   {
+    "id": "f2",
+    "title": "Olea europaea",
+    "number": "–",
+    "found": [
+     "",
+     "OLEA",
+     "oleaceae"
+    ],
+    "ev": {
+     "state": "unplaced",
+     "label": "Non placée",
+     "cls": "none"
+    }
+   },
+   {
+    "id": "f3",
+    "title": "Chêne vert",
+    "number": "2",
+    "found": [
+     "",
+     "chêne"
+    ],
+    "ev": {
+     "state": "noref",
+     "label": "Pas de position réelle",
+     "cls": "none"
+    }
+   },
+   {
+    "id": "f4",
+    "title": "Ancien emplacement",
+    "number": "3",
+    "found": [
+     ""
+    ],
+    "ev": {
+     "state": "noref",
+     "label": "Pas de position réelle",
+     "cls": "none"
+    }
+   }
+  ],
+  [
+   {
+    "id": "f5",
+    "title": "Euphorbe",
+    "number": "1",
+    "found": [
+     ""
+    ],
+    "ev": {
+     "state": "unplaced",
+     "label": "Non placée",
+     "cls": "none"
+    }
+   }
+  ]
+ ],
+ "draft": {
+  "format": "inventaire-botanique",
+  "version": 3,
+  "title": "Sortie au parc",
+  "theme": {
+   "preset": "ocean",
+   "accent": "",
+   "icon": "leaf"
+  },
+  "maps": [
+   {
+    "id": "map-a",
+    "name": "Jardin",
+    "image": "/media/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef.jpg",
+    "widthMeters": 180,
+    "ratio": 1.25,
+    "fiches": [
+     {
+      "id": "f1",
+      "ref": "12b",
+      "common": "Tamaris",
+      "species": "Tamarix gallica",
+      "family": "Tamaricaceae",
+      "date": "2026-09-28",
+      "exposure": "☀️☀️☀️ Plein soleil",
+      "watering": "💧💧 Modéré",
+      "soil": "Sableux",
+      "heat": "Très bonne tolérance",
+      "care": "Taille après floraison",
+      "description": "Arbuste des bords de mer.",
+      "notes": "Près du portail",
+      "visible": true,
+      "refX": 8.204,
+      "refY": 39.858,
+      "thumbnailId": "m1",
+      "media": [
+       {
+        "id": "m1",
+        "type": "image",
+        "name": "tamaris.jpg",
+        "data": "/media/aaaa.jpg"
+       }
+      ]
+     },
+     {
+      "id": "f2",
+      "ref": "3",
+      "common": "",
+      "species": "Olea europaea",
+      "family": "Oleaceae",
+      "date": "",
+      "exposure": "",
+      "watering": "",
+      "soil": "",
+      "heat": "",
+      "care": "",
+      "description": "",
+      "notes": "",
+      "visible": false,
+      "refX": 50,
+      "refY": 50,
+      "thumbnailId": null,
+      "media": []
+     },
+     {
+      "id": "f3",
+      "ref": "5a",
+      "common": "Chêne vert",
+      "species": "",
+      "family": "",
+      "date": "",
+      "exposure": "12",
+      "watering": "",
+      "soil": "",
+      "heat": "",
+      "care": "",
+      "description": "",
+      "notes": "",
+      "visible": true,
+      "refX": 20,
+      "refY": null,
+      "thumbnailId": null,
+      "media": []
+     },
+     {
+      "id": "f4",
+      "ref": "",
+      "common": "",
+      "species": "",
+      "family": "",
+      "date": "",
+      "exposure": "",
+      "watering": "",
+      "soil": "",
+      "heat": "",
+      "care": "",
+      "description": "",
+      "notes": "",
+      "visible": true,
+      "refX": null,
+      "refY": null,
+      "thumbnailId": null,
+      "media": [],
+      "name": "Ancien emplacement"
+     }
+    ]
+   },
+   {
+    "id": "map-b",
+    "name": "Bord de mer",
+    "image": "",
+    "widthMeters": null,
+    "ratio": null,
+    "fiches": [
+     {
+      "id": "f5",
+      "ref": "1",
+      "common": "Euphorbe",
+      "species": "Euphorbia characias",
+      "family": "",
+      "date": "",
+      "exposure": "",
+      "watering": "",
+      "soil": "",
+      "heat": "",
+      "care": "",
+      "description": "",
+      "notes": "",
+      "visible": true,
+      "refX": 70,
+      "refY": 10,
+      "thumbnailId": null,
+      "media": []
+     }
+    ]
+   }
+  ]
+ }
+}

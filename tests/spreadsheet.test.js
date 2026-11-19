@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCSV, cellValue, mapHeaders, planImport, buildCsv, buildTeacherCsv } from '../src/js/spreadsheet.js';
+import { COLUMNS, parseCSV, cellValue, mapHeaders, planImport, buildCsv, buildTeacherCsv } from '../src/js/spreadsheet.js';
+import { BOTANIQUE } from '../src/js/templates/botanique.js';
 import { S } from '../src/js/store.js';
 import { normalizeFiche } from '../src/js/model.js';
 
@@ -38,11 +39,11 @@ test('TAB-11 : une mesure négative et un texte ordinaire ne changent pas', () =
   assert.equal(cellValue('common', "L'olivier"), "L'olivier");
 });
 
-test('titres de colonnes reconnus avec souplesse', () => {
+test('TAB-03 : titres de colonnes reconnus avec souplesse', () => {
   assert.deepEqual(mapHeaders(['N° photo', 'NOM COMMUN', 'Température (°C)', 'Luminosité', 'Couleur']), ['ref', 'common', 'temperature', 'light', null]);
 });
 
-test('valeurs : dates, oui/non, positions', () => {
+test('TAB-06 : valeurs : dates, oui/non, positions', () => {
   assert.equal(cellValue('date', '12/09/2026'), '2026-09-12');
   assert.equal(cellValue('date', '46277'), '2026-09-12'); // n° de série Excel
   assert.equal(cellValue('visible', 'non'), false);
@@ -51,7 +52,7 @@ test('valeurs : dates, oui/non, positions', () => {
   assert.equal(cellValue('refX', '150'), 100);
 });
 
-test('import : complète par réf. photo, même quand une réf. est en double', () => {
+test('TAB-05 : import : complète par réf. photo, même quand une réf. est en double', () => {
   const existing = [normalizeFiche({ ref: '2', common: 'Laurier rose' }), normalizeFiche({ ref: '2', common: 'Tamaris', species: 'Tamarix gallica' })];
   const rows = [
     ['Réf. photo', 'Nom commun', 'Nom scientifique'],
@@ -134,4 +135,20 @@ test('EDI-10 : dans l’espace enseignant, le tableur n’a plus de colonnes de 
 test('EDI-10 : le mode hors ligne garde ses colonnes de mesures', () => {
   assert.match(buildCsv([]), /Température/);
   assert.deepEqual(mapHeaders(['Température (°C)']), ['temperature']);
+});
+
+test('MOD-02 : le modèle botanique reprend chaque colonne du tableur, sous le même titre et avec les mêmes variantes', () => {
+  const fields = BOTANIQUE.fields.filter((field) => field.type !== 'heading');
+  const columns = new Map(COLUMNS.map(([key, title, aliases]) => [key, { title, aliases }]));
+  for (const field of fields) {
+    assert.ok(columns.has(field.id), field.id);
+    const { title, aliases } = columns.get(field.id);
+    assert.equal(title, field.unit ? `${field.label} (${field.unit})` : field.label, field.id);
+    assert.deepEqual(field.aliases, aliases, field.id);
+  }
+  assert.deepEqual(
+    COLUMNS.map(([key]) => key).filter((key) => !fields.some((field) => field.id === key)),
+    ['ref', 'visible', 'refX', 'refY'],
+    'le reste appartient à toute fiche, quel que soit son modèle'
+  );
 });

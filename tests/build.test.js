@@ -37,8 +37,14 @@ test('l’image Docker embarque le code que le serveur partage avec le navigateu
     for (const [, name] of text.matchAll(/from '(?:\.\.\/)+src\/js\/([^']+)'/g)) shared.add(name);
   }
   assert.ok(shared.has('model.js'), 'la recherche trouve bien ces imports');
-  // model.js utilise lui-même util.js
-  for (const name of [...shared, 'util.js']) assert.ok(dockerfile.includes(`src/js/${name}`), name);
+  // Et ce que ces fichiers importent à leur tour, de proche en proche
+  for (const name of shared) {
+    const text = readFileSync(path.join(ROOT, 'src/js', name), 'utf8');
+    for (const [, relative] of text.matchAll(/from '(\.{1,2}\/[^']+)'/g)) shared.add(path.posix.normalize(path.posix.join(path.posix.dirname(name), relative)));
+  }
+  assert.ok(shared.has('util.js') && shared.has('templates/botanique.js'), 'les imports de model.js sont suivis');
+  const copied = (name) => dockerfile.includes(`src/js/${name}`) || dockerfile.includes(`COPY src/js/${path.posix.dirname(name)} `);
+  for (const name of shared) assert.ok(copied(name), name);
 });
 
 test('EXP-01 : le fichier de secours se construit en un seul fichier, avec sa place pour le cours', async (t) => {

@@ -137,7 +137,7 @@ test('une migration qui échoue est annulée en entier, et la version ne bouge p
   assert.deepEqual(tables(db), ['a', 'b']);
 });
 
-test('une base plus récente que le code est refusée, au lieu d’être abîmée', async (t) => {
+test('SRV-12 : une base plus récente que le code est refusée, au lieu d’être abîmée', async (t) => {
   const dir = await migrationsDir(t, { '1-a.sql': 'CREATE TABLE a (x);' });
   const dbDir = await tempDir(t);
   const file = path.join(dbDir, 'app.db');
@@ -264,7 +264,7 @@ test('une copie interrompue la veille ne bloque pas celle du jour', async (t) =>
   copy.close();
 });
 
-test('E-11 : 14 copies sont gardées, les plus récentes, et rien d’autre n’est touché', async (t) => {
+test('E-11, SRV-13 : 14 copies sont gardées, les plus récentes, et rien d’autre n’est touché', async (t) => {
   const db = await open(t);
   const dir = await tempDir(t);
   for (let day = 1; day <= 20; day++) await writeFile(path.join(dir, `app-2026-01-${String(day).padStart(2, '0')}.db`), 'x');

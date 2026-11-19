@@ -54,7 +54,7 @@ test('E-05 : Accept-Encoding est lu correctement', async (t) => {
   }
 });
 
-test('E-05 : ni les petits fichiers ni les images ne sont compressés', async (t) => {
+test('E-05, SRV-11 : ni les petits fichiers ni les images ne sont compressés', async (t) => {
   const { base } = await site(t);
   for (const file of ['/petit.css', '/photo.png']) {
     const r = await request(base, file, { headers: { 'Accept-Encoding': 'gzip' } });
@@ -64,7 +64,7 @@ test('E-05 : ni les petits fichiers ni les images ne sont compressés', async (t
   }
 });
 
-test('E-05 : un client qui a déjà le fichier reçoit un 304 sans contenu', async (t) => {
+test('E-05, SRV-11 : un client qui a déjà le fichier reçoit un 304 sans contenu', async (t) => {
   const { base } = await site(t);
   const first = await request(base, '/app.js');
   const etag = first.headers.etag;
@@ -421,7 +421,7 @@ test('la racine sert l’accueil, et une adresse de l’ancienne publication ne 
   assert.match(await readFile(path.join(data, 'project.json'), 'utf8'), /ne doit pas sortir/, 'le fichier n’a pas bougé');
 });
 
-test('SRV-02 : la racine n’accepte que la lecture', async (t) => {
+test('la racine n’accepte que la lecture', async (t) => {
   const { base } = await startApp(t);
   const write = await request(base, '/', { method: 'DELETE' });
   assert.equal(write.status, 405);

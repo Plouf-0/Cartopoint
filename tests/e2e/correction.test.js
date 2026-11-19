@@ -703,7 +703,7 @@ test('CRG-13 : un téléphone à la mauvaise heure : le serveur remet ses répon
   assert.ok(Math.abs(Date.parse(participant(site).finished_at) - Date.now()) < 60000);
 });
 
-test('CRG-13, Q-19 : sans réseau à la fin, la page ne sait rien : le travail fait ensuite est compté, signalé et noté', async (t) => {
+test('CRG-13, Q-22 : sans réseau à la fin, la page ne sait rien : le travail fait ensuite est compté, signalé et noté', async (t) => {
   const { site, teacher } = await setup(t);
   const code = await launchedCourse(teacher);
   const page = await newStudent(t, site, code);

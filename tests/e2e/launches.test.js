@@ -217,7 +217,7 @@ test('CRG-01 : aucune position réelle n’arrive dans le navigateur de l’él�
 
 /* --- E-01 : plusieurs cartes --- */
 
-test('E-01 : l’élève choisit sa carte, et ses placements restent sur chacune', async (t) => {
+test('E-01, CAR-01 : l’élève choisit sa carte, et ses placements restent sur chacune', async (t) => {
   const { site, teacher } = await setup(t);
   const code = await launch(teacher, await publishedCourse(teacher));
   const page = await student(t, site);
@@ -370,7 +370,7 @@ test('COU-13 : sur un appareil partagé, « Ce n’est pas vous ? » laisse entr
   assert.equal(site.db.prepare('SELECT COUNT(*) AS n FROM participants').get().n, 2);
 });
 
-test('sans stockage dans le navigateur, l’élève est prévenu et peut quand même travailler', async (t) => {
+test('STO-04 : sans stockage dans le navigateur, l’élève est prévenu et peut quand même travailler', async (t) => {
   const { site, teacher } = await setup(t);
   const code = await launch(teacher, await publishedCourse(teacher));
   const page = await student(t, site);
@@ -550,7 +550,7 @@ test('un plan plus haut que l’écran : le bandeau reste visible, et ne cache p
   assert.ok(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('#mapFrame'), target), 'un appui à cet endroit tombe bien sur le plan');
 });
 
-test('annuler le placement reste possible depuis le bandeau', async (t) => {
+test('PLA-01 : annuler le placement reste possible depuis le bandeau', async (t) => {
   const page = await placingOn(t, makePng(100, 60), { width: 390, height: 800 });
   await page.locator('#placeCancel').tap();
   await page.locator('#placeHint').waitFor({ state: 'hidden' });

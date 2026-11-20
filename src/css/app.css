@@ -571,7 +571,8 @@ table.teachers .row-actions .btn { white-space: normal; }
 .tpl-add-choice { border-style: dashed; color: var(--accent-dark); cursor: pointer; font: inherit; font-weight: 600; }
 .tpl-inline-settings { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 8px; font-size: 13px; }
 .tpl-symbol { width: 4em; }
-.tpl-settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px 14px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.tpl-settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px 14px; align-items: start; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.tpl-settings .field { align-content: start; }
 .tpl-checks { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .tpl-icon { width: 6em; }
 .tpl-palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }

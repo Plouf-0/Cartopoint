@@ -626,8 +626,8 @@ test('un QR code resté ouvert se ferme quand le cours se termine', async (t) =>
 test('COU-01 : sans publication, le bouton de lancement est bloqué et dit pourquoi', async (t) => {
   const { teacher } = await setup(t);
   await teacher.getByLabel('Nom du nouveau cours').fill('Brouillon');
-  await teacher.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
-  await teacher.locator('#tplSummary').waitFor();
+  await teacher.getByRole('button', { name: 'Créer un nouveau cours' }).click();
+  await teacher.locator('#planChoose').waitFor();
   await teacher.getByRole('tab', { name: 'Cours' }).click();
   assert.equal(await teacher.getByRole('button', { name: 'Lancer le cours' }).isDisabled(), true);
   await teacher.locator('#launchHint').getByText("Publiez d'abord le cours").waitFor();
@@ -1122,15 +1122,12 @@ test('CRG-09 : publier mesure le plan, et le serveur calcule l’écart avec ses
   const { site, teacher } = await setup(t);
   // Un plan quatre fois plus large que haut, et une position réelle au centre
   await teacher.getByLabel('Nom du nouveau cours').fill('Plan large');
-  await teacher.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
-  await teacher.locator('#tplSummary').waitFor();
-  await teacher.getByRole('tab', { name: 'Fiches' }).click();
+  await teacher.getByRole('button', { name: 'Créer un nouveau cours' }).click();
   const chooser = teacher.waitForEvent('filechooser');
   await teacher.locator('#planChoose').click();
   await (await chooser).setFiles({ name: 'plan.png', mimeType: 'image/png', buffer: makePng(400, 100) });
   await teacher.locator('#plan[src^="/media/"]').waitFor();
-  // Un cours créé s'ouvre sur son modèle de fiche (MOD-07)
-  await teacher.getByRole('tab', { name: 'Fiches' }).click();
+  await teacher.getByRole('tab', { name: 'Fiches', exact: true }).click();
   await teacher.locator('#newFiche').click();
   await teacher.locator('#e-titre').fill('Olivier');
   await teacher.locator('#eSave').click();
@@ -1172,9 +1169,7 @@ test('CRG-09 : publier mesure le plan, et le serveur calcule l’écart avec ses
 test('un plan qui ne se charge plus bloque la publication et le dit', async (t) => {
   const { teacher } = await setup(t);
   await teacher.getByLabel('Nom du nouveau cours').fill('Plan cassé');
-  await teacher.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
-  await teacher.locator('#tplSummary').waitFor();
-  await teacher.getByRole('tab', { name: 'Fiches' }).click();
+  await teacher.getByRole('button', { name: 'Créer un nouveau cours' }).click();
   const chooser = teacher.waitForEvent('filechooser');
   await teacher.locator('#planChoose').click();
   await (await chooser).setFiles({ name: 'plan.png', mimeType: 'image/png', buffer: PNG });

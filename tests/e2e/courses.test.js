@@ -94,7 +94,7 @@ async function watchVideoReads(page) {
 const videoReads = (page) => page.evaluate(() => window.videoReads);
 
 const saved = (page) => page.locator('#saveState', { hasText: '✓ Enregistré' }).waitFor();
-const tab = (page, name) => page.getByRole('tab', { name }).click();
+const tab = (page, name) => page.getByRole('tab', { name, exact: true }).click();
 
 async function placeOnPlan(page, name) {
   await page.locator('.row', { hasText: name }).locator('[data-place-ref]').click();
@@ -787,7 +787,7 @@ test('une session expirée sur la liste ramène à la connexion', async (t) => {
   const { site, page } = await setup(t);
   await page.getByLabel('Nom du nouveau cours').fill('Trop tard');
   site.db.exec('DELETE FROM sessions');
-  await page.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
+  await page.getByRole('button', { name: 'Créer un nouveau cours' }).click();
   await heading(page, 'Espace enseignant');
 });
 
@@ -1228,14 +1228,14 @@ test('EV-34 : l’espace enseignant s’appelle Cartopoint, garde le vert par d�
   assert.match(await page.title(), /Cartopoint/);
 
   // Un cours créé sans nom reçoit les valeurs par défaut, et un modèle de fiche sans matière (Q-E)
-  await page.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
-  await page.locator('#tplSummary').waitFor();
+  await page.getByRole('button', { name: 'Créer un nouveau cours' }).click();
+  await page.locator('#planChoose').waitFor();
   assert.equal(await page.locator('#pageTitle').textContent(), 'Cartopoint');
   assert.equal(await page.locator('#mapName').textContent(), 'Plan');
   assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--accent')), '#2e6e45');
   assert.equal(await page.locator('.brand-mark circle').count(), 1, 'l’icône est un repère, plus une feuille');
 
-  for (const name of ['Fiches', 'Modèle de fiche', 'Cartes', 'Cours', 'Réglages']) {
+  for (const name of ['Fiches', 'Éditeur de fiches', 'Cartes', 'Cours', 'Réglages']) {
     await tab(page, name);
     await noBotany(`onglet ${name}`);
   }
@@ -1272,7 +1272,7 @@ test('QST-05 : une note sur un maximum choisie avant le plan compte le placement
   await choosePlan(page);
   await saved(page);
   assert.deepEqual(draftInDb(site, course.id).grading, { mode: 'auto', max: 20, placement: true });
-  await page.getByRole('tab', { name: 'Modèle de fiche' }).click();
+  await page.getByRole('tab', { name: 'Éditeur de fiches' }).click();
   assert.equal(await page.locator('#gradingPlacement').isChecked(), true);
   await page.locator('#gradingPlacement').uncheck();
   await saved(page);

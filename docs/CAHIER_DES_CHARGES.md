@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.52** · 20 novembre 2026 · établie à partir du code
+**Version 0.53** · 20 novembre 2026 · établie à partir du code
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -605,7 +605,7 @@ Code : [`fields.js`](../src/js/fields.js), [`views/fields-html.js`](../src/js/vi
   avec le modèle botanique : les champs de toujours, sous leurs noms de toujours. Il garde ses valeurs, ses titres, sa
   recherche, ses numéros et ses résultats, et rien n'est réécrit. Ce modèle intégré ne change jamais : chaque cours en reçoit
   une copie, qu'il peut modifier.
-- **MOD-03** Dans la page d'un cours, l'onglet « Modèle de fiche » montre au centre, à la place du plan, la fiche que
+- **MOD-03** Dans la page d'un cours, l'onglet « Éditeur de fiches » montre au centre, à la place du plan, la fiche que
   composent ses champs, dans leur ordre, telle que la liront les élèves ; chaque champ dit son type, son public, son rôle,
   sa correction et s'il paraît dans la liste. Un champ choisi d'un clic s'écrit à sa place (`MOD-09`) et déplie ses
   réglages, seulement ceux qui ont un sens pour son type et son public (libellé, type, public, correction, propositions,
@@ -623,12 +623,12 @@ Code : [`fields.js`](../src/js/fields.js), [`views/fields-html.js`](../src/js/vi
   la largeur d'un téléphone ou d'un ordinateur, pendant le cours, un champ révélé à la correction y étant grisé, ou à la
   correction, avec un verdict d'exemple. Elle part de la première fiche remplie, sinon des exemples du modèle. Une note de
   l'enseignant y porte « Vu par vous seul ».
-- **MOD-07** Un nouveau cours choisit sa fiche. « Créer le modèle de fiche » lui donne un modèle sans matière, un titre et
-  une description, et l'ouvre sur l'onglet « Modèle de fiche ». « Reprendre la fiche d'un autre cours » propose ses propres
-  cours, et un fichier de cours (`.json` ou `.html`) venu d'un collègue : le modèle est copié sans les fiches, avec son
-  origine pour information, et modifier ensuite l'autre cours ne change rien à la copie. Dans un cours existant, l'onglet
-  « Modèle de fiche » propose aussi de reprendre la fiche d'un autre cours : les valeurs des champs qu'ils ont en commun
-  sont gardées, et une confirmation dit combien de fiches perdent quelque chose.
+- **MOD-07** « Créer un nouveau cours », dans la liste des cours, lui donne un titre et une fiche sans matière, un titre et
+  une description, et l'ouvre sur l'onglet « Fiches ». En tête de l'onglet « Éditeur de fiches », « Reprendre la fiche
+  d'un autre cours » propose ses propres cours, et un fichier de cours (`.json` ou `.html`) venu d'un collègue : le modèle
+  est copié sans les fiches, avec son origine pour information, et modifier ensuite l'autre cours ne change rien à la
+  copie. Les valeurs des champs qu'ils ont en commun sont gardées, et une confirmation dit combien de fiches perdent
+  quelque chose.
 - **MOD-08** « Dupliquer », dans la liste des cours, crée « … - copie » : une copie complète (modèle, cartes, fiches
   masquées comprises, positions réelles, photos, dont les fichiers restent partagés), non publiée, sans versions ni
   lancements.
@@ -706,7 +706,7 @@ Demande : EV-46. Code : [`verdicts.js`](../src/js/verdicts.js), [`server/answers
   (une faute d'orthographe) ou lui rendre. Chaque correction s'enregistre aussitôt, et la liste des élèves compte pour
   chacun ses réponses justes, à moitié justes, fausses et à corriger. Seul l'enseignant du cours corrige (`ANO-06`), et
   seulement une question corrigée, d'un élève qui a rendu.
-- **QST-05** L'enseignant choisit comment noter, dans l'onglet « Modèle de fiche » : sans note (le nombre de réponses
+- **QST-05** L'enseignant choisit comment noter, dans l'onglet « Éditeur de fiches » : sans note (le nombre de réponses
   justes, à moitié justes et fausses) ; un barème, des points pour chaque question corrigée et pour le placement de chaque
   fiche, une question sans barème valant 1 point ; ou une note sur un maximum (20 d'abord), chaque réponse ayant le même
   poids, placement compris ou non. Le placement compte comme une réponse : bien placée, juste ; proche, à moitié ; à revoir
@@ -1332,3 +1332,4 @@ Ils ne sont pas réutilisés.
 | 0.50    | 20 novembre 2026  | Le fichier de secours suit le modèle et corrige les questions fermées (`EXP-02`, `EXP-05`) |
 | 0.51    | 20 novembre 2026  | Retours de l'essai en préproduction : la correction s'ouvre là où il reste à corriger (`QST-04`), le premier plan compte le placement d'une note sur un maximum (`QST-05`), l'en-tête et les choix sur un téléphone (`MOB-01`) |
 | 0.52    | 20 novembre 2026  | Demandes de l'utilisateur après son essai : la fiche se compose sur elle-même, au centre, avec des champs vierges à glisser (`MOD-03`, `MOD-06`, `MOD-09`) ; « … - copie » (`MOD-08`) ; les cinq onglets sans défiler |
+| 0.53    | 20 novembre 2026  | « Créer un nouveau cours » seul dans la liste, qui ouvre sur « Fiches » ; la fiche d'un autre cours se reprend en tête de l'onglet, renommé « Éditeur de fiches » (`MOD-07`) |

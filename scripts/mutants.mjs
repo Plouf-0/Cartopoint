@@ -943,8 +943,14 @@ const MUTANTS = [
   [
     'MOD-07 : nouveau cours sans modèle de départ',
     'src/js/prof/main.js',
-    'run(error, () => createWith(starterTemplate()));',
-    'run(error, () => createWith(undefined));'
+    "draft: draftOf(newProject(title, '', starterTemplate()))",
+    "draft: draftOf(newProject(title, ''))"
+  ],
+  [
+    'MOD-07 : nouveau cours ouvert sur l’éditeur',
+    'src/js/prof/main.js',
+    '      location.assign(courseUrl(course));',
+    "      location.assign(courseUrl(course) + '#modele');"
   ],
   ['MOD-07 : reprise sans confirmation', 'src/js/prof/template-tab.js', '  if (!confirm(message)) return false;\n', ''],
   ['MOD-07 : un cours se propose lui-même', 'src/js/prof/template-tab.js', '.filter((course) => course.id !== openCourseId())', '.filter(() => true)'],

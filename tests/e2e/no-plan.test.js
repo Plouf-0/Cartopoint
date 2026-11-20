@@ -84,7 +84,7 @@ test('CAR-07, CAR-08 : l’enseignant fait d’une carte une liste, ajoute une l
   await teacher.locator('.map-row', { hasText: 'Salle de classe' }).getByText('Liste', { exact: true }).waitFor();
   assert.equal(await teacher.locator('#widthM').count(), 0, 'une liste n’a pas d’échelle');
   await teacher.locator('#planEmpty').getByText('les élèves y verront une simple liste').waitFor();
-  await teacher.getByRole('tab', { name: 'Fiches' }).click();
+  await teacher.getByRole('tab', { name: 'Fiches', exact: true }).click();
   await teacher.locator('#newFiche').click();
   await teacher.locator('#e-common').fill('Calcaire');
   await teacher.locator('#eSave').click();
@@ -92,7 +92,7 @@ test('CAR-07, CAR-08 : l’enseignant fait d’une carte une liste, ajoute une l
   await teacher.getByRole('tab', { name: 'Cartes' }).click();
 
   await teacher.locator('.map-row', { hasText: 'Carrière' }).getByRole('button', { name: 'Afficher' }).click();
-  await teacher.getByRole('tab', { name: 'Fiches' }).click();
+  await teacher.getByRole('tab', { name: 'Fiches', exact: true }).click();
   const asked = nextConfirm(teacher);
   await teacher.locator('.row', { hasText: 'Granite' }).locator('[data-move-to]').selectOption({ label: 'Salle de classe (liste)' });
   assert.match(await asked, /Sa position réelle sera effacée/);
@@ -121,7 +121,7 @@ test('CAR-07, CAR-08 : l’enseignant fait d’une carte une liste, ajoute une l
   content = draftOf(site);
   assert.deepEqual([content.maps[0].image, content.maps[0].fiches[0].refX], ['', null]);
 
-  await teacher.getByRole('tab', { name: 'Fiches' }).click();
+  await teacher.getByRole('tab', { name: 'Fiches', exact: true }).click();
   assert.equal(await teacher.locator('[data-place-ref]').count(), 0, 'rien à placer sur une liste');
   assert.equal(await teacher.locator('.ref-state:not(.missing-expected)').count(), 0);
   await teacher.getByRole('tab', { name: 'Cours' }).click();

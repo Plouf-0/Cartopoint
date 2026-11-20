@@ -3,7 +3,7 @@
  */
 import { api, currentAccount } from '../api.js';
 import { accountBar, actionRunner, card, changePasswordForm, dateAndTime, el, errorLine, field, loginForm, show, showError } from '../compte/ui.js';
-import { DEFAULT_TITLE, draftOf, newProject, normalizeProject, projectFromText, starterTemplate, templateFrom } from '../model.js';
+import { DEFAULT_TITLE, draftOf, newProject, starterTemplate } from '../model.js';
 import { importProject } from './course-io.js';
 
 const courseUrl = (course) => `/prof/cours/${encodeURIComponent(course.id)}`;
@@ -97,59 +97,24 @@ function coursesCard() {
   }
   run(error, refresh);
 
-  const reuse = reuseControls();
   /**
-   * Un nouveau cours (4.2) : son modèle de fiche part de zéro, ou reprend celui d'un de ses cours ou d'un fichier de cours.
-   * Il s'ouvre ensuite sur l'onglet « Modèle de fiche », pour compléter ou adapter la fiche.
+   * Un nouveau cours (MOD-07) : un titre, et une fiche sans matière, un titre et une description. Il s'ouvre sur l'onglet
+   * « Fiches » ; l'éditeur de fiches propose ensuite de compléter cette fiche, ou de reprendre celle d'un autre cours.
    */
   const create = el(
     'form',
     { className: 'course-create' },
     field('Nom du nouveau cours', { name: 'title', className: 'text-input', autocomplete: 'off' }),
-    el('div', { className: 'inline' }, el('button', { className: 'btn', type: 'submit' }, 'Créer le modèle de fiche'), reuse.toggle),
-    reuse.chooser
+    el('div', { className: 'inline' }, el('button', { className: 'btn', type: 'submit' }, 'Créer un nouveau cours'))
   );
-  const titleOfNew = () => new FormData(create).get('title').trim() || DEFAULT_TITLE;
-  async function createWith(template) {
-    const course = await api('POST', '/courses', { draft: draftOf(newProject(titleOfNew(), '', template)) });
-    location.assign(courseUrl(course) + '#modele');
-  }
   create.addEventListener('submit', (event) => {
     event.preventDefault();
-    run(error, () => createWith(starterTemplate()));
-  });
-
-  /** « Reprendre la fiche d'un autre cours » : la liste de ses cours, ou un fichier de cours d'un collègue (Q-C). */
-  function reuseControls() {
-    const chooser = el('div', { className: 'reuse-chooser', hidden: true });
-    const toggle = el('button', { className: 'btn soft', type: 'button', 'aria-expanded': 'false' }, 'Reprendre la fiche d’un autre cours');
-    toggle.addEventListener('click', () => {
-      chooser.hidden = !chooser.hidden;
-      toggle.setAttribute('aria-expanded', String(!chooser.hidden));
-      const file = el('input', { type: 'file', accept: '.json,.html,.htm' });
-      file.addEventListener('change', () => {
-        const chosen = file.files[0];
-        file.value = '';
-        if (!chosen) return;
-        run(error, async () => createWith(templateFrom(normalizeProject(projectFromText(await chosen.text())))));
-      });
-      chooser.replaceChildren(
-        el('p', { className: 'hint' }, 'Sa fiche est copiée dans le nouveau cours, sans ses fiches : vous pourrez l’adapter sans toucher à l’autre cours.'),
-        ...courses.map((other) => {
-          const take = el('button', { className: 'btn ghost sm', type: 'button' }, `Fiche de « ${other.title} »`);
-          take.addEventListener('click', () =>
-            run(error, async () => {
-              const { draft } = await api('GET', `/courses/${other.id}`);
-              await createWith(templateFrom(normalizeProject(draft), other.id));
-            })
-          );
-          return take;
-        }),
-        el('label', { className: 'btn ghost sm file-btn' }, 'D’un fichier de cours (.json)…', file)
-      );
+    run(error, async () => {
+      const title = new FormData(create).get('title').trim() || DEFAULT_TITLE;
+      const course = await api('POST', '/courses', { draft: draftOf(newProject(title, '', starterTemplate())) });
+      location.assign(courseUrl(course));
     });
-    return { toggle, chooser };
-  }
+  });
 
   const status = el('p', { className: 'hint', role: 'status' });
   const input = el('input', { type: 'file', accept: '.json,.html,.htm' });

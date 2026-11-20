@@ -134,7 +134,7 @@ C'est le contenu d'un cours exporté en `.json`, et du bloc `<script id="embedde
 | Colonnes du tableur | `columnsOf()` dans `spreadsheet.js` |
 | Compte rendu JPG, Excel d'un lancement, détail d'un élève | `report.js`, `prof/results-workbook.js`, `prof/launch-results.js` |
 
-**L'éditeur du modèle** (`prof/template-tab.js`, onglet « Modèle de fiche » de l'espace enseignant seulement) modifie
+**L'éditeur du modèle** (`prof/template-tab.js`, onglet « Éditeur de fiches » de l'espace enseignant seulement) modifie
 `S.project.template` champ par champ, sur la fiche elle-même. L'onglet fournit, en plus de `html()` et `bind()`, un
 `stage()` que `views/admin/index.js` appelle pour dessiner au centre de la page (`#tabStage`), à la place du plan
 (`#stageInner`) : la fiche telle que la lira un élève, chaque champ rendu par `ficheBodyHTML()`, sauf le champ choisi, qui

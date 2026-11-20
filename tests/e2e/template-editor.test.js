@@ -106,7 +106,7 @@ test('MOD-03, MOD-04, MOD-09 : le modèle d’un cours se montre au centre, à l
   await page.getByText('D’après les exemples du modèle.').waitFor();
   assert.equal(await page.locator('.tpl-canvas .preview-card h3').textContent(), 'Olivier', 'sans fiche, les exemples du modèle la remplissent');
 
-  await page.getByRole('tab', { name: 'Fiches' }).click();
+  await page.getByRole('tab', { name: 'Fiches', exact: true }).click();
   assert.equal(await page.locator('#stageInner').isVisible(), true, 'le plan revient avec les autres onglets');
   assert.equal(await page.locator('#tabStage').isHidden(), true);
 });
@@ -230,7 +230,7 @@ test('MOD-03, MOD-09 : ranger les éléments avec ▲ ▼ ou en les glissant, et
 
 test('MOD-05 : un champ rempli ne change que vers un type qui garde ses valeurs, et supprimer ou changer dit ce qui sera perdu', async (t) => {
   const { site, page } = await setup(t);
-  await page.getByRole('tab', { name: 'Fiches' }).click();
+  await page.getByRole('tab', { name: 'Fiches', exact: true }).click();
   for (const [name, family] of [
     ['Olivier', 'Oleaceae'],
     ['Chêne', ''],
@@ -242,7 +242,7 @@ test('MOD-05 : un champ rempli ne change que vers un type qui garde ses valeurs,
     await page.locator('#eSave').click();
     await page.locator('#dlgEdit').waitFor({ state: 'hidden' });
   }
-  await page.getByRole('tab', { name: 'Modèle de fiche' }).click();
+  await page.getByRole('tab', { name: 'Éditeur de fiches' }).click();
 
   await block(page, 'family')
     .getByRole('button', { name: /^Modifier/ })
@@ -285,7 +285,7 @@ test('MOD-03, QST-01 : dans le formulaire d’une fiche, une question ne paraît
   await addQuestion(page, 'yesno', 'Est-il ouvert ?');
   await addQuestion(page, 'longtext', 'Votre avis');
   await addQuestion(page, 'text', 'Architecte', async (edited) => edited.locator('#fAudience').selectOption('correction'));
-  await page.getByRole('tab', { name: 'Fiches' }).click();
+  await page.getByRole('tab', { name: 'Fiches', exact: true }).click();
   await page.locator('#newFiche').click();
   const form = page.locator('#eFields');
   await form.locator('#e-common').waitFor();
@@ -301,7 +301,7 @@ test('MOD-06 : la fiche du centre se voit comme un élève, sur un téléphone o
   const canvas = page.locator('.tpl-canvas');
   assert.equal(await canvas.locator('.preview-card [data-answer]').count(), 3, 'les cases des trois mesures, dans la liste');
   await addQuestion(page, 'text', 'Architecte', async (edited) => edited.locator('#fAudience').selectOption('correction'));
-  await page.getByRole('tab', { name: 'Fiches' }).click();
+  await page.getByRole('tab', { name: 'Fiches', exact: true }).click();
   await page.locator('#newFiche').click();
   await page.locator('#e-common').fill('Tilleul');
   await page
@@ -310,7 +310,7 @@ test('MOD-06 : la fiche du centre se voit comme un élève, sur un téléphone o
     .fill('Jean');
   await page.locator('#eSave').click();
   await page.locator('#dlgEdit').waitFor({ state: 'hidden' });
-  await page.getByRole('tab', { name: 'Modèle de fiche' }).click();
+  await page.getByRole('tab', { name: 'Éditeur de fiches' }).click();
   await page.getByText('D’après la fiche « Tilleul ».').waitFor();
   const architect = page.locator('#tplBlocks .tpl-block', { hasText: 'Architecte' });
   assert.equal(await architect.getAttribute('class'), 'tpl-block later', 'pendant le cours, grisé : l’élève ne le lit qu’à la correction');
@@ -336,12 +336,14 @@ const VILLE = {
   ]
 };
 
-test('MOD-07 : « Créer le modèle de fiche » : un nouveau cours part d’un titre et d’une description, et s’ouvre sur son modèle', async (t) => {
+test('MOD-07 : « Créer un nouveau cours » : un titre, une fiche avec un titre et une description, et le cours s’ouvre sur ses fiches', async (t) => {
   const { site, page } = await teacherPage(t);
+  assert.equal(await page.getByRole('button', { name: 'Reprendre la fiche d’un autre cours' }).count(), 0, 'un seul bouton pour créer');
   await page.getByLabel('Nom du nouveau cours').fill('Sortie géologie');
-  await page.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
-  await page.locator('#tplSummary').waitFor();
-  assert.equal(await page.getByRole('tab', { name: 'Modèle de fiche' }).getAttribute('aria-selected'), 'true');
+  await page.getByRole('button', { name: 'Créer un nouveau cours' }).click();
+  await page.locator('#newFiche').waitFor();
+  assert.equal(await page.getByRole('tab', { name: 'Fiches', exact: true }).getAttribute('aria-selected'), 'true');
+  await page.getByRole('tab', { name: 'Éditeur de fiches' }).click();
   assert.deepEqual(await names(page), ['Titre', 'Description']);
   assert.match(await page.locator('#tplSummary').textContent(), /^Aucune question/);
   assert.deepEqual(
@@ -353,7 +355,18 @@ test('MOD-07 : « Créer le modèle de fiche » : un nouveau cours part d’un t
   );
 });
 
-test('MOD-07 : reprendre la fiche d’un de ses cours, ou d’un fichier de cours : une copie du modèle, sans les fiches', async (t) => {
+/** Crée un cours depuis la liste, et ouvre son éditeur de fiches, où « Reprendre la fiche d'un autre cours » est en tête. */
+async function newCourseEditor(page, title) {
+  await page.goto('/prof');
+  await page.getByLabel('Nom du nouveau cours').fill(title);
+  await page.getByRole('button', { name: 'Créer un nouveau cours' }).click();
+  await page.locator('#newFiche').waitFor();
+  await page.getByRole('tab', { name: 'Éditeur de fiches' }).click();
+  await page.locator('.tpl-reuse #tplReuse').click();
+  return page.locator('dialog.field-dialog');
+}
+
+test('MOD-07 : dans l’éditeur d’un nouveau cours, reprendre la fiche d’un de ses cours, ou d’un fichier de cours : une copie du modèle, sans les fiches', async (t) => {
   const { site, page } = await teacherPage(t);
   await postCourse(
     page,
@@ -362,26 +375,27 @@ test('MOD-07 : reprendre la fiche d’un de ses cours, ou d’un fichier de cour
   site.db
     .prepare('INSERT INTO courses (id, account_id, title, draft, updated_at) VALUES (?, ?, ?, ?, ?)')
     .run('autre', addAccount(site.db, { email: 'autre@example.org' }), 'Cours d’un collègue', JSON.stringify(content('Cours d’un collègue')), '2026-01-01');
-  await page.reload();
-  await page.getByLabel('Nom du nouveau cours').fill('Ville bis');
-  await page.getByRole('button', { name: 'Reprendre la fiche d’un autre cours' }).click();
-  assert.equal(await page.getByRole('button', { name: /Cours d’un collègue/ }).count(), 0, 'ENS-03 : ses cours seulement');
-  await page.getByRole('button', { name: 'Fiche de « Ville »' }).click();
-  await page.locator('#tplSummary').waitFor();
+  let chooser = await newCourseEditor(page, 'Ville bis');
+  await chooser.getByRole('button', { name: 'Fiche de « Ville »' }).waitFor();
+  assert.equal(await chooser.getByRole('button', { name: /Cours d’un collègue/ }).count(), 0, 'ENS-03 : ses cours seulement');
+  let asked = nextConfirm(page);
+  await chooser.getByRole('button', { name: 'Fiche de « Ville »' }).click();
+  await asked;
+  await page.locator('#toast', { hasText: '✓ Fiche de « Ville » reprise' }).waitFor();
   assert.deepEqual(await names(page), ['Monument', 'Siècle', 'Est-il gothique ?']);
+  await saved(page);
   const copy = draft(site, 'Ville bis');
   const source = site.db.prepare("SELECT id FROM courses WHERE title = 'Ville'").get().id;
   assert.deepEqual(copy.template, { ...VILLE, source: { courseId: source, title: 'Ville' } });
   assert.deepEqual(copy.maps[0].fiches, [], 'sans les fiches');
 
-  await page.goto('/prof');
-  await page.getByLabel('Nom du nouveau cours').fill('Depuis un fichier');
-  await page.getByRole('button', { name: 'Reprendre la fiche d’un autre cours' }).click();
+  chooser = await newCourseEditor(page, 'Depuis un fichier');
   const file = { ...content('Cours de Léa', { version: 4, template: VILLE }), id: 'proj-lea' };
-  await page
-    .locator('.reuse-chooser input[type=file]')
-    .setInputFiles({ name: 'lea.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(file)) });
-  await page.locator('#tplSummary').waitFor();
+  asked = nextConfirm(page);
+  await chooser.locator('input[type=file]').setInputFiles({ name: 'lea.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(file)) });
+  await asked;
+  await page.locator('#toast', { hasText: '✓ Fiche de « Cours de Léa » reprise' }).waitFor();
+  await saved(page);
   assert.deepEqual(draft(site, 'Depuis un fichier').template, { ...VILLE, source: { title: 'Cours de Léa' } }, 'Q-C : le fichier d’un collègue');
 });
 
@@ -413,7 +427,7 @@ test('MOD-08 : dupliquer un cours : une copie complète, fiches masquées compri
 test('MOD-07 : dans un cours, reprendre la fiche d’un autre garde les valeurs communes, et dit ce qui sera perdu', async (t) => {
   const { site, page } = await setup(t);
   await postCourse(page, content('Ville', { version: 4, template: VILLE }));
-  await page.getByRole('tab', { name: 'Fiches' }).click();
+  await page.getByRole('tab', { name: 'Fiches', exact: true }).click();
   for (const [name, family] of [
     ['Olivier', 'Oleaceae'],
     ['Chêne', '']
@@ -424,7 +438,7 @@ test('MOD-07 : dans un cours, reprendre la fiche d’un autre garde les valeurs 
     await page.locator('#eSave').click();
     await page.locator('#dlgEdit').waitFor({ state: 'hidden' });
   }
-  await page.getByRole('tab', { name: 'Modèle de fiche' }).click();
+  await page.getByRole('tab', { name: 'Éditeur de fiches' }).click();
   await page.locator('#tplReuse').click();
   const chooser = page.locator('dialog.field-dialog');
   assert.equal(await chooser.getByRole('button', { name: 'Fiche de « Sortie en ville »' }).count(), 0, 'pas lui-même');

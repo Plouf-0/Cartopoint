@@ -213,7 +213,7 @@ test('CHP-04 : ce qui est révélé à la correction ne paraît qu’une fois le
 
 test('CHP-05, EDI-01, EDI-03, EDI-05, EDI-06 : le formulaire d’une fiche suit le modèle, questions comprises dans le fichier de secours', async (t) => {
   const page = await openPatrimoine(t);
-  await page.getByRole('tab', { name: 'Fiches' }).click();
+  await page.getByRole('tab', { name: 'Fiches', exact: true }).click();
   await page.locator('#newFiche').click();
   const form = page.locator('#eFields');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'e-c-nom', 'on écrit d’abord le titre');
@@ -289,7 +289,7 @@ test('CHP-04 : la version élèves du fichier de secours n’emporte pas la note
 
 test('TAB-09 : le modèle de tableur d’un cours prend ses colonnes dans son modèle de fiche', async (t) => {
   const page = await openPatrimoine(t);
-  await page.getByRole('tab', { name: 'Fiches' }).click();
+  await page.getByRole('tab', { name: 'Fiches', exact: true }).click();
   const download = page.waitForEvent('download');
   await page.locator('#sheetTemplate').click();
   const [header, example] = (await readFile(await (await download).path(), 'utf8')).replace(/^﻿/, '').split('\r\n');

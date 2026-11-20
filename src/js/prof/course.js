@@ -82,8 +82,8 @@ async function start() {
   S.admin = true;
   S.teacherSpace = true;
   setProjectTab('Cours', courseTab);
-  setTemplateTab('Modèle de fiche', templateTab);
-  // Un cours qui vient d'être créé s'ouvre sur son modèle de fiche, à compléter (4.2)
+  setTemplateTab('Éditeur de fiches', templateTab);
+  // Un lien peut ouvrir directement l'éditeur de fiches
   if (location.hash === '#modele') S.ui.tab = 'modele';
   $('#publishTop').onclick = courseTab.publishCourse;
 

@@ -524,6 +524,9 @@ table.teachers .row-actions .btn { white-space: normal; }
 
 /* Onglet « Modèle de fiche » (prof/template-tab.js) */
 .tpl-summary { font-size: 13px; font-weight: 700; margin: 4px 0 10px; }
+/* Reprendre la fiche d'un autre cours : en tête de l'éditeur, bien visible (MOD-07) */
+.tpl-reuse { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 14px; padding: 12px; border: 1px solid var(--sand); border-radius: 10px; background: var(--sand-soft); }
+.tpl-reuse p { margin: 2px 0 0; }
 /* Modèle de fiche : la fiche au centre, à la place du plan, et les éléments à glisser dedans (MOD-09) */
 .tab-stage { min-width: 0; }
 .tpl-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; margin: 0 2px 10px; }

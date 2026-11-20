@@ -1,5 +1,5 @@
 /**
- * Onglet « Modèle de fiche » de la page d'un cours (MOD-03, MOD-06, MOD-09) : la fiche se compose sur elle-même.
+ * Onglet « Éditeur de fiches » de la page d'un cours (MOD-03, MOD-06, MOD-09) : la fiche se compose sur elle-même.
  *
  * Au centre, à la place du plan, la fiche telle que la lira un élève, dans la largeur d'un téléphone ou d'un ordinateur,
  * pendant le cours ou à la correction : elle sert d'aperçu. Sur le côté, les éléments vierges, à glisser dans la fiche à
@@ -236,8 +236,12 @@ export function html() {
       `<button type="button" class="tpl-tile" draggable="true" data-add="${type}"><span class="tpl-tile-mark" aria-hidden="true">${TILES[type][0]}</span><strong>${esc(TYPE_LABELS[type])}</strong><span class="state">${TILES[type][1]}</span></button>`
   ).join('');
   return `
-    <div class="inline spread"><h2 style="margin:0">Modèle de fiche</h2><button type="button" class="btn ghost sm" id="tplReuse">Reprendre la fiche d’un autre cours</button></div>
+    <h2>Éditeur de fiches</h2>
     <p class="sub">La fiche se compose au centre, telle que la liront les élèves : glissez-y un élément, puis cliquez dessus pour l’écrire à sa place. Les élèves voient vos changements à la prochaine publication ; un lancement en cours garde la version avec laquelle il a été lancé.</p>
+    <div class="tpl-reuse">
+      <div><strong>Partir de la fiche d’un autre cours</strong><p class="hint">La fiche d’un de vos cours, ou d’un fichier de cours venu d’un collègue : elle remplace celle-ci, sans ses fiches.</p></div>
+      <button type="button" class="btn" id="tplReuse">Reprendre la fiche d’un autre cours</button>
+    </div>
     <div class="field"><label for="tplName">Nom du modèle</label>
       <div class="inline"><input id="tplName" class="text-input" maxlength="${LIMITS.name}" value="${esc(template.name ?? '')}"><button type="button" class="btn soft sm" id="tplRename">Renommer</button></div></div>
     <p class="tpl-summary" id="tplSummary">${esc(summaryText(template))}</p>
@@ -396,7 +400,7 @@ export async function openReuse() {
   );
   dialog.addEventListener('close', () => dialog.remove());
   const fail = (e) => {
-    reportIncident('Modèle de fiche', e);
+    reportIncident('Éditeur de fiches', e);
     error.textContent = `Impossible de reprendre cette fiche : ${errorText(e)}`;
     error.hidden = false;
   };

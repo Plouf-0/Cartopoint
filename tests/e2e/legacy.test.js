@@ -406,7 +406,7 @@ test('une fois vérifié, l’image, le compte rendu et le fichier pour l’ense
 
 test('en gestion, le compte rendu de l’enseignant montre les positions réelles, et n’a pas besoin de noms', async (t) => {
   const page = await openExercise(t);
-  await page.getByRole('tab', { name: 'Fiches' }).click();
+  await page.getByRole('tab', { name: 'Fiches', exact: true }).click();
   await page.locator('#compare').click();
   await page.locator('#dlgResults[open]').waitFor();
   const report = await saved(page, '#resReport');

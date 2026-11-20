@@ -95,7 +95,11 @@ export function ficheBodyHTML(template, fiche, entry, { disabled = false, reveal
       ? `<dl class="needs">${infos.map((field) => `<div class="need"><dt>${icon(field)}${esc(field.label)}</dt><dd>${value(field)}</dd></div>`).join('')}</dl>`
       : '';
     if (heading && !questions.length) {
-      if (table) parts.push(`<h3 class="mini-h">${esc(heading.label)}</h3>${heading.help ? `<p class="hint">${esc(heading.help)}</p>` : ''}${table}`);
+      // Un groupe de renseignements se replie, pour aller plus vite aux questions sur un téléphone (MOB-01)
+      if (table)
+        parts.push(
+          `<details class="read-group" open><summary><h3 class="mini-h">${esc(heading.label)}</h3></summary>${heading.help ? `<p class="hint">${esc(heading.help)}</p>` : ''}${table}</details>`
+        );
       continue;
     }
     if (!heading) {

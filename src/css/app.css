@@ -566,3 +566,34 @@ table.teachers .row-actions .btn { white-space: normal; }
 .layout.no-plan > .panel { position: static; max-height: none; }
 .map-noplan { display: grid; place-items: center; width: 64px; height: 48px; border: 1px dashed var(--line); border-radius: 6px; font-size: 12px; color: var(--ink-soft); }
 .move-to { border: 1px solid var(--line); border-radius: 8px; padding: 3px 6px; background: #fff; font-size: 13px; max-width: 12em; }
+
+/* Téléphone et ordinateur (MOB) ------------------------------------------- */
+.read-nav { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+.read-nav .state { min-width: 3.5em; text-align: center; }
+.read-group > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }
+.read-group > summary::-webkit-details-marker { display: none; }
+.read-group > summary::before { content: '▾'; color: var(--ink-soft); font-size: 13px; }
+.read-group:not([open]) > summary::before { content: '▸'; }
+.read-group > summary .mini-h { margin: 14px 0 6px; }
+/* Sur un téléphone, la fiche monte du bas et prend tout l'écran ; « Placer » reste en bas, sous le pouce (MOB-01) */
+@media (max-width: 640px) {
+  #dlgRead, #dlgRead.portrait, #dlgRead.landscape { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 16px 16px 0 0; animation: sheet-up 0.2s ease-out; }
+  #dlgRead .dlg { height: 100%; max-height: 100dvh; }
+  #dlgRead .dlg-body { flex: 1; }
+  #dlgRead .dlg-foot { border-radius: 0; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+}
+@keyframes sheet-up { from { transform: translateY(40px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #dlgRead { animation: none; } }
+/* Sur un grand écran, la fiche s'ouvre à côté du plan, qui reste visible et cliquable : à la place du panneau de la liste, de sa largeur (MOB-03) */
+#dlgRead.side, #dlgRead.side.portrait, #dlgRead.side.landscape { position: fixed; inset: 0 0 0 auto; margin: 0; width: calc(420px + clamp(12px, 2vw, 24px)); max-width: none; height: 100dvh; max-height: 100dvh; border-radius: 14px 0 0 14px; box-shadow: -10px 0 40px #0003; z-index: 20; }
+#dlgRead.side .dlg { height: 100%; max-height: 100dvh; }
+#dlgRead.side .dlg-body { flex: 1; display: block; }
+#dlgRead.side .hero-btn { position: static; margin: 0 auto 14px; }
+#dlgRead.side .hero { max-width: 100%; }
+#dlgRead.side .dlg-foot { border-radius: 0 0 0 14px; }
+/* Au doigt : des cibles de 44 px au moins, et un texte de 16 px que l'iPhone ne grossit pas à la saisie (MOB-01) */
+@media (pointer: coarse) {
+  .btn.sm, .chip, .read-nav .btn { min-height: 44px; min-width: 44px; }
+  .card-measures label { min-height: 44px; }
+  .card-measures input, .card-measures select, .unit-input input, .measure textarea, .search, .field input, .field select, .field textarea { font-size: 16px; }
+}

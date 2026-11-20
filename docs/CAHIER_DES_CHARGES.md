@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.48** · 19 novembre 2026 · établie à partir du code
+**Version 0.49** · 19 novembre 2026 · établie à partir du code
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -350,6 +350,21 @@ Demandes : EV-08
 - **CRG-14** Les corrections partent 30 secondes après la fin du cours, le temps que les pages ouvertes envoient le travail figé (`CRG-11`) ; d'ici là, la page demande de rester
   ouverte. Tout rendu reçu ensuite est signalé à l'enseignant, « reçu après l'envoi des corrections », d'après la seule horloge du serveur : cet élève a pu en voir une, quoi que
   déclare son appareil. Le rendu est accepté et compte dans le score, car un élève sans réseau ne pouvait rien savoir (`HOR-07`, Q-22) : c'est une indication, pas une preuve (Q-24).
+
+### 4.8 Téléphone et ordinateur — `MOB`
+
+Demande : EV-46 (Q-K). Code : [`views/reader.js`](../src/js/views/reader.js), [`app.css`](../src/css/app.css)
+
+- **MOB-01** Sur un téléphone, la fiche ouverte prend tout l'écran, montée du bas, et « Placer sur le plan » reste en bas,
+  sous le pouce. Au doigt, chaque bouton et chaque case fait 44 px de haut au moins, et le texte d'une case 16 px, que
+  l'iPhone ne grossit pas à la saisie ; la case où l'on écrit remonte au-dessus du clavier. Un groupe de renseignements se
+  replie sous son intertitre, pour aller plus vite aux questions, qui, elles, ne se replient pas.
+- **MOB-02** Dans la fiche ouverte, « Fiche précédente » et « Fiche suivante » mènent aux fiches voisines de la liste, sans y
+  repasser, avec leur rang (« 2 / 12 ») ; les flèches ← → du clavier aussi, sauf dans une case, où elles déplacent le
+  curseur.
+- **MOB-03** Sur un grand écran (1 100 px et plus), la fiche s'ouvre à la place du panneau de la liste, à côté du plan, qui
+  reste visible et cliquable ; Échap la ferme. Plus étroit, ou sur une liste sans plan, elle passe devant la page, comme
+  avant.
 
 ---
 
@@ -1295,3 +1310,4 @@ Ils ne sont pas réutilisés.
 | 0.46    | 20 novembre 2026  | L'enseignant corrige les réponses de ses élèves (`QST-04`), migration 008 |
 | 0.47    | 20 novembre 2026  | La notation, en trois modes (`QST-05`), et les questions obligatoires (`QST-06`) |
 | 0.48    | 20 novembre 2026  | Zéro plan ou plusieurs : une carte sans plan est une liste (`CAR-07`), une fiche change de carte (`CAR-08`) |
+| 0.49    | 20 novembre 2026  | Téléphone et ordinateur : fiche plein écran, fiche suivante, fiche à côté du plan (`MOB-01` à `MOB-03`, section 4.8) |

@@ -8,6 +8,7 @@
 import { Progress, openDb } from '../db.js';
 import { THRESHOLDS, emptyProgress, hasPlan, scoredCount, titleOf } from '../model.js';
 import { normalizeValue } from '../fields.js';
+import { answersText } from '../verdicts.js';
 import { downloadReport, resultRows } from '../report.js';
 import { S, posOf } from '../store.js';
 import { $, dateAndTime, esc, prefs } from '../util.js';
@@ -71,25 +72,6 @@ function scoreDetail({ score }) {
   if (score.far) parts.push(`${score.far} à revoir`);
   if (score.unplaced) parts.push(`${score.unplaced} non placée(s)`);
   return parts.join(' · ');
-}
-
-/**
- * Les questions corrigées, en une phrase (QST-03) : combien de justes et de fausses. Celles que l'enseignant corrigera plus
- * tard sont annoncées à part (Q-O) : sa correction ne viendra pas sur ce téléphone, qui n'en garde rien (CRG-08).
- */
-export function answersText({ answers }) {
-  if (!answers) return { line: '', pending: '' };
-  const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
-  const parts = [
-    plural(answers.ok, 'juste', 'justes'),
-    ...(answers.half ? [plural(answers.half, 'à moitié juste', 'à moitié justes')] : []),
-    plural(answers.wrong, 'fausse', 'fausses')
-  ];
-  const done = answers.ok + answers.half + answers.wrong;
-  return {
-    line: done ? `Questions : ${parts.join(', ')}.` : '',
-    pending: answers.pending ? `${plural(answers.pending, 'réponse sera corrigée', 'réponses seront corrigées')} plus tard par votre enseignant.` : ''
-  };
 }
 
 /** Le score de tout le cours, en une phrase. */

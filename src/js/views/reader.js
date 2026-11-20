@@ -49,7 +49,7 @@ export async function openReader(id) {
       <button type="button" class="hero-btn" id="readHeroBtn" hidden aria-label="Agrandir la photo"><img class="hero" id="readHero" alt=""></button>
       <div class="read-text">
         ${ev && hasPlan(S.map) ? `<p><span class="grade ${ev.cls}">${esc(ev.label)}</span>${ev.dist ? ` <span class="state">écart : ${esc(ev.dist)}</span>` : ''}</p>` : ''}
-        ${ficheBodyHTML(template, f, e, { disabled: S.finished, revealed: verified() || Boolean(S.correction), teacher: S.admin, correction: S.correction ? ev : null })}
+        ${ficheBodyHTML(template, f, e, { disabled: S.finished, revealed: verified() || Boolean(S.correction), teacher: S.admin, correction: S.correction || verified() ? ev : null })}
         <div id="readGallery"></div>
       </div>
     </div>

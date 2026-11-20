@@ -736,6 +736,21 @@ const MUTANTS = [
     "if (e.key === 'Escape' && dlg.classList.contains('side')) dlg.close();",
     ''
   ],
+  ['EXP-05 : pas de verdict sans serveur', 'src/js/store.js', 'const questions = questionVerdicts(S.project.template, fiche, entry);', 'const questions = {};'],
+  [
+    'EXP-05 : verdicts cachés sans serveur',
+    'src/js/views/reader.js',
+    'correction: S.correction || verified() ? ev : null',
+    'correction: S.correction ? ev : null'
+  ],
+  ['EXP-05 : rien à vérifier sans placement', 'src/js/views/student-panel.js', 'posOf(fiche) || hasAnswers(entryOf(fiche), courseTemplate())', 'posOf(fiche)'],
+  [
+    'EXP-05 : le bouton ne suit pas la première réponse',
+    'src/js/views/student-panel.js',
+    "  panel.addEventListener('input', follow);\n  panel.addEventListener('change', follow);\n",
+    ''
+  ],
+  ['EXP-05 : résultats sans les questions', 'src/js/views/results.js', '${answers.line ? `<p class="answers-score">', '${false ? `<p class="answers-score">'],
   [
     'CAR-07 : la liste ne prend pas la place du plan',
     'src/js/eleve/main.js',
@@ -2116,6 +2131,8 @@ const TESTS_FOR = {
   'src/js/prof/template-tab.js': ['template-tab', 'e2e/template-editor'],
   'src/js/themes.js': ['model', 'e2e/courses'],
   'src/js/views/reader.js': ['e2e/phone', 'wording', 'e2e/offline', 'e2e/launches', 'e2e/template'],
+  'src/js/views/student-panel.js': ['e2e/fallback'],
+  'src/js/views/results.js': ['e2e/fallback', 'e2e/legacy'],
   'src/prof-cours.html': ['wording', 'e2e/courses'],
   'src/js/spreadsheet.js': ['spreadsheet', 'e2e/courses'],
   'src/js/util.js': ['util', 'results-workbook', 'e2e/legacy', 'e2e/courses', 'e2e/incidents'],

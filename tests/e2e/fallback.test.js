@@ -157,6 +157,35 @@ test('EXP-01, EXP-02 : sans serveur ni réseau, on lit, on place, on se corrige 
   assert.deepEqual(outside, [], 'rien n’est sorti de l’appareil');
 });
 
+test('EXP-05 : le fichier de secours d’un cours à modèle maison corrige lui-même les questions fermées, hors ligne', async (t) => {
+  const template = {
+    fields: [
+      { id: 'common', type: 'text', label: 'Arbre', audience: 'info', role: 'title' },
+      { id: 'c-feuille', type: 'yesno', label: 'Feuilles caduques ?', audience: 'question', list: true },
+      { id: 'c-avis', type: 'longtext', label: 'Votre avis', audience: 'question' }
+    ]
+  };
+  const { teacher } = await setup(t, { template, notes: { expected: { 'c-feuille': 'oui' } } });
+  const { target } = await downloadFile(t, teacher);
+  const { page, outside } = await openOffline(t, target);
+  const card = page.locator('.label', { hasText: 'Noisetier' });
+  await card.locator('[data-answer="c-feuille"]').selectOption('non');
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator('#verifyBtn').isDisabled(), false, 'une réponse suffit à vérifier, sans rien placer');
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.locator('#verifyBtn').click();
+  const results = page.locator('#dlgResults[open]');
+  assert.equal(await results.locator('.answers-score').textContent(), 'Questions : 0 juste, 4 fausses.', '2 fiches, 2 questions chacune ; sans réponse, c’est faux');
+  assert.equal(await results.locator('tr', { hasText: 'Noisetier' }).locator('td').last().textContent(), '0 / 2');
+  await results.locator('[data-close]').click();
+
+  await card.locator('h3').click();
+  const dialog = page.locator('#dlgRead');
+  await dialog.locator('.verdict').first().waitFor();
+  assert.deepEqual(await dialog.locator('.verdict').allTextContents(), ['Faux · bonne réponse : Oui', 'Faux'], 'une question ouverte sans réponse est fausse');
+  assert.deepEqual(outside, [], 'rien n’est sorti de l’appareil');
+});
+
 test('EXP-01 : sans réseau, le travail reste après un rechargement', async (t) => {
   const { teacher } = await setup(t);
   const { target } = await downloadFile(t, teacher);

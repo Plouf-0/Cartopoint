@@ -10,6 +10,7 @@ import { localBackend } from './backends/local.js';
 import { debounce, uid, blobToDataURL, dataURLToBlob, toast, errorText } from './util.js';
 import { normalizeProject, normalizeProgress, emptyProgress, placedPos, evaluate, gradeOf, withoutTeacherNotes, VERSION, FORMAT } from './model.js';
 import { emptyAnswers, hasAnswers, questionFields } from './fields.js';
+import { questionVerdicts } from './verdicts.js';
 
 export const S = {
   /** Projet affiché (métadonnées + cartes + fiches). */
@@ -64,11 +65,21 @@ export function stamped(entry) {
   if (S.stampAnswers) entry.at = Date.now();
   return entry;
 }
-/** Le résultat d'une fiche : celui du serveur une fois la correction reçue (CRG-09), sinon calculé ici (application d'origine). */
+/**
+ * Le résultat d'une fiche : celui du serveur une fois la correction reçue (CRG-09), sinon calculé ici (fichier de secours) :
+ * le placement, et le verdict des questions fermées d'après les bonnes réponses que le fichier emporte (EXP-05). Une
+ * question ouverte y reste « à corriger » : aucun enseignant ne la reçoit.
+ */
 export function evaluationOf(fiche) {
   const result = S.correction?.maps[S.map.id]?.fiches[fiche.id];
   if (result) return { ...gradeOf(result.state), ...result };
-  return evaluate(fiche, progress().entries[fiche.id], { ratio: S.ratio, widthMeters: S.map.widthMeters });
+  const entry = progress().entries[fiche.id];
+  const questions = questionVerdicts(S.project.template, fiche, entry);
+  return {
+    ...evaluate(fiche, entry, { ratio: S.ratio, widthMeters: S.map.widthMeters }),
+    ...(Object.keys(questions).length ? { questions } : {}),
+    ...(fiche.expected ? { expected: fiche.expected } : {})
+  };
 }
 
 /* ------------------------------------------------------------------ */

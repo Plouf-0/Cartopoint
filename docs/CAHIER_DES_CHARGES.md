@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.49** · 19 novembre 2026 · établie à partir du code
+**Version 0.50** · 19 novembre 2026 · établie à partir du code
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -579,11 +579,16 @@ Demande : EV-11
 
 - **EXP-01** Le fichier `.html` autonome reste disponible comme export de secours, et non comme parcours
   principal.
-- **EXP-02** Il contient les positions réelles, sans quoi la vérification serait impossible sans serveur : les
-  exigences de la section 4.7 ne s'y appliquent pas.
+- **EXP-02** Il contient les positions réelles et les bonnes réponses, sans quoi la vérification serait impossible sans
+  serveur : les exigences de la section 4.7 ne s'y appliquent pas.
 - **EXP-03** L'enseignant le télécharge depuis l'onglet « Cours » : un seul fichier `.html`, qui marche d'un double-clic, sans serveur ni réseau. Il emporte le plan et les photos, sans les
   fiches masquées, et ne cherche jamais aucun serveur, même déposé sur un site.
 - **EXP-04** L'enseignant choisit à ce moment le mot de passe de gestion du fichier, 4 caractères au moins : `admin` n'y ouvre plus rien (E-03). Le site ne le garde pas, et demande de ne pas réutiliser celui du compte : ce fichier est fait pour circuler.
+- **EXP-05** Le fichier emporte le modèle de fiche du cours et s'en sert pour tout : la fiche ouverte, la liste, le
+  formulaire, le tableur, et les cartes sans plan (`CAR-07`). « Vérifier » corrige aussi, sur place, les questions fermées
+  d'après leurs bonnes réponses, et montre sous chaque question son verdict et la bonne réponse ; une seule réponse suffit à
+  vérifier, sans rien placer. Une question ouverte y reste à corriger : aucun enseignant ne la reçoit. Le fichier n'emporte
+  pas la note de l'enseignant (`CHP-04`).
 
 ### 5.12 Modèle de fiche — `MOD`, `CHP`
 
@@ -1311,3 +1316,4 @@ Ils ne sont pas réutilisés.
 | 0.47    | 20 novembre 2026  | La notation, en trois modes (`QST-05`), et les questions obligatoires (`QST-06`) |
 | 0.48    | 20 novembre 2026  | Zéro plan ou plusieurs : une carte sans plan est une liste (`CAR-07`), une fiche change de carte (`CAR-08`) |
 | 0.49    | 20 novembre 2026  | Téléphone et ordinateur : fiche plein écran, fiche suivante, fiche à côté du plan (`MOB-01` à `MOB-03`, section 4.8) |
+| 0.50    | 20 novembre 2026  | Le fichier de secours suit le modèle et corrige les questions fermées (`EXP-02`, `EXP-05`) |

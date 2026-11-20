@@ -3,7 +3,8 @@
  */
 import { $, esc } from '../util.js';
 import { S, listed, posOf, progress, changedProgress, courseTemplate } from '../store.js';
-import { titleOf, subtitleOf, THRESHOLDS } from '../model.js';
+import { hasPlan, titleOf, subtitleOf, THRESHOLDS } from '../model.js';
+import { answersText, countVerdicts } from '../verdicts.js';
 import { render } from '../render.js';
 import { resultRows, scoreOf } from '../report.js';
 import { savePlanImage, saveReport, saveTeacherCsv } from './report-actions.js';
@@ -24,6 +25,16 @@ export function verifyExercise() {
 export function showResults() {
   const rows = resultRows();
   const { ok, near, scored } = scoreOf(rows);
+  // Les questions fermées corrigées par la page (EXP-05) ; sur une liste sans plan, ni résultat ni écart (CAR-07)
+  const plan = hasPlan(S.map);
+  const verdicts = rows.map((row) => row.ev.questions ?? {});
+  const counts = countVerdicts(verdicts);
+  const answers = answersText({ answers: Object.values(counts).some(Boolean) ? counts : null });
+  const questions = verdicts.some((each) => Object.keys(each).length);
+  const questionsCell = (row) => {
+    const each = Object.values(row.ev.questions ?? {});
+    return each.length ? `${each.filter((verdict) => verdict === 'ok').length} / ${each.length}` : '—';
+  };
   const names = studentNames();
   const template = courseTemplate();
   $('#resultsBox').innerHTML = `
@@ -32,21 +43,23 @@ export function showResults() {
       <button class="x" type="button" data-close aria-label="Fermer">×</button>
     </div>
     <div class="dlg-body">
-      ${scored ? `<div class="score"><strong>${ok} / ${scored}</strong><span>bien placée(s)${near ? ` · ${near} proche(s)` : ''}</span></div>` : '<p class="state">Aucune position réelle n\'a encore été définie par l\'enseignant.</p>'}
+      ${plan ? (scored ? `<div class="score"><strong>${ok} / ${scored}</strong><span>bien placée(s)${near ? ` · ${near} proche(s)` : ''}</span></div>` : '<p class="state">Aucune position réelle n\'a encore été définie par l\'enseignant.</p>') : ''}
+      ${answers.line ? `<p class="answers-score">${esc(answers.line)}</p>` : ''}
+      ${answers.pending ? `<p class="state pending-note">${esc(answers.pending)}</p>` : ''}
       <div class="table-wrap"><table class="results">
-        <thead><tr><th>N°</th><th>Fiche</th><th>Résultat</th><th>Écart</th></tr></thead>
+        <thead><tr><th>N°</th><th>Fiche</th>${plan ? '<th>Résultat</th><th>Écart</th>' : ''}${questions ? '<th>Questions justes</th>' : ''}</tr></thead>
         <tbody>${rows
           .map(
             (r) => `<tr>
               <td class="n"><span class="num ${posOf(r.fiche) ? 'on' : ''}">${r.n}</span></td>
               <td>${esc(titleOf(r.fiche, template))}${subtitleOf(r.fiche, template) ? `<div class="sci" style="font-size:13px">${esc(subtitleOf(r.fiche, template))}</div>` : ''}</td>
-              <td><span class="grade ${r.ev.cls}">${esc(r.ev.label)}</span></td>
-              <td>${esc(r.ev.dist || '—')}</td>
+              ${plan ? `<td><span class="grade ${r.ev.cls}">${esc(r.ev.label)}</span></td><td>${esc(r.ev.dist || '—')}</td>` : ''}
+              ${questions ? `<td>${questionsCell(r)}</td>` : ''}
             </tr>`
           )
           .join('')}</tbody>
       </table></div>
-      <p class="state" style="margin-top:12px">Bien placée : moins de ${THRESHOLDS.ok} % de la largeur du plan · Proche : moins de ${THRESHOLDS.near} %.${S.map.widthMeters ? '' : ' Indiquez la largeur réelle du terrain (Gestion › Cartes) pour obtenir les écarts en mètres.'}</p>
+      ${plan ? `<p class="state" style="margin-top:12px">Bien placée : moins de ${THRESHOLDS.ok} % de la largeur du plan · Proche : moins de ${THRESHOLDS.near} %.${S.map.widthMeters ? '' : ' Indiquez la largeur réelle du terrain (Gestion › Cartes) pour obtenir les écarts en mètres.'}</p>` : ''}
     </div>
     <div class="dlg-foot">
       <button class="btn ghost" type="button" id="resImg">Image du plan</button>

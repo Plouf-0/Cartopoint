@@ -3,7 +3,7 @@
  */
 import { $, prefs, toast } from '../util.js';
 import { S, fiches, listed, verified, posOf } from '../store.js';
-import { hasRef } from '../model.js';
+import { hasPlan, hasRef } from '../model.js';
 import { render } from '../render.js';
 import { openLogin } from './login.js';
 
@@ -16,6 +16,8 @@ export function renderHeader() {
   $('#studentsBox').hidden = S.admin;
   $('#modeBtn').textContent = S.admin ? 'Revenir à la vue élèves' : '⚙ Gestion';
   $('#legendRef').hidden = !(S.admin || verified());
+  // Côté élèves, une carte sans plan est une liste, qui prend toute la place (CAR-07) ; en gestion, le plan reste à choisir
+  document.querySelector('.layout').classList.toggle('no-plan', !S.admin && !hasPlan(S.map));
 
   const list = listed();
   if (S.admin) {
@@ -23,7 +25,8 @@ export function renderHeader() {
     $('#progress').innerHTML = `<b>${fiches().length}</b> fiche(s) · <b>${refs}</b> position(s) réelle(s) définie(s)`;
   } else {
     const placed = list.filter(posOf).length;
-    $('#progress').innerHTML = list.length ? `<b>${placed}</b> / ${list.length} fiche(s) placée(s)${verified() ? ' · exercice vérifié' : ''}` : '';
+    $('#progress').innerHTML =
+      list.length && hasPlan(S.map) ? `<b>${placed}</b> / ${list.length} fiche(s) placée(s)${verified() ? ' · exercice vérifié' : ''}` : '';
   }
 }
 

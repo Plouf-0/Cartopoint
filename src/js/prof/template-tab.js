@@ -1,10 +1,11 @@
 /**
  * Onglet « Éditeur de fiches » de la page d'un cours (MOD-03, MOD-06, MOD-09) : la fiche se compose sur elle-même.
  *
- * Au centre, à la place du plan, la fiche telle que la lira un élève, dans la largeur d'un téléphone ou d'un ordinateur,
- * pendant le cours ou à la correction : elle sert d'aperçu. Sur le côté, les éléments vierges, à glisser dans la fiche à
- * l'endroit voulu, ou à ajouter d'un clic. Un élément choisi s'écrit à sa place, comme l'élève le lira (libellé, aide,
- * exemple, propositions, unité), et déplie ses réglages ; chaque modification s'applique aussitôt.
+ * Au centre, à la place du plan, la fiche telle que la lira un élève, dans la largeur d'un téléphone ou d'un ordinateur :
+ * elle sert d'aperçu. Sur le côté, les éléments vierges, à glisser dans la fiche à l'endroit voulu, ou à ajouter d'un
+ * clic. Chacun dit d'avance qui le remplit et comment il se corrige : « Titre de la fiche », « Question à choix »,
+ * « Mesure »… Il n'y a donc rien de tel à régler. Un élément choisi s'écrit à sa place, comme l'élève le lira (libellé,
+ * aide, exemple, propositions, unité) ; chaque modification s'applique aussitôt.
  *
  * Chaque modification passe par templateProblems() avant d'être enregistrée : un modèle mal formé ne part jamais, et le
  * serveur le refuserait de toute façon (CHP-07). Tant qu'un élément est impossible (un libellé vide), il le dit et rien
@@ -17,23 +18,7 @@ import { newFiche, normalizeFiche, normalizeProject, projectFromText, subtitleOf
 import { api } from '../api.js';
 import { reportIncident } from '../incident.js';
 import { openCourseId } from './course-tab.js';
-import {
-  AUDIENCE_LABELS,
-  CHECKS,
-  CHECK_LABELS,
-  COMPATIBLE,
-  LIMITS,
-  TYPES,
-  TYPE_LABELS,
-  checkOf,
-  cleanField,
-  isEmpty,
-  isHeading,
-  newFieldId,
-  questionFields,
-  templateProblems,
-  titleField
-} from '../fields.js';
+import { LIMITS, TYPE_LABELS, checkOf, cleanField, isEmpty, isHeading, newFieldId, questionFields, templateProblems, titleField } from '../fields.js';
 import { button, el } from '../compte/ui.js';
 import { GRADING_LABELS, GRADING_MODES, gradedQuestions, normalizeGrading } from '../verdicts.js';
 import { cardAnswersHTML, ficheBodyHTML, listLinesHTML } from '../views/fields-html.js';
@@ -97,8 +82,8 @@ const savedField = (id) => courseTemplate().fields.find((field) => field.id === 
 /* ------------------------------------------------------------------ */
 
 /**
- * Ce que montre la fiche du centre : sa largeur, le moment du cours, l'élément choisi et son brouillon. Le brouillon garde ce
- * qui est écrit tant que ce n'est pas enregistré : la page peut se redessiner entre-temps sans rien perdre.
+ * Ce que montre la fiche du centre : sa largeur, l'aperçu réel et son moment du cours, l'élément choisi et son brouillon. Le
+ * brouillon garde ce qui est écrit tant que ce n'est pas enregistré : la page peut se redessiner entre-temps sans rien perdre.
  */
 const view = { width: 'desktop', revealed: false, real: false, selected: null, draft: null, error: '', focus: null };
 
@@ -116,12 +101,55 @@ function select(id) {
 /** Après le changement en cours : un clic ailleurs fait d'abord enregistrer la case que l'on quitte. */
 const later = (fn) => setTimeout(fn, 0);
 
+/**
+ * Les éléments vierges (MOD-09). Chacun dit d'avance qui le remplit, qui le lit et comment il se corrige : pour autre chose,
+ * on glisse un autre élément. `mark` est du HTML écrit ici, jamais une saisie.
+ */
+export const WIDGETS = {
+  title: {
+    mark: 'T',
+    name: 'Titre de la fiche',
+    state: 'Son nom, partout',
+    label: 'Titre',
+    field: { type: 'text', audience: 'info', role: 'title', search: true }
+  },
+  subtitle: {
+    mark: '<em>T</em>',
+    name: 'Sous-titre',
+    state: 'En italique, sous le titre',
+    label: 'Sous-titre',
+    field: { type: 'text', audience: 'info', role: 'subtitle', search: true }
+  },
+  text: { mark: 'Aa', name: 'Texte court', state: 'Une ligne', field: { type: 'text', audience: 'info', search: true } },
+  longtext: { mark: '¶', name: 'Texte long', state: 'Un paragraphe', field: { type: 'longtext', audience: 'info' } },
+  number: { mark: '12', name: 'Nombre', state: 'Avec son unité', field: { type: 'number', audience: 'info' } },
+  date: { mark: '31', name: 'Date', state: 'Un jour', label: 'Date', field: { type: 'date', audience: 'info' } },
+  choice: { mark: '◉', name: 'Choix', state: 'Parmi des propositions', field: { type: 'choice', audience: 'info' } },
+  yesno: { mark: '✓', name: 'Oui ou non', state: 'L’un ou l’autre', field: { type: 'yesno', audience: 'info' } },
+  scale: { mark: '★', name: 'Échelle', state: 'De 1 à 5', field: { type: 'scale', audience: 'info' } },
+  'q-choice': { mark: '◉', name: 'Question à choix', state: 'Parmi des propositions', field: { type: 'choice', audience: 'question', check: 'auto' } },
+  'q-yesno': { mark: '✓', name: 'Oui ou non', state: 'L’un ou l’autre', field: { type: 'yesno', audience: 'question', check: 'auto' } },
+  'q-text': { mark: 'Aa', name: 'Mot à trouver', state: 'Un mot, un nom', field: { type: 'text', audience: 'question', check: 'auto' } },
+  'q-number': { mark: '12', name: 'Nombre à trouver', state: 'Avec son unité', field: { type: 'number', audience: 'question', check: 'auto' } },
+  'q-written': { mark: '¶', name: 'Réponse rédigée', state: 'Quelques lignes', field: { type: 'longtext', audience: 'question', check: 'teacher' } },
+  'q-measure': {
+    mark: '1,5',
+    name: 'Mesure',
+    state: 'Un nombre et son unité',
+    label: 'Nouvelle mesure',
+    field: { type: 'number', audience: 'question', check: 'none' }
+  },
+  'q-note': { mark: '…', name: 'Observation', state: 'Quelques lignes', field: { type: 'longtext', audience: 'question', check: 'none' } },
+  reveal: { mark: '!', name: 'Explication', state: 'Révélée à la correction', label: 'Explication', field: { type: 'longtext', audience: 'correction' } },
+  private: { mark: '✎', name: 'Note pour vous', state: 'Personne d’autre ne la lit', label: 'Note', field: { type: 'longtext', audience: 'teacher' } },
+  heading: { mark: 'H', name: 'Intertitre', state: 'Le titre d’un groupe', label: 'Intertitre', field: { type: 'heading' } }
+};
+
 /** Un élément neuf, prêt à écrire : un libellé de départ et, pour un choix, deux propositions. */
-export function blankField(type, audience = 'question') {
-  if (type === 'heading') return { id: newFieldId('h'), type, label: 'Intertitre' };
-  const question = audience === 'question' && type !== 'date';
-  const label = question ? 'Nouvelle question' : type === 'date' ? 'Date' : 'Nouveau champ';
-  const field = { id: newFieldId('c'), type, label, audience: question ? 'question' : 'info' };
+export function blankField(key) {
+  const { type, ...rest } = WIDGETS[key].field;
+  const label = WIDGETS[key].label ?? (rest.audience === 'question' ? 'Nouvelle question' : 'Nouveau champ');
+  const field = { id: newFieldId(type === 'heading' ? 'h' : 'c'), type, label, ...rest };
   if (type === 'choice')
     field.choices = [
       { id: newFieldId('r'), label: 'Proposition 1' },
@@ -132,11 +160,11 @@ export function blankField(type, audience = 'question') {
 }
 
 /** Ajoute un élément vierge à cette place (sous l'élément choisi, sinon à la fin), le choisit, et sélectionne son libellé. */
-function addField(type, audience, at) {
+function addField(key, at) {
   const fields = courseTemplate().fields;
   const after = fields.findIndex((field) => field.id === view.selected);
   const index = at ?? (after >= 0 ? after + 1 : fields.length);
-  const field = blankField(type, audience);
+  const field = blankField(key);
   select(null);
   // Ajouter un élément, c'est modifier la fiche : l'aperçu réel laisse la place à l'éditeur
   Object.assign(view, { real: false, selected: field.id, draft: structuredClone(field), focus: { key: 'label', all: true } });
@@ -196,70 +224,57 @@ function commit(draft) {
   applyTemplate(next);
 }
 
-/** Un changement de type garde ce qui a encore un sens, et donne au reste un réglage de départ. */
-function setType(draft, type) {
-  draft.type = type;
-  if (type === 'choice' && !draft.choices?.length) draft.choices = blankField('choice').choices;
-  if (type === 'scale') draft.max ??= 5;
-  if (type === 'date' && draft.audience === 'question') draft.audience = 'info';
-  delete draft.check;
-}
-
 /** Ce qu'une case de l'élément choisi change dans son brouillon. */
 function readControl(control) {
   const draft = view.draft;
   const key = control.dataset.edit;
   const value = control.type === 'checkbox' ? control.checked : control.value;
   if (key.startsWith('choice-')) draft.choices[Number(key.slice(7))].label = value;
-  else if (key === 'type') setType(draft, value);
-  else if (key === 'max') draft.max = Number(value);
-  else if (key === 'role') draft.role = value || undefined;
-  else draft[key] = value;
+  else draft[key] = key === 'max' ? Number(value) : value;
 }
 
 /* ------------------------------------------------------------------ */
 /* Le panneau : les éléments vierges                                    */
 /* ------------------------------------------------------------------ */
 
-const TILES = {
-  text: ['Aa', 'Une ligne'],
-  longtext: ['¶', 'Un paragraphe'],
-  number: ['12', 'Avec son unité'],
-  date: ['31', 'Un jour'],
-  choice: ['◉', 'Des propositions'],
-  yesno: ['✓', 'Oui ou non'],
-  scale: ['★', 'De 1 à 5'],
-  heading: ['H', 'Le titre d’un groupe']
-};
-/** Qui remplit un élément, dit sur chaque élément de la fiche et sur chaque groupe d'éléments vierges. */
-const AUDIENCE_BADGES = {
-  info: 'À remplir dans chaque fiche',
-  question: 'Question pour l’élève',
-  correction: 'Révélé à la correction',
-  teacher: 'Vu par vous seul'
-};
+/** Les groupes du panneau : qui écrit, qui lit, et pour les questions comment elles se corrigent. */
 const PALETTE = [
   [
-    'info',
-    AUDIENCE_BADGES.info,
-    'Vous l’écrivez dans chaque fiche, onglet « Fiches » ; l’élève le lit.',
-    ['text', 'longtext', 'number', 'date', 'choice', 'yesno', 'scale']
+    'Vous l’écrivez dans chaque fiche',
+    [['Dans l’onglet « Fiches » ; l’élève le lit.', ['title', 'subtitle', 'text', 'longtext', 'number', 'date', 'choice', 'yesno', 'scale']]]
   ],
-  ['question', AUDIENCE_BADGES.question, 'L’élève y répond pendant le cours.', ['text', 'longtext', 'number', 'choice', 'yesno', 'scale']],
-  ['', 'Mise en page', 'Un titre pour regrouper les éléments qui suivent.', ['heading']]
+  [
+    'L’élève y répond, pendant le cours',
+    [
+      ['Corrigé automatiquement : vous donnez la bonne réponse dans chaque fiche.', ['q-choice', 'q-yesno', 'q-text', 'q-number']],
+      ['Vous le corrigez après le cours.', ['q-written']],
+      ['Recueilli, sans correction.', ['q-measure', 'q-note']]
+    ]
+  ],
+  ['Lu plus tard, ou par vous seul', [['Vous l’écrivez dans chaque fiche. L’élève lit l’explication à la fin du cours.', ['reveal', 'private']]]],
+  ['Mise en page', [['Un titre pour regrouper les éléments qui suivent.', ['heading']]]]
 ];
-const tileHTML = (type, audience) =>
-  `<button type="button" class="tpl-tile${audience ? ` ${audience}` : ''}" draggable="true" data-add="${type}"${audience ? ` data-audience="${audience}"` : ''}><span class="tpl-tile-mark" aria-hidden="true">${TILES[type][0]}</span><strong>${esc(TYPE_LABELS[type])}</strong><span class="state">${TILES[type][1]}</span></button>`;
+const ROLE_NAMES = { title: 'titre', subtitle: 'sous-titre' };
+
+/** Un élément vierge. La fiche n'a qu'un titre et qu'un sous-titre : déjà là, ils ne se proposent plus. */
+function tileHTML(key, template) {
+  const { mark, name, state, field } = WIDGETS[key];
+  const taken = field.role && template.fields.some((x) => x.role === field.role);
+  const audience = field.audience ? ` ${field.audience}` : '';
+  const off = taken ? ` disabled title="La fiche a déjà un ${ROLE_NAMES[field.role]}"` : '';
+  return `<button type="button" class="tpl-tile${audience}" draggable="${!taken}" data-add="${key}"${off}><span class="tpl-tile-mark" aria-hidden="true">${mark}</span><strong>${esc(name)}</strong><span class="state">${esc(state)}</span></button>`;
+}
 
 /** La fiche n'a pas de titre : ses fiches n'auront pas de nom, ni dans la liste, ni sur le plan. */
-const NO_TITLE =
-  'Aucun champ ne sert de titre : vos fiches n’auront pas de nom. Ajoutez un « Texte court » à remplir dans chaque fiche, et donnez-lui le rôle « Titre de la fiche ».';
+const NO_TITLE = 'Aucun élément ne sert de titre : vos fiches n’auront pas de nom. Glissez « Titre de la fiche » en haut de la fiche.';
 
 export function html() {
   const template = courseTemplate();
   const groups = PALETTE.map(
-    ([audience, title, hint, types]) =>
-      `<div class="tpl-group"><h4>${esc(title)}</h4><p class="hint">${esc(hint)}</p><div class="tpl-palette">${types.map((type) => tileHTML(type, audience)).join('')}</div></div>`
+    ([title, parts]) =>
+      `<div class="tpl-group"><h4>${esc(title)}</h4>${parts
+        .map(([hint, keys]) => `<p class="hint">${esc(hint)}</p><div class="tpl-palette">${keys.map((key) => tileHTML(key, template)).join('')}</div>`)
+        .join('')}</div>`
   ).join('');
   return `
     <h2>Éditeur de fiches</h2>
@@ -274,7 +289,7 @@ export function html() {
     ${titleField(template) ? '' : `<p class="tpl-warn" role="status">${esc(NO_TITLE)}</p>`}
     <div class="section">
       <h3>Éléments</h3>
-      <p>Glissez un élément dans la fiche, à l’endroit voulu. Un clic l’ajoute sous l’élément choisi, sinon à la fin.</p>
+      <p>Glissez un élément dans la fiche, à l’endroit voulu. Un clic l’ajoute sous l’élément choisi, sinon à la fin. Chacun dit déjà qui le remplit et comment il se corrige.</p>
       ${groups}
     </div>
     ${gradingHTML(template)}`;
@@ -311,8 +326,8 @@ export function bind(panel) {
   };
   $('#tplReuse').onclick = () => openReuse();
   for (const tile of panel.querySelectorAll('[data-add]')) {
-    tile.onclick = () => later(() => addField(tile.dataset.add, tile.dataset.audience));
-    tile.addEventListener('dragstart', (e) => startDrag(e, { add: tile.dataset.add, audience: tile.dataset.audience }));
+    tile.onclick = () => later(() => addField(tile.dataset.add));
+    tile.addEventListener('dragstart', (e) => startDrag(e, { add: tile.dataset.add }));
   }
   bindGrading(panel);
 }
@@ -477,26 +492,21 @@ function sampleFiche(template) {
   return { fiche: newFiche(values, template), source: 'D’après les exemples du modèle.' };
 }
 
-/** Ce qu'un élève lirait de cet élément, et à la correction un verdict d'exemple. */
+/** À la correction, dans l'aperçu réel, chaque question montre un verdict d'exemple : juste, ou corrigée plus tard. */
 const SAMPLE_VERDICT = { auto: 'ok', teacher: 'pending' };
-const QUESTION_TYPES = ['text', 'longtext', 'number', 'choice', 'yesno', 'scale'];
-const ROLE_LABELS = { '': 'Aucun', title: 'Titre de la fiche', subtitle: 'Sous-titre, en italique' };
-const KEYBOARD_LABELS = { decimal: 'Nombre à virgule', numeric: 'Nombre entier' };
-const AUDIENCE_HINTS = {
-  info: 'Vous le remplissez dans chaque fiche, l’élève le lit.',
-  question: 'L’élève y répond ; vous lisez sa réponse.',
-  correction: 'Vous le remplissez ; l’élève ne le lit qu’à la correction, à la fin du cours.',
-  teacher: 'Vous le remplissez ; personne d’autre ne le lit.'
-};
+/** Quelque chose ne se lit qu'à la correction : un élément révélé, ou le verdict d'une question corrigée. */
+const hasCorrection = (template) => template.fields.some((field) => field.audience === 'correction' || SAMPLE_VERDICT[checkOf(field)]);
+
+/** Ce qu'est un élément, dit en couleur : à peu près le nom de l'élément vierge dont il vient. */
+const BADGES = { info: 'Écrit dans chaque fiche', correction: 'Révélé à la correction', teacher: 'Pour vous seul' };
+const QUESTION_BADGES = { auto: 'Question corrigée automatiquement', teacher: 'Question corrigée par vous', none: 'Question sans correction' };
+function badgeOf(field) {
+  if (field.role) return field.role === 'title' ? 'Titre de la fiche' : 'Sous-titre';
+  return field.audience === 'question' ? QUESTION_BADGES[checkOf(field)] : BADGES[field.audience];
+}
 
 function detailsOf(field) {
-  if (isHeading(field)) return TYPE_LABELS.heading;
-  return [
-    TYPE_LABELS[field.type] + (field.type === 'choice' && field.multiple ? ' multiple' : ''),
-    field.role === 'title' && 'titre',
-    field.role === 'subtitle' && 'sous-titre',
-    field.list && 'dans la liste'
-  ]
+  return [TYPE_LABELS[field.type] + (field.type === 'choice' && field.multiple ? ' multiple' : ''), field.list && !field.role && 'dans la liste']
     .filter(Boolean)
     .join(' · ');
 }
@@ -509,18 +519,7 @@ function viewHTML(template, fiche, field) {
       : '<p class="hint"><em>Fin du groupe</em> : les éléments suivants ne sont plus sous un intertitre.</p>';
   if (field.role)
     return `<p class="tpl-role"><strong>${esc(field.label)}</strong> · ${field.role === 'title' ? 'le titre de la fiche, en haut, et partout où elle est nommée' : 'sous le titre, en italique'}</p>`;
-  const verdict = view.revealed && SAMPLE_VERDICT[checkOf(field)];
-  const body = ficheBodyHTML(
-    { ...template, fields: [field] },
-    fiche,
-    {},
-    {
-      disabled: true,
-      revealed: true,
-      teacher: true,
-      correction: verdict ? { questions: { [field.id]: verdict } } : null
-    }
-  );
+  const body = ficheBodyHTML({ ...template, fields: [field] }, fiche, {}, { disabled: true, revealed: true, teacher: true });
   if (body.trim()) return body;
   return `<dl class="facts"><div><dt>${esc(field.label)}</dt><dd><em class="hint">À remplir dans chaque fiche, onglet « Fiches »</em></dd></div></dl>`;
 }
@@ -592,73 +591,17 @@ function editHTML(field) {
   return `<div class="tpl-edit${field.audience === 'question' ? ' measures' : ''}"><div class="tpl-label-row">${icon}${label}${required}</div>${controlHTML(field)}${help}</div>`;
 }
 
-const selectHTML = (id, key, value, options, disabled = () => false) =>
-  `<select id="${id}" data-edit="${key}">${Object.entries(options)
-    .map(([option, label]) => `<option value="${option}"${option === value ? ' selected' : ''}${disabled(option) ? ' disabled' : ''}>${esc(label)}</option>`)
-    .join('')}</select>`;
 const checkHTML = (id, key, label, checked) =>
   `<label class="check"><input type="checkbox" id="${id}" data-edit="${key}"${checked ? ' checked' : ''}> ${label}</label>`;
-const settingHTML = (id, label, control, hint = '') =>
-  `<div class="field"><label for="${id}">${label}</label>${control}${hint ? `<span class="hint">${hint}</span>` : ''}</div>`;
 
-/** Les réglages de l'élément choisi, seulement ceux qui ont un sens pour son type et son public (MOD-03). */
-function settingsHTML(field, saved) {
+/** Ce qui ne se voit pas à sa place sur la fiche : trois cases à cocher au plus, et seulement celles qui ont un sens (MOD-03). */
+function optionsHTML(field) {
   if (isHeading(field)) return '';
-  // Un champ déjà rempli ne change de type que vers un type qui garde ses valeurs (MOD-05)
-  const locked = saved.audience !== 'question' && filled(saved.id).length > 0;
-  const types = Object.fromEntries(TYPES.filter((type) => type !== 'heading').map((type) => [type, TYPE_LABELS[type]]));
-  const parts = [
-    settingHTML(
-      'fType',
-      'Type',
-      selectHTML('fType', 'type', field.type, types, (type) => locked && !COMPATIBLE[saved.type].includes(type)),
-      locked ? 'Des fiches ont déjà une valeur ici : seuls les types qui la gardent sont proposés.' : ''
-    ),
-    settingHTML(
-      'fAudience',
-      'Qui le remplit, qui le voit',
-      selectHTML('fAudience', 'audience', field.audience, AUDIENCE_LABELS, (audience) => audience === 'question' && !QUESTION_TYPES.includes(field.type)),
-      AUDIENCE_HINTS[field.audience]
-    )
-  ];
-  if (field.audience === 'question')
-    parts.push(
-      settingHTML(
-        'fCheck',
-        'Correction',
-        selectHTML('fCheck', 'check', checkOf(field), Object.fromEntries(CHECKS[field.type].map((check) => [check, CHECK_LABELS[check]]))),
-        {
-          auto: 'Vous donnerez la bonne réponse de chaque fiche, dans l’onglet « Fiches ».',
-          teacher: 'Vous la corrigerez après le cours, dans la page du lancement.',
-          none: 'La réponse est seulement recueillie, comme une mesure.'
-        }[checkOf(field)]
-      )
-    );
-  if (field.type === 'text' && field.audience === 'info')
-    parts.push(
-      settingHTML(
-        'fRole',
-        'Rôle',
-        selectHTML('fRole', 'role', field.role ?? '', ROLE_LABELS),
-        'Le titre nomme la fiche partout ; le sous-titre s’affiche dessous.'
-      )
-    );
-  if (field.type === 'number')
-    parts.push(settingHTML('fKeyboard', 'Clavier du téléphone', selectHTML('fKeyboard', 'keyboard', field.keyboard ?? 'decimal', KEYBOARD_LABELS)));
-  parts.push(
-    settingHTML(
-      'fIcon',
-      'Icône',
-      editInput('icon', field.icon, { id: 'fIcon', label: 'Icône', placeholder: '☀️', max: LIMITS.icon, className: 'text-input tpl-icon' }),
-      'Un émoji, devant le libellé.'
-    )
-  );
-  const options = [checkHTML('fList', 'list', 'Dans la liste des fiches', field.list)];
-  if (['text', 'longtext'].includes(field.type) && field.audience === 'info') options.push(checkHTML('fSearch', 'search', 'Sert à la recherche', field.search));
-  if (field.audience === 'question') options.push(checkHTML('fRequired', 'required', 'Obligatoire', field.required));
+  const options = [];
   if (field.type === 'choice') options.push(checkHTML('fMultiple', 'multiple', 'Plusieurs réponses possibles', field.multiple));
-  parts.push(`<div class="field tpl-checks">${options.join('')}</div>`);
-  return `<div class="tpl-settings">${parts.join('')}</div>`;
+  if (field.audience === 'question') options.push(checkHTML('fRequired', 'required', 'Obligatoire', field.required));
+  if (!field.role) options.push(checkHTML('fList', 'list', 'Aussi dans la liste des fiches', field.list));
+  return options.length ? `<div class="tpl-settings">${options.join('')}</div>` : '';
 }
 
 function blockHTML(template, fiche, saved, i) {
@@ -666,14 +609,10 @@ function blockHTML(template, fiche, saved, i) {
   const field = selected ? view.draft : saved;
   const heading = isHeading(field);
   const name = esc(saved.label || 'fin du groupe');
-  const check = checkOf(field);
-  const notYet = field.audience === 'correction' && !view.revealed;
-  const marks = [
-    `<span class="state">${esc(detailsOf(field))}</span>`,
-    heading ? '' : `<span class="aud-badge ${field.audience}">${AUDIENCE_BADGES[field.audience]}</span>`,
-    check ? `<span class="check-badge ${check}">${CHECK_LABELS[check]}</span>` : ''
-  ].join('');
-  const classes = ['tpl-block', selected && 'selected', heading && 'is-heading', notYet && 'later', field.audience === 'teacher' && 'teacher-only'];
+  const marks = heading
+    ? `<span class="state">${TYPE_LABELS.heading}</span>`
+    : `<span class="aud-badge ${field.audience}">${badgeOf(field)}</span><span class="state">${esc(detailsOf(field))}</span>`;
+  const classes = ['tpl-block', selected && 'selected', heading && 'is-heading', field.audience === 'teacher' && 'teacher-only'];
   const count = template.fields.length;
   return `<section class="${classes.filter(Boolean).join(' ')}" data-block="${esc(saved.id)}">
       <div class="tpl-block-bar">
@@ -687,18 +626,25 @@ function blockHTML(template, fiche, saved, i) {
         </div>
       </div>
       <div class="tpl-view">${selected ? editHTML(field) : viewHTML(template, fiche, field)}</div>
-      ${selected ? settingsHTML(field, saved) : ''}
+      ${selected ? optionsHTML(field) : ''}
       ${selected && view.error ? `<p class="form-error" role="alert">${esc(view.error)}</p>` : ''}
     </section>`;
 }
 
 function canvasHTML(template) {
   const { fiche, source } = sampleFiche(template);
+  // Le moment du cours ne compte que dans l'aperçu réel, et seulement si quelque chose attend la correction
+  const moments = view.real && hasCorrection(template);
+  const revealed = moments && view.revealed;
   const toggles = [
     ['width', 'phone', 'Téléphone'],
     ['width', 'desktop', 'Ordinateur'],
-    ['revealed', false, 'Pendant le cours'],
-    ['revealed', true, 'À la correction']
+    ...(moments
+      ? [
+          ['revealed', false, 'Pendant le cours'],
+          ['revealed', true, 'À la correction']
+        ]
+      : [])
   ]
     .map(([key, value, label]) => `<button type="button" class="chip" data-view="${key}:${value}" aria-pressed="${view[key] === value}">${label}</button>`)
     .join('');
@@ -706,14 +652,14 @@ function canvasHTML(template) {
   const title = esc(titleOf(fiche, template));
   const sub = subtitleOf(fiche, template);
   const blocks = template.fields.map((field, i) => blockHTML(template, fiche, field, i)).join('');
-  // À la correction, chaque question montre un verdict d'exemple : juste, ou corrigée plus tard par l'enseignant
+  // À la correction, chaque question montre un verdict d'exemple
   const verdicts = Object.fromEntries(
     questionFields(template)
       .map((field) => [field.id, SAMPLE_VERDICT[checkOf(field)]])
       .filter(([, verdict]) => verdict)
   );
   const body = view.real
-    ? `<div class="tpl-real">${ficheBodyHTML(template, fiche, {}, { revealed: view.revealed, correction: view.revealed ? { questions: verdicts } : null })}</div>`
+    ? `<div class="tpl-real">${ficheBodyHTML(template, fiche, {}, { revealed, correction: revealed ? { questions: verdicts } : null })}</div>`
     : `<div class="tpl-blocks" id="tplBlocks">${blocks}<div class="tpl-end" data-end>${template.fields.length ? 'Glissez un élément ici pour l’ajouter à la fin.' : 'Glissez ici un premier élément.'}</div></div>`;
   return `
     <div class="tpl-bar"><div class="chips">${toggles}${real}</div><span class="state">${esc(source)}</span></div>
@@ -877,7 +823,7 @@ function bindCanvas(container) {
     const what = draggedBy(e);
     const at = indexAt(e.clientY);
     dragged = null;
-    if (what?.add && TYPES.includes(what.add)) later(() => addField(what.add, what.audience, at));
+    if (what?.add && Object.hasOwn(WIDGETS, what.add)) later(() => addField(what.add, at));
     else if (what?.move) later(() => moveField(what.move, at));
   });
 }

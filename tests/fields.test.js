@@ -7,8 +7,6 @@ import {
   ANSWER_LIMITS,
   AUDIENCES,
   CHECKS,
-  CHECK_LABELS,
-  COMPATIBLE,
   TYPE_LABELS,
   checkOf,
   cleanField,
@@ -336,7 +334,6 @@ test('CHP-08 : une question dit comment elle est corrigée ; sans réglage, son 
   );
   assert.equal(checkOf({ type: 'number', audience: 'question', check: 'auto' }), 'auto');
   assert.equal(checkOf(text('c-a')), undefined, 'un renseignement ne se corrige pas');
-  assert.deepEqual(Object.keys(CHECK_LABELS), ['auto', 'teacher', 'none']);
   for (const [type, checks] of Object.entries(CHECKS)) {
     for (const check of ['auto', 'teacher', 'none']) {
       const field = { id: 'c-q', type, label: 'Q', audience: 'question', check, ...(type === 'choice' ? { choices: choice().choices } : {}) };
@@ -414,16 +411,5 @@ test('MOD-03 : l’éditeur enregistre un champ réduit à ce qui a un sens pour
     });
     if (type === 'heading') delete field.help;
     assert.deepEqual(problemsOf(field), [], type);
-  }
-});
-
-test('MOD-03 : un champ déjà rempli ne change de type que vers un type qui garde ses valeurs', () => {
-  for (const [type, targets] of Object.entries(COMPATIBLE)) {
-    assert.equal(targets[0], type, 'son propre type d’abord');
-    for (const target of targets) {
-      const field = { type, choices: choice().choices, max: 5 };
-      const value = { text: 'Un mot', longtext: 'Un mot', number: '12', date: '2026-10-02', choice: 'chene', yesno: 'oui', scale: 3, heading: '' }[type];
-      assert.deepEqual(normalizeValue({ ...field, type: target }, normalizeValue(field, value)), value, `${type} → ${target}`);
-    }
   }
 });

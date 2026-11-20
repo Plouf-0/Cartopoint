@@ -956,10 +956,10 @@ const MUTANTS = [
   ['MOD-07 : un cours se propose lui-même', 'src/js/prof/template-tab.js', '.filter((course) => course.id !== openCourseId())', '.filter(() => true)'],
   ['MOD-08 : la copie garde le nom de l’original', 'src/js/prof/main.js', 'title: `${course.title.slice(0, 200 - COPY.length)}${COPY}`', 'title: course.title'],
   [
-    'MOD-04 : badge de correction absent',
+    'MOD-04 : la correction d’une question ne se voit pas',
     'src/js/prof/template-tab.js',
-    'check ? `<span class="check-badge ${check}">',
-    'false ? `<span class="check-badge ${check}">'
+    "return field.audience === 'question' ? QUESTION_BADGES[checkOf(field)] : BADGES[field.audience];",
+    "return BADGES[field.audience] ?? 'Question';"
   ],
   ['MOD-04 : résumé qui ne compte pas', 'src/js/prof/template-tab.js', 'counts[checkOf(field)]++;', 'counts.none++;'],
   ['CHP-08 : un nombre corrigé par défaut', 'src/js/fields.js', "number: 'none', choice: 'auto'", "number: 'auto', choice: 'auto'"],
@@ -991,33 +991,34 @@ const MUTANTS = [
   ],
   ['MOD-03 : le plan reste au centre', 'src/js/views/admin/index.js', '  showStage(tab.stage);\n', ''],
   [
-    'MOD-09 : un champ à remplir devient une question',
+    'MOD-09 : un texte à remplir devient une question',
     'src/js/prof/template-tab.js',
-    "const question = audience === 'question' && type !== 'date';",
-    "const question = type !== 'date';"
+    "field: { type: 'text', audience: 'info', search: true } },",
+    "field: { type: 'text', audience: 'question', search: true } },"
+  ],
+  ['MOD-09 : deux titres proposés', 'src/js/prof/template-tab.js', 'const taken = field.role && template', 'const taken = false && template'],
+  [
+    'MOD-03 : une case à cocher sans objet',
+    'src/js/prof/template-tab.js',
+    "if (field.audience === 'question') options.push(checkHTML('fRequired'",
+    "if (true) options.push(checkHTML('fRequired'"
   ],
   ['MOD-03 : rien ne dit qu’une fiche n’a pas de titre', 'src/js/prof/template-tab.js', "${titleField(template) ? '' :", "${true ? '' :"],
   ['MOD-06 : l’aperçu réel montre l’éditeur', 'src/js/prof/template-tab.js', 'const body = view.real', 'const body = false'],
   [
     'MOD-06 : l’aperçu réel révèle tout pendant le cours',
     'src/js/prof/template-tab.js',
-    '{ revealed: view.revealed, correction: view.revealed ? { questions: verdicts } : null }',
-    '{ revealed: true, correction: view.revealed ? { questions: verdicts } : null }'
+    '{ revealed, correction: revealed ? { questions: verdicts } : null }',
+    '{ revealed: true, correction: revealed ? { questions: verdicts } : null }'
   ],
-  [
-    'MOD-09 : qui remplit l’élément ne se voit pas',
-    'src/js/prof/template-tab.js',
-    "heading ? '' : `<span class=\"aud-badge",
-    "true ? '' : `<span class=\"aud-badge"
-  ],
-  ['MOD-05 : type d’un champ rempli libre', 'src/js/prof/template-tab.js', 'locked && !COMPATIBLE', 'false && !COMPATIBLE'],
+  ['MOD-09 : qui remplit l’élément ne se voit pas', 'src/js/prof/template-tab.js', '`<span class="aud-badge ${field.audience}">${badgeOf(field)}</span>', '`'],
   ['MOD-05 : perte sans confirmation', 'src/js/prof/template-tab.js', 'if (lost && !confirm(', 'if (false && !confirm('],
   ['MOD-05 : suppression sans dire ce qui sera perdu', 'src/js/prof/template-tab.js', '(lost.length ? `', '(false ? `'],
   [
-    'MOD-06 : rien ne dit ce qui n’est révélé qu’à la correction',
+    'MOD-06 : les moments du cours proposés sans rien à corriger',
     'src/js/prof/template-tab.js',
-    "const notYet = field.audience === 'correction' && !view.revealed;",
-    'const notYet = false;'
+    'const moments = view.real && hasCorrection(template);',
+    'const moments = view.real;'
   ],
   ['MOD-06 : la fiche toujours sur un téléphone', 'src/js/prof/template-tab.js', '<div class="tpl-canvas ${view.width}">', '<div class="tpl-canvas phone">'],
   [
@@ -1214,12 +1215,6 @@ const MUTANTS = [
   ['SEC-06 : API sans règle', 'server/http.mjs', "res.setHeader('Content-Security-Policy', contentPolicy());", ''],
   ['EV-34 : couleur verte perdue', 'src/js/themes.js', "accent: '#2e6e45'", "accent: '#1f5f8b'"],
   ['EV-34 : botanique dans une fiche ouverte', 'src/js/views/reader.js', '<h3>Autres photos et vidéos</h3>', '<h3>Autres photos de la plante</h3>'],
-  [
-    'EV-34 : botanique dans le formulaire d’une fiche',
-    'src/js/views/fields-html.js',
-    "puis sur un émoji pour l'ajouter",
-    'puis sur un émoji pour décrire la plante'
-  ],
   ['EV-34 : botanique dans la page d’un cours', 'src/prof-cours.html', '<h3>Photos et vidéos</h3>', '<h3>Photos de la plante</h3>'],
   ['EV-34 : ancien nom du modèle de tableur', 'src/js/views/admin/fiches.js', "'Modèle de fiches.csv'", "'Modèle fiches botaniques.csv'"],
   ['EDI-10 : mesures dans la liste', 'src/js/views/admin/fiches.js', "${S.teacherSpace ? '' : measuresHTML(f)}", '${measuresHTML(f)}'],

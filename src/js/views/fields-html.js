@@ -181,7 +181,6 @@ export function cardAnswersHTML(template, fiche, entry, { disabled = false, titl
 
 const AUDIENCE_BADGES = { correction: 'Révélé à la correction', teacher: 'Pour vous seul' };
 const WIDE = (field) => field.type === 'longtext' || (field.type === 'choice' && field.multiple);
-const isText = (field) => field.type === 'text' || field.type === 'longtext';
 
 function controlHTML(field, value, { compact }) {
   const id = `e-${field.id}`;
@@ -284,12 +283,6 @@ function columnsHTML(items, { compact = false } = {}) {
     .join('');
 }
 
-// Des marques de toutes les matières ; le soleil et l'eau restent, dont se servent les fiches botaniques (exposition, arrosage)
-const EMOJIS = ['☀️', '🌤️', '⛅', '☁️', '💧', '💦', '🌡️', '🔥', '❄️', '🌬️', '⭐', '✅', '❌', '⚠️', '🚫', '❗', '❓', '💡', '📌', '📏', '➡️', '🔴', '🟢', '🔵'];
-const EMOJI_HINT = "Cliquez dans une case, puis sur un émoji pour l'ajouter";
-const emojiBarHTML = () =>
-  `<div class="emoji-bar" id="emojiBar" role="toolbar" aria-label="Émojis">${EMOJIS.map((e) => `<button type="button" data-emoji="${e}" title="Ajouter ${e}">${e}</button>`).join('')}</div>`;
-
 /**
  * Le formulaire d'une fiche : sa réf. photo, puis chaque champ du modèle, groupe par groupe. Les questions n'y sont que
  * dans l'application d'origine, où l'enseignant peut noter des mesures à la place des élèves.
@@ -306,8 +299,6 @@ export function ficheFormHTML(template, fiche, answers) {
   const groups = fieldGroups(template)
     .map(({ heading, fields }) => ({ heading, items: fields.map(item).filter(Boolean) }))
     .filter((group) => group.items.length);
-  // La barre d'émojis va au premier groupe titré qui a du texte, sinon en tête du formulaire
-  const emojiGroup = groups.find((group) => group.heading && group.items.some(({ field, expected }) => isText(field) && !expected)) ?? null;
   const ref = {
     field: {
       id: 'ref',
@@ -319,8 +310,6 @@ export function ficheFormHTML(template, fiche, answers) {
     value: fiche.ref
   };
   let html = '';
-  if (!emojiGroup && groups.some((group) => group.items.some(({ field, expected }) => isText(field) && !expected)))
-    html += `<div class="field wide"><span class="hint">${EMOJI_HINT}</span>${emojiBarHTML()}</div>`;
   groups.forEach((group, i) => {
     const items = i === 0 && !group.heading ? [ref, ...group.items] : group.items;
     if (!group.heading) {
@@ -328,8 +317,7 @@ export function ficheFormHTML(template, fiche, answers) {
       return;
     }
     html += `<div class="field wide needs-edit">
-          <div class="needs-head"><h3>${esc(group.heading.label)}</h3>${group === emojiGroup ? `<span class="hint">${EMOJI_HINT}</span>` : ''}</div>
-          ${group === emojiGroup ? emojiBarHTML() : ''}
+          <div class="needs-head"><h3>${esc(group.heading.label)}</h3></div>
           <div class="needs-grid">${columnsHTML(items, { compact: true })}</div>
         </div>`;
   });

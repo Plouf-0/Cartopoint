@@ -211,7 +211,7 @@ test('CHP-04 : ce qui est révélé à la correction ne paraît qu’une fois le
   assert.equal(await dialog.getByText('Demander la clé').count(), 0);
 });
 
-test('CHP-05, EDI-01, EDI-03, EDI-05, EDI-06 : le formulaire d’une fiche suit le modèle, questions comprises dans le fichier de secours', async (t) => {
+test('CHP-05, EDI-01, EDI-03, EDI-05 : le formulaire d’une fiche suit le modèle, questions comprises dans le fichier de secours', async (t) => {
   const page = await openPatrimoine(t);
   await page.getByRole('tab', { name: 'Fiches', exact: true }).click();
   await page.locator('#newFiche').click();
@@ -221,11 +221,7 @@ test('CHP-05, EDI-01, EDI-03, EDI-05, EDI-06 : le formulaire d’une fiche suit 
   const day = await page.evaluate(() => new Date().toLocaleDateString('sv-SE'));
   assert.equal(await form.locator('#e-c-visite').inputValue(), day, 'EDI-05 : la date du jour, celle de l’appareil');
   assert.deepEqual(await textOf(form.locator('.needs-edit h3')), ['À regarder', 'Vos réponses']);
-  assert.equal(
-    await form.locator('.needs-edit', { hasText: 'À regarder' }).locator('#emojiBar').count(),
-    1,
-    'la barre d’émojis va au premier groupe qui a du texte'
-  );
+  assert.equal(await page.locator('#dlgEdit [data-emoji], #dlgEdit .emoji-bar').count(), 0, 'pas de boutons d’émojis : on les tape soi-même');
   assert.deepEqual(await textOf(form.locator('.aud')), ['Révélé à la correction', 'Pour vous seul']);
   assert.equal(await form.locator('label[for="e-c-architecte"] .aud').textContent(), 'Révélé à la correction');
   assert.equal(await form.locator('#e-c-materiaux input[type=checkbox]').count(), 3);
@@ -240,8 +236,7 @@ test('CHP-05, EDI-01, EDI-03, EDI-05, EDI-06 : le formulaire d’une fiche suit 
   assert.equal(await page.evaluate(() => document.activeElement.id), 'e-c-nom');
 
   await form.locator('#e-c-nom').fill('Halle aux grains');
-  await form.locator('#e-c-facade').click();
-  await form.locator('[data-emoji="💡"]').click();
+  await form.locator('#e-c-facade').fill('💡 Une rosace');
   await form.locator('#e-c-style').selectOption('roman');
   await form.locator('#e-c-classe').selectOption('non');
   await form.locator('#e-c-materiaux input[value="brique"]').check();
@@ -252,7 +247,7 @@ test('CHP-05, EDI-01, EDI-03, EDI-05, EDI-06 : le formulaire d’une fiche suit 
   await toast(page, '✓ Fiche créée');
 
   await page.locator('.row', { hasText: 'Halle aux grains' }).locator('[data-edit]').click();
-  assert.equal(await form.locator('#e-c-facade').inputValue(), '💡');
+  assert.equal(await form.locator('#e-c-facade').inputValue(), '💡 Une rosace');
   assert.equal(await form.locator('#e-c-style').inputValue(), 'roman');
   assert.equal(await form.locator('#e-c-classe').inputValue(), 'non');
   assert.equal(await form.locator('#e-c-materiaux input[value="brique"]').isChecked(), true);

@@ -30,7 +30,6 @@ export const TYPE_LABELS = {
   scale: 'Échelle',
   heading: 'Intertitre'
 };
-export const AUDIENCE_LABELS = { info: 'Renseignement', question: 'Question', correction: 'Révélé à la correction', teacher: 'Pour vous seul' };
 
 /**
  * Comment une question est corrigée (4.4 de la feuille de route, QST) : par le serveur d'après la réponse attendue de chaque
@@ -46,7 +45,6 @@ export const CHECKS = {
   scale: ['auto', 'none']
 };
 const DEFAULT_CHECK = { text: 'teacher', longtext: 'teacher', number: 'none', choice: 'auto', yesno: 'auto', scale: 'auto' };
-export const CHECK_LABELS = { auto: 'Corrigée automatiquement', teacher: 'À corriger par vous', none: 'Non corrigée' };
 /** La correction d'une question ; rien pour un champ qui n'en est pas une. */
 export const checkOf = (field) => (field.audience === 'question' ? (field.check ?? DEFAULT_CHECK[field.type]) : undefined);
 
@@ -317,21 +315,6 @@ function fieldProblems(field, index) {
 }
 
 /**
- * Les types vers lesquels un champ déjà rempli peut passer sans perdre ses valeurs (6.3 de la feuille de route). Pour un
- * autre type, mieux vaut créer un nouveau champ.
- */
-export const COMPATIBLE = {
-  text: ['text', 'longtext'],
-  longtext: ['longtext', 'text'],
-  number: ['number', 'text'],
-  date: ['date', 'text'],
-  choice: ['choice'],
-  yesno: ['yesno'],
-  scale: ['scale'],
-  heading: ['heading']
-};
-
-/**
  * Un champ réduit à ce qui a un sens pour son type et son public, tel que l'éditeur l'enregistre : ni réglage vide, ni case
  * décochée, ni rôle pour une question. Le modèle reste ainsi court, et templateProblems() n'y trouve rien d'inconnu.
  */
@@ -346,7 +329,7 @@ export function cleanField(raw) {
   field.label = String(raw.label ?? '').trim();
   const question = field.audience === 'question';
   if (!question) for (const key of ['required', 'check']) delete field[key];
-  // Une correction qui ne va pas au type (après un changement de type) laisse place à celle du type
+  // Une correction qui ne va pas au type laisse place à celle du type
   if (field.check && !CHECKS[field.type].includes(field.check)) delete field.check;
   if (field.audience !== 'info') for (const key of ['role', 'search']) delete field[key];
   if (field.type === 'choice') field.choices = (field.choices ?? []).map(({ id, label }) => ({ id, label: label.trim() }));

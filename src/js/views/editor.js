@@ -145,37 +145,9 @@ async function remove() {
   toast('Fiche supprimée');
 }
 
-/**
- * Barre d'émojis : insère l'émoji dans le dernier champ texte utilisé, sinon dans le premier du groupe de la barre. Le
- * formulaire est refait à chaque fiche : tout passe par la fenêtre, qui, elle, reste.
- */
-function bindEmojiBar() {
-  const dlg = $('#dlgEdit');
-  let target = null;
-  dlg.addEventListener('focusin', (e) => {
-    if (e.target.matches('[data-f]:is(textarea, input:not([type]), input[type="text"])')) target = e.target;
-  });
-  dlg.addEventListener('mousedown', (e) => e.target.closest('[data-emoji]') && e.preventDefault()); // garde le curseur dans le champ
-  dlg.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-emoji]');
-    if (!b) return;
-    const group = b.closest('.needs-edit') ?? $('#eFields');
-    const t = target?.isConnected ? target : group.querySelector('[data-f]:is(textarea, input:not([type]))');
-    if (!t) return;
-    const start = t.selectionStart ?? t.value.length;
-    const end = t.selectionEnd ?? t.value.length;
-    t.value = t.value.slice(0, start) + b.dataset.emoji + t.value.slice(end);
-    t.focus();
-    const pos = start + b.dataset.emoji.length;
-    t.setSelectionRange(pos, pos);
-    if (t.matches('textarea')) autosize(t);
-  });
-}
-
 export function bindEditor() {
   useEditor(openEditor);
   const dlg = $('#dlgEdit');
-  bindEmojiBar();
   dlg.addEventListener('input', (e) => e.target.matches('textarea') && autosize(e.target));
   dlg.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => dlg.close()));
   $('#eFiles').onchange = async (e) => {

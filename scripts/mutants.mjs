@@ -662,7 +662,15 @@ const MUTANTS = [
     ''
   ],
   ['publication : positions manquantes non comptées', 'src/js/prof/course-tab.js', 'visible.filter((fiche) => !hasRef(fiche)).length', '0'],
-  ['publication : plan manquant non signalé', 'src/js/prof/course-tab.js', 'S.project.maps.filter((map) => !map.image).length', '0'],
+  ['CAR-07 : une liste attend des positions réelles', 'src/js/prof/course-tab.js', 'S.project.maps.filter(hasPlan).flatMap(', 'S.project.maps.flatMap('],
+  ['CAR-07 : une liste reste un plan à la suppression de l’image', 'src/js/views/admin/maps.js', "        m.image = '';\n", ''],
+  [
+    'CAR-08 : la position réelle suit la fiche sur une autre carte',
+    'src/js/views/admin/fiches.js',
+    'target.fiches.push({ ...f, refX: null, refY: null });',
+    'target.fiches.push(f);'
+  ],
+  ['CAR-07 : placer sur une liste', 'src/js/views/student-list.js', '} else if (!plan) {', '} else if (false) {'],
   ['publication : part avant l’enregistrement', 'src/js/prof/course-tab.js', '  await flush();\n', ''],
   ['publication : part malgré un échec d’enregistrement', 'src/js/prof/course-tab.js', 'if (hasUnsentChanges()) {', 'if (false) {'],
   ['publication : erreur muette', 'src/js/prof/course-tab.js', 'publishError = `Publication impossible : ${errorText(e)}`;', ''],
@@ -718,7 +726,14 @@ const MUTANTS = [
   ['rendu : terminer sans confirmation', 'src/js/eleve/main.js', 'if (!confirm(`${warning}Terminer ?', 'if (false && !confirm(`${warning}Terminer ?'],
   ['rendu : fiches non placées non annoncées', 'src/js/eleve/main.js', '(missing ? `${missing} fiche(s)', '(false ? `${missing} fiche(s)'],
   ['QST-06 : réponses obligatoires non annoncées', 'src/js/eleve/main.js', '(required ? `${required} réponse(s)', '(false ? `${required} réponse(s)'],
-  ['rendu : une seule carte comptée', 'src/js/eleve/main.js', 'S.project.maps.reduce(', '[S.map].reduce('],
+  ['rendu : une seule carte comptée', 'src/js/eleve/main.js', 'S.project.maps.filter(hasPlan).reduce(', '[S.map].filter(hasPlan).reduce('],
+  [
+    'CAR-07 : la liste ne prend pas la place du plan',
+    'src/js/eleve/main.js',
+    "  document.querySelector('.layout').classList.toggle('no-plan', !hasPlan(S.map));\n",
+    ''
+  ],
+  ['CAR-07 : une liste compte comme à placer', 'src/js/eleve/main.js', 'S.project.maps.filter(hasPlan).reduce(', 'S.project.maps.reduce('],
   [
     'rendu : rien de figé',
     'src/js/eleve/main.js',
@@ -744,7 +759,7 @@ const MUTANTS = [
     'const studentCanMove = !S.admin && !verified();'
   ],
   ['figé : placement encore possible', 'src/js/views/student-list.js', 'else if (locked()) foot += `<span class="state">Non placée</span>`;', ''],
-  ['figé : fiche encore à glisser', 'src/js/views/student-list.js', 'draggable="${!locked() && !placed}"', 'draggable="${!placed}"'],
+  ['figé : fiche encore à glisser', 'src/js/views/student-list.js', 'draggable="${!locked() && !placed && plan}"', 'draggable="${!placed && plan}"'],
   ['figé : mesures encore modifiables', 'src/js/views/cards.js', '{ disabled: S.finished, title', '{ disabled: false, title'],
   ['figé : mesures de la fiche encore modifiables', 'src/js/views/reader.js', '{ disabled: S.finished, revealed', '{ disabled: false, revealed'],
   [
@@ -759,7 +774,12 @@ const MUTANTS = [
     "const off = disabled ? ' disabled' : '';\n  if (isChoice",
     "const off = '';\n  if (isChoice"
   ],
-  ['figé : placer depuis la fiche', 'src/js/views/reader.js', 'const canPlace = !posOf(f) && !locked();', 'const canPlace = !posOf(f) && !verified();'],
+  [
+    'figé : placer depuis la fiche',
+    'src/js/views/reader.js',
+    'const canPlace = !posOf(f) && !locked() && hasPlan(S.map);',
+    'const canPlace = !posOf(f) && !verified() && hasPlan(S.map);'
+  ],
   ['plan : proportions non mesurées', 'src/js/prof/course-tab.js', '      map.ratio = ratio;\n', ''],
   ['plan : mesure fausse', 'src/js/prof/course-tab.js', 'plan.naturalWidth / plan.naturalHeight', 'plan.naturalHeight / plan.naturalWidth'],
   ['plan : publié même illisible', 'src/js/prof/course-tab.js', 'throw new Error(`le plan de la carte « ${map.name} » ne se charge pas.`);', 'continue;'],
@@ -1048,8 +1068,6 @@ const MUTANTS = [
     "$('#mapChoiceBox').hidden = false;"
   ],
   ['élève : changer de carte sans effet', 'src/js/eleve/main.js', 'await switchMap(event.target.value);', ''],
-  ['élève : image cassée sans plan', 'src/js/eleve/main.js', "$('#plan').hidden = !S.map.image;", ''],
-  ['élève : pas de message sans plan', 'src/js/eleve/main.js', "$('#planEmpty').hidden = !!S.map.image;", "$('#planEmpty').hidden = true;"],
   [
     'élève : cours disparu non annoncé',
     'src/js/eleve/main.js',
@@ -1547,14 +1565,19 @@ const MUTANTS = [
     ''
   ],
   ['CRG-06 : positions réelles sans légende', 'src/js/eleve/main.js', "$('#legendRef').hidden = !S.correction;", ''],
-  ['CRG-06 : titre resté « à placer »', 'src/js/views/student-list.js', "${S.finished ? 'Vos fiches' : 'Fiches à placer'}", 'Fiches à placer'],
+  [
+    'CRG-06 : titre resté « à placer »',
+    'src/js/views/student-list.js',
+    "${S.finished ? 'Vos fiches' : plan ? 'Fiches à placer' : 'Fiches'}",
+    "${plan ? 'Fiches à placer' : 'Fiches'}"
+  ],
   ['CRG-09 : résultat recalculé par l’appareil', 'src/js/store.js', 'if (result) return { ...gradeOf(result.state), ...result };', ''],
-  ['CRG-10 : positions réelles dans le compte rendu', 'src/js/report.js', 'const plan = await drawPlan(S.admin);', 'const plan = await drawPlan(true);'],
+  ['CRG-10 : positions réelles dans le compte rendu', 'src/js/report.js', 'await drawPlan(S.admin)', 'await drawPlan(true)'],
   [
     'CRG-10 : légende des positions réelles',
     'src/js/report.js',
-    "if (S.admin) {\n    legend((cx, cy) => drawTag(ctx, cx, cy, 12, '', TRUTH, 0.45), 'Position réelle');",
-    "if (true) {\n    legend((cx, cy) => drawTag(ctx, cx, cy, 12, '', TRUTH, 0.45), 'Position réelle');"
+    "if (S.admin) {\n      legend((cx, cy) => drawTag(ctx, cx, cy, 12, '', TRUTH, 0.45), 'Position réelle');",
+    "if (true) {\n      legend((cx, cy) => drawTag(ctx, cx, cy, 12, '', TRUTH, 0.45), 'Position réelle');"
   ],
   [
     'CRG-10 : pas de compte rendu',
@@ -1574,7 +1597,7 @@ const MUTANTS = [
   ['origine : noms exigés en gestion', 'src/js/views/report-actions.js', 'if (!names && !S.admin) {', 'if (!names) {'],
   ['origine : compte rendu sans effet', 'src/js/views/report-actions.js', 'if (names !== null) downloadReport(names);', ''],
   ['origine : fichier pour l’enseignant sans noms', 'src/js/views/report-actions.js', '  if (names === null) return;\n', ''],
-  ['CRG-10 : positions réelles cachées à l’enseignant', 'src/js/report.js', 'const plan = await drawPlan(S.admin);', 'const plan = await drawPlan(false);'],
+  ['CRG-10 : positions réelles cachées à l’enseignant', 'src/js/report.js', 'await drawPlan(S.admin)', 'await drawPlan(false)'],
   // Fin du cours : ce que voit l'enseignant
   ['CRG-11 : figé non affiché', 'src/js/prof/results-workbook.js', 'participant.autoClosed\n', 'false\n'],
   [
@@ -1639,7 +1662,7 @@ const MUTANTS = [
   ],
   ['HIS-03 : pas de score', 'server/launches.mjs', 'score: p.results ? JSON.parse(p.results).score : null', 'score: null'],
   ['HIS-03 : pas de précision', 'server/launches.mjs', 'meanGap: p.results ? meanGap(project, JSON.parse(p.results)) : null', 'meanGap: null'],
-  ['HIS-03 : toujours en mètres', 'src/js/model.js', 'project.maps.length > 0 && project.maps.every((map) => map.widthMeters)', 'true'],
+  ['HIS-03 : toujours en mètres', 'src/js/model.js', 'measured.length > 0 && measured.every((map) => map.widthMeters)', 'true'],
   ['HIS-03 : une fiche non placée compte zéro', 'src/js/model.js', '.filter(({ d }) => d !== undefined)\n', '\n'],
   ['HIS-03 : écart sans échelle', 'src/js/model.js', 'meters ? (d / 100) * map.widthMeters : d', 'd'],
   ['HIS-04 : réponses absentes', 'server/launches.mjs', 'answers: answers ? JSON.parse(answers) : null', 'answers: null'],

@@ -10,7 +10,7 @@ import { studentBackend } from '../backends/student.js';
 import { card, el, field, onSubmit, show } from '../compte/ui.js';
 import { Progress, openDb } from '../db.js';
 import { reportIncident } from '../incident.js';
-import { missingRequired, normalizeProgress, normalizeProject, placedPos } from '../model.js';
+import { hasPlan, missingRequired, normalizeProgress, normalizeProject, placedPos } from '../model.js';
 import { answersWord } from '../fields.js';
 import { onRender, render } from '../render.js';
 import { S, activate, flush, listed, posOf, switchMap, useBackend } from '../store.js';
@@ -145,6 +145,8 @@ function renderHeader() {
   $('#legendRef').hidden = !S.correction;
   $('#plan').hidden = !S.map.image;
   $('#planEmpty').hidden = !!S.map.image;
+  // Une carte sans plan est une liste : la liste prend toute la place (CAR-07)
+  document.querySelector('.layout').classList.toggle('no-plan', !hasPlan(S.map));
 }
 
 function footHTML() {
@@ -180,8 +182,9 @@ function renderPanel() {
 }
 
 /** Les fiches non placées, sur toutes les cartes : l'élève n'a peut-être pas vu l'autre carte. */
+/** Les fiches qu'il reste à placer, sur les cartes qui ont un plan : une liste ne se place pas. */
 const unplacedCount = () =>
-  S.project.maps.reduce((count, map) => count + map.fiches.filter((fiche) => !placedPos(S.progress[map.id]?.entries[fiche.id])).length, 0);
+  S.project.maps.filter(hasPlan).reduce((count, map) => count + map.fiches.filter((fiche) => !placedPos(S.progress[map.id]?.entries[fiche.id])).length, 0);
 
 async function keepSubmission() {
   if (!S.storageOk) return;
@@ -258,7 +261,7 @@ function bindHeader(me) {
   };
   // E-01 : une sortie peut couvrir plusieurs sites, l'élève choisit sa carte
   $('#mapChoiceBox').hidden = S.project.maps.length < 2;
-  $('#mapChoice').replaceChildren(...S.project.maps.map((map) => new Option(map.name, map.id)));
+  $('#mapChoice').replaceChildren(...S.project.maps.map((map) => new Option(hasPlan(map) ? map.name : `${map.name} (liste)`, map.id)));
   $('#mapChoice').onchange = async (event) => {
     await switchMap(event.target.value);
     render();

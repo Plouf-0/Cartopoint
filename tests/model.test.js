@@ -195,9 +195,12 @@ test('CRG-09 : un résultat se présente pareil, calculé ici ou reçu du serveu
 
 test('HIS-03 : la précision moyenne passe en mètres selon l’échelle de la carte, sans compter les fiches non placées', () => {
   const results = { maps: { m1: { fiches: { a: { d: 10 }, b: { d: 5 }, c: { state: 'unplaced' } } } } };
-  assert.equal(meanGap({ maps: [{ id: 'm1', widthMeters: 200 }] }, results), 15, 'écarts de 20 et de 10 mètres');
-  assert.equal(meanGap({ maps: [{ id: 'm1', widthMeters: null }] }, results), 7.5, 'sans échelle, en % du plan');
-  assert.equal(meanGap({ maps: [{ id: 'm1', widthMeters: 200 }] }, { maps: {} }), null, 'rien de placé, pas de précision');
+  const placed = [{ refX: 10, refY: 10 }];
+  assert.equal(meanGap({ maps: [{ id: 'm1', widthMeters: 200, fiches: placed }] }, results), 15, 'écarts de 20 et de 10 mètres');
+  assert.equal(meanGap({ maps: [{ id: 'm1', widthMeters: null, fiches: placed }] }, results), 7.5, 'sans échelle, en % du plan');
+  assert.equal(meanGap({ maps: [{ id: 'm1', widthMeters: 200, fiches: placed }] }, { maps: {} }), null, 'rien de placé, pas de précision');
+  const withList = { maps: [{ id: 'm1', widthMeters: 200, fiches: placed }, { id: 'liste', image: '', widthMeters: null, fiches: [{ refX: null, refY: null }] }] };
+  assert.equal(meanGap(withList, results), 15, 'CAR-07 : une liste sans plan n’empêche pas les mètres');
 });
 
 /** Ce que la version 1.3.7 lisait de COURS_FORMAT_3 : le projet, puis pour chaque fiche son titre, son numéro, sa recherche et son évaluation. */

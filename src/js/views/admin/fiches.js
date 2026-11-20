@@ -4,7 +4,7 @@
  */
 import { $, esc, prefs, toast, download, safeFileName } from '../../util.js';
 import { S, fiches, byId, posOf, verified, progress, changedMap, changedProgress, deleteFiches, courseTemplate } from '../../store.js';
-import { numberOf, titleOf, subtitleOf, hasRef, matches, sortByRef, emptyProgress } from '../../model.js';
+import { numberOf, titleOf, subtitleOf, hasPlan, hasRef, matches, sortByRef, emptyProgress } from '../../model.js';
 import { answersWord, questionNames } from '../../fields.js';
 import { autoQuestions } from '../../verdicts.js';
 import { render } from '../../render.js';
@@ -15,6 +15,9 @@ import { importSpreadsheet, buildCsv, templateCsv } from '../../spreadsheet.js';
 
 export function html() {
   const template = courseTemplate();
+  // Une carte sans plan est une liste : ni position réelle à placer, ni placement (CAR-07)
+  const plan = hasPlan(S.map);
+  const others = S.project.maps.filter((map) => map !== S.map);
   const all = fiches();
   const dense = all.length > 6;
   const shown = all.filter((f) => f.visible).length;
@@ -36,7 +39,7 @@ export function html() {
           ${sub ? `<p class="sci" style="font-size:13px">${esc(sub)}</p>` : ''}
           ${f.ref ? `<div class="ref-photo">Réf. photo : ${esc(f.ref)}</div>` : ''}
           ${missing ? `<div class="ref-state missing-expected">⚠ ${missing} bonne(s) réponse(s) à donner, sinon vous corrigerez vous-même</div>` : ''}
-          <div class="ref-state ${hasRef(f) ? 'set' : ''}">${hasRef(f) ? '■ Position réelle placée' : 'Position réelle à placer'}${posOf(f) ? ' · placée par les élèves' : ''}</div>
+          ${plan ? `<div class="ref-state ${hasRef(f) ? 'set' : ''}">${hasRef(f) ? '■ Position réelle placée' : 'Position réelle à placer'}${posOf(f) ? ' · placée par les élèves' : ''}</div>` : ''}
         </div>
         <div class="actions">
           <span class="move">
@@ -44,7 +47,14 @@ export function html() {
             <button type="button" class="btn ghost sm" data-move="1" data-id="${esc(f.id)}" aria-label="Descendre" title="Descendre dans la liste" ${i === all.length - 1 ? 'disabled' : ''}>▼</button>
           </span>
           <button type="button" class="btn soft sm" data-edit="${esc(f.id)}">Modifier</button>
-          <button type="button" class="btn ghost sm" data-place-ref="${esc(f.id)}">${place}</button>
+          ${plan ? `<button type="button" class="btn ghost sm" data-place-ref="${esc(f.id)}">${place}</button>` : ''}
+          ${
+            others.length
+              ? `<select class="move-to" data-move-to="${esc(f.id)}" aria-label="Déplacer « ${esc(title)} » vers une autre carte"><option value="">Déplacer vers…</option>${others
+                  .map((map) => `<option value="${esc(map.id)}">${esc(map.name)}${hasPlan(map) ? '' : ' (liste)'}</option>`)
+                  .join('')}</select>`
+              : ''
+          }
           <button type="button" class="btn danger sm" data-del="${esc(f.id)}" title="Supprimer la fiche" aria-label="Supprimer « ${esc(title)} »">🗑</button>
         </div>
         ${S.teacherSpace ? '' : measuresHTML(f)}
@@ -54,7 +64,7 @@ export function html() {
 
   return `
     <div class="inline spread"><h2 style="margin:0">Fiches</h2><button type="button" class="btn sm" id="newFiche">＋ Nouvelle fiche</button></div>
-    <p class="sub">${shown} / ${all.length} visible(s) par les élèves. Les numéros se mettent tout seuls : 1, 2, 3… dans l'ordre de la liste, en ne comptant que les fiches visibles. Changez l'ordre avec ▲ ▼. Cliquez sur « Placer » puis sur le plan pour la position réelle. 🗑 supprime une fiche.</p>
+    <p class="sub">${shown} / ${all.length} visible(s) par les élèves. Les numéros se mettent tout seuls : 1, 2, 3… dans l'ordre de la liste, en ne comptant que les fiches visibles. Changez l'ordre avec ▲ ▼. ${plan ? 'Cliquez sur « Placer » puis sur le plan pour la position réelle.' : 'Cette carte n’a pas de plan : les élèves y verront une simple liste.'} 🗑 supprime une fiche.</p>
     <input class="search" id="adminSearch" type="search" placeholder="Rechercher…" value="${esc(S.ui.adminQuery)}">
     <div class="inline" style="margin-bottom:10px">
       <button type="button" class="btn ghost sm" id="visAll">Tout afficher aux élèves</button>
@@ -103,6 +113,33 @@ export function bind(panel) {
         byId(c.dataset.vis).visible = c.checked;
         changedMap();
         render();
+      })
+  );
+  panel.querySelectorAll('[data-move-to]').forEach(
+    (select) =>
+      (select.onchange = () => {
+        const f = byId(select.dataset.moveTo);
+        const target = S.project.maps.find((map) => map.id === select.value);
+        if (!f || !target) return;
+        // Une position réelle est propre au plan de sa carte : elle ne suit pas la fiche (CAR-08)
+        if (
+          hasRef(f) &&
+          !confirm(
+            `Déplacer « ${titleOf(f, courseTemplate())} » vers « ${target.name} » ?\n\nSa position réelle sera effacée : elle ne vaut que sur le plan de cette carte.`
+          )
+        ) {
+          select.value = '';
+          return;
+        }
+        const source = S.map;
+        source.fiches = source.fiches.filter((fiche) => fiche !== f);
+        target.fiches.push({ ...f, refX: null, refY: null });
+        delete progress().entries[f.id];
+        changedMap(source);
+        changedMap(target);
+        changedProgress();
+        render();
+        toast(`« ${titleOf(f, courseTemplate())} » déplacée vers « ${target.name} »`);
       })
   );
   panel.querySelectorAll('[data-move]').forEach(

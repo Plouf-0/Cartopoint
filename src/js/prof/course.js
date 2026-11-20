@@ -29,6 +29,7 @@ function renderHeader() {
   // Sans plan, il n'y a rien sur quoi placer les fiches : on le dit, et on propose de l'ajouter
   $('#plan').hidden = !S.map.image;
   $('#planEmpty').hidden = !!S.map.image;
+  $('#legendRef').hidden = !S.map.image;
   courseTab.renderPublishState();
 }
 

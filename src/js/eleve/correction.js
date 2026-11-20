@@ -6,7 +6,7 @@
  * chargement qui n'a plus son onglet.
  */
 import { Progress, openDb } from '../db.js';
-import { THRESHOLDS, emptyProgress, scoredCount, titleOf } from '../model.js';
+import { THRESHOLDS, emptyProgress, hasPlan, scoredCount, titleOf } from '../model.js';
 import { normalizeValue } from '../fields.js';
 import { downloadReport, resultRows } from '../report.js';
 import { S, posOf } from '../store.js';
@@ -98,29 +98,37 @@ export const scoreText = (correction) => `${scoreFigure(correction)} ${scoreDeta
 export function showCorrection(names) {
   const rows = resultRows();
   const answers = answersText(S.correction);
+  // Une liste sans plan n'a ni résultat ni écart, et un cours sans position réelle pas de score de placement (CAR-07)
+  const plan = hasPlan(S.map);
+  const placed = scoredCount(S.correction.score) > 0;
+  const questions = rows.some((row) => row.ev.questions);
+  const questionsCell = (row) => {
+    const verdicts = Object.values(row.ev.questions ?? {});
+    return verdicts.length ? `${verdicts.filter((verdict) => verdict === 'ok').length} / ${verdicts.length}` : '—';
+  };
   $('#correctionBox').innerHTML = `
     <div class="dlg-head">
       <div style="flex:1"><h2>Votre correction</h2><p class="state">${esc(names)} · ${esc(S.map.name)} · cours du ${esc(dateAndTime(S.correction.openedAt))}</p></div>
       <button class="x" type="button" data-close aria-label="Fermer">×</button>
     </div>
     <div class="dlg-body">
-      <div class="score"><strong>${esc(scoreFigure(S.correction))}</strong><span>${esc(scoreDetail(S.correction))}</span></div>
+      ${placed ? `<div class="score"><strong>${esc(scoreFigure(S.correction))}</strong><span>${esc(scoreDetail(S.correction))}</span></div>` : ''}
       ${answers.line ? `<p class="answers-score">${esc(answers.line)}</p>` : ''}
       ${answers.pending ? `<p class="state pending-note">${esc(answers.pending)}</p>` : ''}
       <div class="table-wrap"><table class="results">
-        <thead><tr><th>N°</th><th>Fiche</th><th>Résultat</th><th>Écart</th></tr></thead>
+        <thead><tr><th>N°</th><th>Fiche</th>${plan ? '<th>Résultat</th><th>Écart</th>' : ''}${questions ? '<th>Questions justes</th>' : ''}</tr></thead>
         <tbody>${rows
           .map(
             (row) => `<tr>
               <td class="n"><span class="num ${posOf(row.fiche) ? 'on' : ''}">${row.n}</span></td>
               <td>${esc(titleOf(row.fiche, S.project.template))}</td>
-              <td><span class="grade ${row.ev.cls}">${esc(row.ev.label)}</span></td>
-              <td>${esc(row.ev.dist || '—')}</td>
+              ${plan ? `<td><span class="grade ${row.ev.cls}">${esc(row.ev.label)}</span></td><td>${esc(row.ev.dist || '—')}</td>` : ''}
+              ${questions ? `<td>${questionsCell(row)}</td>` : ''}
             </tr>`
           )
           .join('')}</tbody>
       </table></div>
-      <p class="state" style="margin-top:12px">Bien placée : moins de ${THRESHOLDS.ok} % de la largeur du plan · Proche : moins de ${THRESHOLDS.near} %. Cette correction disparaît quand vous fermez la page : téléchargez le compte rendu pour la garder.</p>
+      <p class="state" style="margin-top:12px">${plan ? `Bien placée : moins de ${THRESHOLDS.ok} % de la largeur du plan · Proche : moins de ${THRESHOLDS.near} %. ` : ''}Cette correction disparaît quand vous fermez la page : téléchargez le compte rendu pour la garder.</p>
     </div>
     <div class="dlg-foot">
       <button class="btn" type="button" id="correctionReport">Télécharger le compte rendu (JPG)</button>

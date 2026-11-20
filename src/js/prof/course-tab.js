@@ -3,7 +3,7 @@
  */
 import { api } from '../api.js';
 import { reportIncident } from '../incident.js';
-import { DEFAULT_TITLE, hasRef } from '../model.js';
+import { DEFAULT_TITLE, hasPlan, hasRef } from '../model.js';
 import { render } from '../render.js';
 import { S, changedMap, changedMeta, flush, hasUnsentChanges } from '../store.js';
 import { $, dateAndTime, download, errorText, esc, loadImage, safeFileName, toast } from '../util.js';
@@ -81,9 +81,8 @@ async function showLaunches() {
 /** Ce qui mérite d'être signalé avant de publier, sans l'empêcher. */
 function warnings() {
   const list = [];
-  const noPlan = S.project.maps.filter((map) => !map.image).length;
-  if (noPlan) list.push(`${noPlan} carte(s) sans image du plan.`);
-  const visible = S.project.maps.flatMap((map) => map.fiches.filter((fiche) => fiche.visible));
+  // Une carte sans plan est une liste voulue (CAR-07) : seules les fiches d'un plan attendent leur position réelle
+  const visible = S.project.maps.filter(hasPlan).flatMap((map) => map.fiches.filter((fiche) => fiche.visible));
   const noPosition = visible.filter((fiche) => !hasRef(fiche)).length;
   if (noPosition) list.push(`${noPosition} fiche(s) visible(s) sur ${visible.length} sans position réelle : les élèves pourront les placer, sans correction.`);
   return list;

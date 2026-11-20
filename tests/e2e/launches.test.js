@@ -245,13 +245,14 @@ test('avec une seule carte, pas de choix à faire', async (t) => {
   assert.equal(await page.locator('#mapChoiceBox').isVisible(), false);
 });
 
-test('une carte sans plan le dit au lieu d’afficher une image cassée', async (t) => {
+test('CAR-07 : une carte sans plan n’affiche pas d’image cassée : la liste prend toute la place', async (t) => {
   const { site, teacher } = await setup(t);
   const code = await launch(teacher, await publishedCourse(teacher, { ...twoMaps, maps: [{ ...twoMaps.maps[0], image: '' }] }));
   const page = await student(t, site);
   await enter(page, code);
-  await page.locator('#planEmpty').getByText("Cette carte n'a pas d'image du plan").waitFor();
+  assert.equal(await page.locator('main.stage').isVisible(), false);
   assert.equal(await page.locator('#plan').isVisible(), false);
+  assert.equal(await page.locator('.label').first().isVisible(), true);
 });
 
 /* --- Reprendre, et repartir à zéro (COU-09) --- */

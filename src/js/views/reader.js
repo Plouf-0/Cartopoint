@@ -4,7 +4,7 @@
  */
 import { $, esc } from '../util.js';
 import { S, byId, verified, locked, entryOf, stamped, posOf, evaluationOf, mediaURL, changedProgress, courseTemplate } from '../store.js';
-import { numberOf, titleOf, subtitleOf, thumbOf } from '../model.js';
+import { hasPlan, numberOf, titleOf, subtitleOf, thumbOf } from '../model.js';
 import { render } from '../render.js';
 import { answerOf, ficheBodyHTML } from './fields-html.js';
 import { openPhoto } from './viewer.js';
@@ -19,7 +19,7 @@ export async function openReader(id) {
   const e = entryOf(f) || {};
   const sub = subtitleOf(f, template);
   const ev = verified() ? evaluationOf(f) : null;
-  const canPlace = !posOf(f) && !locked();
+  const canPlace = !posOf(f) && !locked() && hasPlan(S.map);
 
   box.innerHTML = `
     <div class="dlg-head">
@@ -32,7 +32,7 @@ export async function openReader(id) {
     <div class="dlg-body">
       <button type="button" class="hero-btn" id="readHeroBtn" hidden aria-label="Agrandir la photo"><img class="hero" id="readHero" alt=""></button>
       <div class="read-text">
-        ${ev ? `<p><span class="grade ${ev.cls}">${esc(ev.label)}</span>${ev.dist ? ` <span class="state">écart : ${esc(ev.dist)}</span>` : ''}</p>` : ''}
+        ${ev && hasPlan(S.map) ? `<p><span class="grade ${ev.cls}">${esc(ev.label)}</span>${ev.dist ? ` <span class="state">écart : ${esc(ev.dist)}</span>` : ''}</p>` : ''}
         ${ficheBodyHTML(template, f, e, { disabled: S.finished, revealed: verified() || Boolean(S.correction), teacher: S.admin, correction: S.correction ? ev : null })}
         <div id="readGallery"></div>
       </div>

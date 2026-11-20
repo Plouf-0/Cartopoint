@@ -201,6 +201,9 @@ test('CHP-07, QST-01 : un modèle mal formé, ou une valeur ou une réponse atte
   assert.equal(broken.status, 400);
   assert.match(broken.text, /Le modèle de fiche n'est pas valable : champ 1 : identifiant invalide/);
   assert.equal((await browser.post('/api/courses', { draft: draft({}, { fields: 'non' }) })).status, 400);
+  const badGrading = await browser.post('/api/courses', { draft: { ...good, grading: { mode: 'points', points: { 'c-nom': 2 }, placement: 1 } } });
+  assert.equal(badGrading.status, 400, 'QST-05 : le barème d’un renseignement, qui ne se corrige pas');
+  assert.match(badGrading.text, /notation/);
   assert.deepEqual((await browser.get(`/api/courses/${course.id}`)).json().draft, good, 'le brouillon d’avant reste');
 });
 

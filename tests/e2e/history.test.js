@@ -540,7 +540,7 @@ test('QST-04 : l’enseignant corrige les réponses, question par question ou é
   await dialog.locator('.review-where', { hasText: 'Noisetier' }).waitFor({ state: 'detached' });
   await row(teacher, 'Léa')
     .getByText(/questions : 0 juste\(s\), 1 à moitié, 2 fausse\(s\), 1 à corriger$/)
-    .waitFor();
+    .waitFor({ timeout: 2000 }); // aussitôt, sans attendre le rechargement de la liste toutes les 5 secondes
 
   await dialog.getByRole('button', { name: 'Par élève' }).click();
   await dialog.locator('#reviewStudent').selectOption({ label: 'Léa' });
@@ -584,7 +584,9 @@ test('QST-05, HIS-09 : la page du lancement et le compte rendu montrent la note 
     .waitFor();
   await saved(teacher, () => row(teacher, 'Léa').getByRole('button', { name: 'JPG' }).click());
   assert.ok(
-    (await teacher.evaluate(() => window.drawn.texts)).includes('Questions : 1 juste(s), 0 fausse(s), 1 à corriger · Note : 13,3 / 20 (provisoire, 1 à corriger)'),
+    (await teacher.evaluate(() => window.drawn.texts)).includes(
+      'Questions : 1 juste(s), 0 fausse(s), 1 à corriger · Note : 13,3 / 20 (provisoire, 1 à corriger)'
+    ),
     'HIS-09 : le compte rendu de l’enseignant aussi'
   );
 

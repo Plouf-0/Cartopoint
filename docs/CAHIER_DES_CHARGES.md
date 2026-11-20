@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.47** · 19 novembre 2026 · établie à partir du code
+**Version 0.48** · 19 novembre 2026 · établie à partir du code
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -492,6 +492,15 @@ Code : [`views/admin/maps.js`](../src/js/views/admin/maps.js)
 - **CAR-05** **Échelle** (facultative) : la largeur réelle du terrain, en mètres. Les écarts sont alors
   donnés en mètres.
 - **CAR-06** Une image de plan trop lourde est réduite automatiquement (voir section 9).
+- **CAR-07** Une carte peut n'avoir pas d'image du plan (Q-B, Q-N) : c'est une simple liste de fiches, que les élèves
+  lisent et auxquelles ils répondent sans rien placer. **Ajouter une liste sans plan** en crée une ; **Retirer l'image**
+  change une carte en liste, après une confirmation qui dit combien de positions réelles s'effacent. Chez l'élève, la liste
+  prend toute la place, sans plan, sans « Placer » ni filtres de placement ; le sélecteur de cartes la marque « (liste) » ;
+  « Terminer » ne compte que les fiches d'un plan. La correction, le compte rendu JPG, l'historique et l'Excel se passent
+  de plan : sur une liste, ni résultat ni écart de placement, seulement les questions. Publier ne signale plus une carte
+  sans plan, et ne compte comme sans position réelle que les fiches d'un plan.
+- **CAR-08** Une fiche passe d'une carte à l'autre (**Déplacer vers…**) ; elle y perd sa position réelle, qui ne vaut que
+  sur le plan de sa carte, après confirmation.
 
 ### 5.8 Apparence — `APP`
 
@@ -1285,3 +1294,4 @@ Ils ne sont pas réutilisés.
 | 0.45    | 20 novembre 2026  | Questions corrigées : bonne réponse de chaque fiche, correction par le serveur, verdicts à la fin du cours (`QST-01` à `QST-03`, section 5.13) |
 | 0.46    | 20 novembre 2026  | L'enseignant corrige les réponses de ses élèves (`QST-04`), migration 008 |
 | 0.47    | 20 novembre 2026  | La notation, en trois modes (`QST-05`), et les questions obligatoires (`QST-06`) |
+| 0.48    | 20 novembre 2026  | Zéro plan ou plusieurs : une carte sans plan est une liste (`CAR-07`), une fiche change de carte (`CAR-08`) |

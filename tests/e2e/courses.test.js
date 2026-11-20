@@ -113,7 +113,7 @@ test('ENS-02, LEG-02, STO-01 : créer un cours, y ajouter un plan, des fiches et
   await createCourse(page);
   await page.locator('#pageTitle', { hasText: 'Sortie au parc' }).waitFor();
   assert.match(new URL(page.url()).pathname, /^\/prof\/cours\/[\w-]+$/);
-  await see(page, "Cette carte n'a pas encore d'image du plan.");
+  await see(page, "Cette carte n'a pas d'image du plan : les élèves y verront une simple liste de fiches, sans rien à placer.");
 
   await choosePlan(page);
   assert.equal(await page.locator('#planEmpty').isVisible(), false);
@@ -516,9 +516,10 @@ test('COU-02 : changer de carte à l’écran ne compte pas comme une modificati
   assert.equal(await page.locator('#publishTop').isDisabled(), true);
 });
 
-test('COU-02 : publier prévient s’il manque des positions ou un plan, sans l’empêcher', async (t) => {
+test('COU-02, CAR-07 : publier prévient s’il manque des positions réelles sur un plan, sans l’empêcher ; une carte sans plan, elle, ne manque de rien', async (t) => {
   const { site, page } = await setup(t);
   await createCourse(page);
+  await choosePlan(page);
   await addFiche(page, 'Olivier');
   await addFiche(page, 'Laurier');
   await saved(page);
@@ -526,8 +527,8 @@ test('COU-02 : publier prévient s’il manque des positions ou un plan, sans l�
   const messages = answerDialogs(page, false, true);
   await page.locator('#publishTop').click();
   await page.waitForTimeout(150);
-  assert.match(messages[0], /1 carte\(s\) sans image du plan/);
   assert.match(messages[0], /2 fiche\(s\) visible\(s\) sur 2 sans position réelle/);
+  assert.doesNotMatch(messages[0], /image du plan/, 'une liste est voulue (CAR-07)');
   assert.equal(site.db.prepare('SELECT COUNT(*) AS n FROM course_versions').get().n, 0, 'renoncer ne publie rien');
 
   await page.locator('#publishTop').click();

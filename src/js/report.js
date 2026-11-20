@@ -4,7 +4,7 @@
  */
 import { toast, dateAndTime, download, safeFileName, loadImage, errorText } from './util.js';
 import { S, verified, progress, evaluationOf } from './store.js';
-import { visibleFiches, numberOf, titleOf, subtitleOf, hasRef, placedPos } from './model.js';
+import { visibleFiches, numberOf, titleOf, subtitleOf, hasPlan, hasRef, placedPos } from './model.js';
 import { answersWord, questionFields, valueText } from './fields.js';
 import { paletteOf } from './themes.js';
 
@@ -136,19 +136,21 @@ async function drawReport(names, { date, results = '' } = {}) {
   await fontsReady();
   const pal = paletteOf(S.project.theme);
   const rows = resultRows();
-  const showEv = S.admin || verified();
+  // Une liste sans plan n'a ni plan, ni légende, ni colonne de placement (CAR-07)
+  const withPlan = hasPlan(S.map);
+  const showEv = (S.admin || verified()) && withPlan;
   const template = S.project.template;
   const { ok, near, scored } = scoreOf(rows);
   // Le compte rendu d'un élève garde ses placements et ses résultats, jamais les positions réelles (CRG-10)
-  const plan = await drawPlan(S.admin);
+  const plan = withPlan ? await drawPlan(S.admin) : null;
 
   const W = 1600;
   const P = 64;
   const CW = W - 2 * P;
-  const planH = Math.round((plan.height / plan.width) * CW);
+  const planH = plan ? Math.round((plan.height / plan.width) * CW) : 0;
   const ROW = 76;
   const headerH = results ? 270 : 230;
-  const H = headerH + planH + 70 + 90 + ROW * (rows.length + 1) + 90;
+  const H = headerH + (plan ? planH + 104 : 0) + 56 + ROW * (rows.length + 1) + 90;
 
   const c = document.createElement('canvas');
   c.width = W;
@@ -188,46 +190,48 @@ async function drawReport(names, { date, results = '' } = {}) {
 
   // Plan
   y = headerH;
-  ctx.save();
-  ctx.beginPath();
-  roundedBox(ctx, P, y, CW, planH, 14);
-  ctx.clip();
-  ctx.drawImage(plan, P, y, CW, planH);
-  ctx.restore();
-  ctx.beginPath();
-  roundedBox(ctx, P, y, CW, planH, 14);
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = pal.line;
-  ctx.stroke();
-  y += planH + 44;
-
-  // Légende
-  ctx.font = `22px ${SANS}`;
-  ctx.textBaseline = 'middle';
   let x = P;
-  const legend = (draw, label) => {
-    draw(x + 12, y);
-    ctx.fillStyle = pal.inkSoft;
-    ctx.textAlign = 'left';
+  if (plan) {
+    ctx.save();
+    ctx.beginPath();
+    roundedBox(ctx, P, y, CW, planH, 14);
+    ctx.clip();
+    ctx.drawImage(plan, P, y, CW, planH);
+    ctx.restore();
+    ctx.beginPath();
+    roundedBox(ctx, P, y, CW, planH, 14);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = pal.line;
+    ctx.stroke();
+    y += planH + 44;
+
+    // Légende
     ctx.font = `22px ${SANS}`;
-    ctx.fillText(label, x + 34, y + 1);
-    x += 34 + ctx.measureText(label).width + 40;
-  };
-  legend((cx, cy) => drawTag(ctx, cx, cy, 12, '', STUDENT, 1), 'Placement des élèves');
-  if (S.admin) {
-    legend((cx, cy) => drawTag(ctx, cx, cy, 12, '', TRUTH, 0.45), 'Position réelle');
-    legend((cx, cy) => {
-      ctx.setLineDash([7, 6]);
-      ctx.strokeStyle = '#10233a';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(cx - 12, cy);
-      ctx.lineTo(cx + 14, cy);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }, 'Écart');
+    ctx.textBaseline = 'middle';
+    const legend = (draw, label) => {
+      draw(x + 12, y);
+      ctx.fillStyle = pal.inkSoft;
+      ctx.textAlign = 'left';
+      ctx.font = `22px ${SANS}`;
+      ctx.fillText(label, x + 34, y + 1);
+      x += 34 + ctx.measureText(label).width + 40;
+    };
+    legend((cx, cy) => drawTag(ctx, cx, cy, 12, '', STUDENT, 1), 'Placement des élèves');
+    if (S.admin) {
+      legend((cx, cy) => drawTag(ctx, cx, cy, 12, '', TRUTH, 0.45), 'Position réelle');
+      legend((cx, cy) => {
+        ctx.setLineDash([7, 6]);
+        ctx.strokeStyle = '#10233a';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(cx - 12, cy);
+        ctx.lineTo(cx + 14, cy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }, 'Écart');
+    }
+    y += 60;
   }
-  y += 60;
 
   // Tableau
   ctx.textBaseline = 'alphabetic';

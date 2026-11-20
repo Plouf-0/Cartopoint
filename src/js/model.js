@@ -252,6 +252,8 @@ export function withoutTeacherNotes(fiche, template) {
   return copy;
 }
 export const hasRef = (f) => f.refX !== null && f.refY !== null;
+/** Une carte sans image du plan est une simple liste de fiches : ni placement ni position réelle (CAR-07, Q-B). */
+export const hasPlan = (map) => Boolean(map.image);
 export const thumbOf = (f) => f.media.find((m) => m.id === f.thumbnailId && m.type === 'image') || f.media.find((m) => m.type === 'image');
 export const visibleFiches = (map) => map.fiches.filter((f) => f.visible);
 
@@ -313,8 +315,15 @@ export function evaluate(fiche, entry, { ratio = 1, widthMeters = null } = {}) {
   return { state, ...gradeOf(state), d, dist };
 }
 
-/** Les écarts d'un cours s'expriment en mètres si toutes ses cartes connaissent leur largeur réelle, sinon en % de la largeur du plan. */
-export const usesMeters = (project) => project.maps.length > 0 && project.maps.every((map) => map.widthMeters);
+/**
+ * Les écarts d'un cours s'expriment en mètres si toutes ses cartes où l'on mesure des écarts, celles qui ont des positions
+ * réelles, connaissent leur largeur réelle ; sinon en % de la largeur du plan. Une liste sans plan n'en a pas : elle ne
+ * compte pas.
+ */
+export function usesMeters(project) {
+  const measured = project.maps.filter((map) => map.fiches.some(hasRef));
+  return measured.length > 0 && measured.every((map) => map.widthMeters);
+}
 
 /** La précision moyenne d'un élève, à partir des résultats du serveur : les fiches non placées n'y entrent pas. */
 export function meanGap(project, results) {

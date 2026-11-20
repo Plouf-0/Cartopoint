@@ -31,7 +31,8 @@ import {
   isHeading,
   newFieldId,
   questionFields,
-  templateProblems
+  templateProblems,
+  titleField
 } from '../fields.js';
 import { button, el } from '../compte/ui.js';
 import { GRADING_LABELS, GRADING_MODES, gradedQuestions, normalizeGrading } from '../verdicts.js';
@@ -99,7 +100,7 @@ const savedField = (id) => courseTemplate().fields.find((field) => field.id === 
  * Ce que montre la fiche du centre : sa largeur, le moment du cours, l'élément choisi et son brouillon. Le brouillon garde ce
  * qui est écrit tant que ce n'est pas enregistré : la page peut se redessiner entre-temps sans rien perdre.
  */
-const view = { width: 'desktop', revealed: false, selected: null, draft: null, error: '', focus: null };
+const view = { width: 'desktop', revealed: false, real: false, selected: null, draft: null, error: '', focus: null };
 
 /**
  * Choisit un élément, ou aucun. Un brouillon impossible ne s'enregistre pas : en partant ailleurs, l'enseignant le laisse,
@@ -116,10 +117,11 @@ function select(id) {
 const later = (fn) => setTimeout(fn, 0);
 
 /** Un élément neuf, prêt à écrire : un libellé de départ et, pour un choix, deux propositions. */
-export function blankField(type) {
+export function blankField(type, audience = 'question') {
   if (type === 'heading') return { id: newFieldId('h'), type, label: 'Intertitre' };
-  const question = type !== 'date';
-  const field = { id: newFieldId('c'), type, label: question ? 'Nouvelle question' : 'Date', audience: question ? 'question' : 'info' };
+  const question = audience === 'question' && type !== 'date';
+  const label = question ? 'Nouvelle question' : type === 'date' ? 'Date' : 'Nouveau champ';
+  const field = { id: newFieldId('c'), type, label, audience: question ? 'question' : 'info' };
   if (type === 'choice')
     field.choices = [
       { id: newFieldId('r'), label: 'Proposition 1' },
@@ -130,13 +132,14 @@ export function blankField(type) {
 }
 
 /** Ajoute un élément vierge à cette place (sous l'élément choisi, sinon à la fin), le choisit, et sélectionne son libellé. */
-function addField(type, at) {
+function addField(type, audience, at) {
   const fields = courseTemplate().fields;
   const after = fields.findIndex((field) => field.id === view.selected);
   const index = at ?? (after >= 0 ? after + 1 : fields.length);
-  const field = blankField(type);
+  const field = blankField(type, audience);
   select(null);
-  Object.assign(view, { selected: field.id, draft: structuredClone(field), focus: { key: 'label', all: true } });
+  // Ajouter un élément, c'est modifier la fiche : l'aperçu réel laisse la place à l'éditeur
+  Object.assign(view, { real: false, selected: field.id, draft: structuredClone(field), focus: { key: 'label', all: true } });
   const problem = applyTemplate(withFields([...fields.slice(0, index), field, ...fields.slice(index)]));
   if (problem) {
     select(null);
@@ -228,12 +231,35 @@ const TILES = {
   scale: ['★', 'De 1 à 5'],
   heading: ['H', 'Le titre d’un groupe']
 };
+/** Qui remplit un élément, dit sur chaque élément de la fiche et sur chaque groupe d'éléments vierges. */
+const AUDIENCE_BADGES = {
+  info: 'À remplir dans chaque fiche',
+  question: 'Question pour l’élève',
+  correction: 'Révélé à la correction',
+  teacher: 'Vu par vous seul'
+};
+const PALETTE = [
+  [
+    'info',
+    AUDIENCE_BADGES.info,
+    'Vous l’écrivez dans chaque fiche, onglet « Fiches » ; l’élève le lit.',
+    ['text', 'longtext', 'number', 'date', 'choice', 'yesno', 'scale']
+  ],
+  ['question', AUDIENCE_BADGES.question, 'L’élève y répond pendant le cours.', ['text', 'longtext', 'number', 'choice', 'yesno', 'scale']],
+  ['', 'Mise en page', 'Un titre pour regrouper les éléments qui suivent.', ['heading']]
+];
+const tileHTML = (type, audience) =>
+  `<button type="button" class="tpl-tile${audience ? ` ${audience}` : ''}" draggable="true" data-add="${type}"${audience ? ` data-audience="${audience}"` : ''}><span class="tpl-tile-mark" aria-hidden="true">${TILES[type][0]}</span><strong>${esc(TYPE_LABELS[type])}</strong><span class="state">${TILES[type][1]}</span></button>`;
+
+/** La fiche n'a pas de titre : ses fiches n'auront pas de nom, ni dans la liste, ni sur le plan. */
+const NO_TITLE =
+  'Aucun champ ne sert de titre : vos fiches n’auront pas de nom. Ajoutez un « Texte court » à remplir dans chaque fiche, et donnez-lui le rôle « Titre de la fiche ».';
 
 export function html() {
   const template = courseTemplate();
-  const tiles = TYPES.map(
-    (type) =>
-      `<button type="button" class="tpl-tile" draggable="true" data-add="${type}"><span class="tpl-tile-mark" aria-hidden="true">${TILES[type][0]}</span><strong>${esc(TYPE_LABELS[type])}</strong><span class="state">${TILES[type][1]}</span></button>`
+  const groups = PALETTE.map(
+    ([audience, title, hint, types]) =>
+      `<div class="tpl-group"><h4>${esc(title)}</h4><p class="hint">${esc(hint)}</p><div class="tpl-palette">${types.map((type) => tileHTML(type, audience)).join('')}</div></div>`
   ).join('');
   return `
     <h2>Éditeur de fiches</h2>
@@ -245,10 +271,11 @@ export function html() {
     <div class="field"><label for="tplName">Nom du modèle</label>
       <div class="inline"><input id="tplName" class="text-input" maxlength="${LIMITS.name}" value="${esc(template.name ?? '')}"><button type="button" class="btn soft sm" id="tplRename">Renommer</button></div></div>
     <p class="tpl-summary" id="tplSummary">${esc(summaryText(template))}</p>
+    ${titleField(template) ? '' : `<p class="tpl-warn" role="status">${esc(NO_TITLE)}</p>`}
     <div class="section">
       <h3>Éléments</h3>
       <p>Glissez un élément dans la fiche, à l’endroit voulu. Un clic l’ajoute sous l’élément choisi, sinon à la fin.</p>
-      <div class="tpl-palette">${tiles}</div>
+      ${groups}
     </div>
     ${gradingHTML(template)}`;
 }
@@ -284,8 +311,8 @@ export function bind(panel) {
   };
   $('#tplReuse').onclick = () => openReuse();
   for (const tile of panel.querySelectorAll('[data-add]')) {
-    tile.onclick = () => later(() => addField(tile.dataset.add));
-    tile.addEventListener('dragstart', (e) => startDrag(e, { add: tile.dataset.add }));
+    tile.onclick = () => later(() => addField(tile.dataset.add, tile.dataset.audience));
+    tile.addEventListener('dragstart', (e) => startDrag(e, { add: tile.dataset.add, audience: tile.dataset.audience }));
   }
   bindGrading(panel);
 }
@@ -466,7 +493,6 @@ function detailsOf(field) {
   if (isHeading(field)) return TYPE_LABELS.heading;
   return [
     TYPE_LABELS[field.type] + (field.type === 'choice' && field.multiple ? ' multiple' : ''),
-    AUDIENCE_LABELS[field.audience],
     field.role === 'title' && 'titre',
     field.role === 'subtitle' && 'sous-titre',
     field.list && 'dans la liste'
@@ -496,7 +522,7 @@ function viewHTML(template, fiche, field) {
     }
   );
   if (body.trim()) return body;
-  return `<dl class="facts"><div><dt>${esc(field.label)}</dt><dd><em class="hint">Rempli dans chaque fiche</em></dd></div></dl>`;
+  return `<dl class="facts"><div><dt>${esc(field.label)}</dt><dd><em class="hint">À remplir dans chaque fiche, onglet « Fiches »</em></dd></div></dl>`;
 }
 
 const attr = (value) => esc(String(value ?? ''));
@@ -644,9 +670,8 @@ function blockHTML(template, fiche, saved, i) {
   const notYet = field.audience === 'correction' && !view.revealed;
   const marks = [
     `<span class="state">${esc(detailsOf(field))}</span>`,
-    check ? `<span class="check-badge ${check}">${CHECK_LABELS[check]}</span>` : '',
-    field.audience === 'teacher' ? '<span class="aud">Vu par vous seul</span>' : '',
-    notYet ? '<span class="aud">Révélé à la correction</span>' : ''
+    heading ? '' : `<span class="aud-badge ${field.audience}">${AUDIENCE_BADGES[field.audience]}</span>`,
+    check ? `<span class="check-badge ${check}">${CHECK_LABELS[check]}</span>` : ''
   ].join('');
   const classes = ['tpl-block', selected && 'selected', heading && 'is-heading', notYet && 'later', field.audience === 'teacher' && 'teacher-only'];
   const count = template.fields.length;
@@ -677,11 +702,21 @@ function canvasHTML(template) {
   ]
     .map(([key, value, label]) => `<button type="button" class="chip" data-view="${key}:${value}" aria-pressed="${view[key] === value}">${label}</button>`)
     .join('');
+  const real = `<button type="button" class="chip real" data-real aria-pressed="${view.real}">${view.real ? 'Revenir à l’éditeur' : 'Aperçu réel'}</button>`;
   const title = esc(titleOf(fiche, template));
   const sub = subtitleOf(fiche, template);
   const blocks = template.fields.map((field, i) => blockHTML(template, fiche, field, i)).join('');
+  // À la correction, chaque question montre un verdict d'exemple : juste, ou corrigée plus tard par l'enseignant
+  const verdicts = Object.fromEntries(
+    questionFields(template)
+      .map((field) => [field.id, SAMPLE_VERDICT[checkOf(field)]])
+      .filter(([, verdict]) => verdict)
+  );
+  const body = view.real
+    ? `<div class="tpl-real">${ficheBodyHTML(template, fiche, {}, { revealed: view.revealed, correction: view.revealed ? { questions: verdicts } : null })}</div>`
+    : `<div class="tpl-blocks" id="tplBlocks">${blocks}<div class="tpl-end" data-end>${template.fields.length ? 'Glissez un élément ici pour l’ajouter à la fin.' : 'Glissez ici un premier élément.'}</div></div>`;
   return `
-    <div class="tpl-bar"><div class="chips">${toggles}</div><span class="state">${esc(source)}</span></div>
+    <div class="tpl-bar"><div class="chips">${toggles}${real}</div><span class="state">${esc(source)}</span></div>
     <div class="tpl-canvas ${view.width}">
       <p class="field-title">Dans la liste</p>
       <article class="label preview-card">
@@ -692,7 +727,7 @@ function canvasHTML(template) {
       <p class="field-title">Fiche ouverte</p>
       <div class="dlg preview-fiche">
         <div class="dlg-head"><div style="flex:1;min-width:0"><h2><span class="num">1</span>${title}</h2>${sub ? `<p class="sci">${esc(sub)}</p>` : ''}</div></div>
-        <div class="dlg-body"><div class="read-text"><div class="tpl-blocks" id="tplBlocks">${blocks}<div class="tpl-end" data-end>${template.fields.length ? 'Glissez un élément ici pour l’ajouter à la fin.' : 'Glissez ici un premier élément.'}</div></div></div></div>
+        <div class="dlg-body"><div class="read-text">${body}</div></div>
       </div>
     </div>`;
 }
@@ -734,6 +769,12 @@ function redraw() {
 }
 
 function bindCanvas(container) {
+  container.querySelector('[data-real]').onclick = () =>
+    later(() => {
+      select(null);
+      view.real = !view.real;
+      redraw();
+    });
   const blocks = container.querySelector('#tplBlocks');
   container.querySelectorAll('[data-view]').forEach((b) => {
     b.onclick = () => {
@@ -742,6 +783,8 @@ function bindCanvas(container) {
       redraw();
     };
   });
+  // L'aperçu réel n'a rien à modifier
+  if (!blocks) return;
   container.querySelectorAll('[data-field]').forEach((b) => {
     b.onclick = () =>
       later(() => {
@@ -834,7 +877,7 @@ function bindCanvas(container) {
     const what = draggedBy(e);
     const at = indexAt(e.clientY);
     dragged = null;
-    if (what?.add && TYPES.includes(what.add)) later(() => addField(what.add, at));
+    if (what?.add && TYPES.includes(what.add)) later(() => addField(what.add, what.audience, at));
     else if (what?.move) later(() => moveField(what.move, at));
   });
 }

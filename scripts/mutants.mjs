@@ -990,6 +990,26 @@ const MUTANTS = [
     'restore(container, view.focus);'
   ],
   ['MOD-03 : le plan reste au centre', 'src/js/views/admin/index.js', '  showStage(tab.stage);\n', ''],
+  [
+    'MOD-09 : un champ à remplir devient une question',
+    'src/js/prof/template-tab.js',
+    "const question = audience === 'question' && type !== 'date';",
+    "const question = type !== 'date';"
+  ],
+  ['MOD-03 : rien ne dit qu’une fiche n’a pas de titre', 'src/js/prof/template-tab.js', "${titleField(template) ? '' :", "${true ? '' :"],
+  ['MOD-06 : l’aperçu réel montre l’éditeur', 'src/js/prof/template-tab.js', 'const body = view.real', 'const body = false'],
+  [
+    'MOD-06 : l’aperçu réel révèle tout pendant le cours',
+    'src/js/prof/template-tab.js',
+    '{ revealed: view.revealed, correction: view.revealed ? { questions: verdicts } : null }',
+    '{ revealed: true, correction: view.revealed ? { questions: verdicts } : null }'
+  ],
+  [
+    'MOD-09 : qui remplit l’élément ne se voit pas',
+    'src/js/prof/template-tab.js',
+    "heading ? '' : `<span class=\"aud-badge",
+    "true ? '' : `<span class=\"aud-badge"
+  ],
   ['MOD-05 : type d’un champ rempli libre', 'src/js/prof/template-tab.js', 'locked && !COMPATIBLE', 'false && !COMPATIBLE'],
   ['MOD-05 : perte sans confirmation', 'src/js/prof/template-tab.js', 'if (lost && !confirm(', 'if (false && !confirm('],
   ['MOD-05 : suppression sans dire ce qui sera perdu', 'src/js/prof/template-tab.js', '(lost.length ? `', '(false ? `'],

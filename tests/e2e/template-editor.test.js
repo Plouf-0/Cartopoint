@@ -78,10 +78,13 @@ const nextConfirm = (page, accept = true) =>
     });
   });
 
+/** Un élément vierge du panneau : une question pour l'élève, un champ à remplir dans chaque fiche (info), un intertitre. */
+const tile = (page, type, audience = 'question') =>
+  page.locator(type === 'heading' ? '[data-add="heading"]' : `[data-add="${type}"][data-audience="${audience}"]`);
 /** Ajoute un élément d'un clic, écrit son libellé, règle le reste, puis le referme. */
 async function addQuestion(page, type, label, fill = async () => {}) {
   const before = await blocks(page).count();
-  await page.locator(`[data-add="${type}"]`).click();
+  await tile(page, type).click();
   await blocks(page).nth(before).waitFor();
   await write(editing(page).locator('#fLabel'), label);
   await fill(editing(page));
@@ -100,8 +103,9 @@ test('MOD-03, MOD-04, MOD-09 : le modèle d’un cours se montre au centre, à l
   assert.equal(await blocks(page).count(), 17);
   assert.deepEqual(await texts(page.locator('#tplBlocks .is-heading .tpl-view h3')), ['Besoins', 'Vos mesures']);
   assert.equal(await page.locator('#tplBlocks .is-heading .tpl-view', { hasText: 'Fin du groupe' }).count(), 1);
-  assert.deepEqual(await texts(block(page, 'temperature').locator('.tpl-marks > *')), ['Nombre · Question · dans la liste', 'Non corrigée']);
-  assert.deepEqual(await texts(block(page, 'common').locator('.tpl-marks > *')), ['Texte court · Renseignement · titre']);
+  assert.deepEqual(await texts(block(page, 'temperature').locator('.tpl-marks > *')), ['Nombre · dans la liste', 'Question pour l’élève', 'Non corrigée']);
+  assert.deepEqual(await texts(block(page, 'common').locator('.tpl-marks > *')), ['Texte court · titre', 'À remplir dans chaque fiche']);
+  assert.equal(await page.locator('.tpl-warn').count(), 0, 'la fiche a un titre');
   assert.equal(await block(page, 'temperature').locator('[data-answer], input').count(), 1, 'la case de réponse, comme l’élève la voit');
   await page.getByText('D’après les exemples du modèle.').waitFor();
   assert.equal(await page.locator('.tpl-canvas .preview-card h3').textContent(), 'Olivier', 'sans fiche, les exemples du modèle la remplissent');
@@ -113,7 +117,7 @@ test('MOD-03, MOD-04, MOD-09 : le modèle d’un cours se montre au centre, à l
 
 test('MOD-03, MOD-04, MOD-09 : un élément ajouté d’un clic s’écrit à sa place : libellé, propositions, aide, réglages', async (t) => {
   const { site, page } = await setup(t);
-  await page.locator('[data-add="choice"]').click();
+  await tile(page, 'choice').click();
   const edited = editing(page);
   await edited.waitFor();
   assert.deepEqual(
@@ -166,7 +170,7 @@ test('MOD-03, MOD-04, MOD-09 : un élément ajouté d’un clic s’écrit à sa
   assert.equal(await editing(page).count(), 0);
 
   const added = block(page, field.id);
-  assert.deepEqual(await texts(added.locator('.tpl-marks > *')), ['Choix multiple · Question · dans la liste', 'Corrigée automatiquement']);
+  assert.deepEqual(await texts(added.locator('.tpl-marks > *')), ['Choix multiple · dans la liste', 'Question pour l’élève', 'Corrigée automatiquement']);
   assert.deepEqual(await texts(added.locator('.choice')), ['Roman', 'Gothique', 'Baroque'], 'comme l’élève le lira');
   assert.equal(await page.locator('#tplSummary').textContent(), '4 questions : 1 corrigée automatiquement, 3 non corrigées.');
   await added.click();
@@ -189,7 +193,7 @@ test('MOD-03 : chaque réglage qui n’a pas de sens pour le type ou le public d
   await edited.locator('#fRole').selectOption('');
   await edited.locator('#fAudience').selectOption('teacher');
   assert.equal(await edited.locator('#fRole, #fSearch, #fCheck').count(), 0, 'ni rôle, ni recherche, ni correction pour une note de l’enseignant');
-  await edited.locator('.aud', { hasText: 'Vu par vous seul' }).waitFor();
+  await edited.locator('.aud-badge', { hasText: 'Vu par vous seul' }).waitFor();
   await saved(page);
   assert.deepEqual({ ...draft(site).template.fields.at(-1), id: undefined }, { id: undefined, type: 'text', label: 'Monument', audience: 'teacher' });
 });
@@ -204,13 +208,13 @@ test('MOD-03, MOD-09 : ranger les éléments avec ▲ ▼ ou en les glissant, et
   await page.waitForFunction(() => document.querySelector('#tplBlocks [data-block]')?.dataset.block === 'species');
   // Un élément vierge, glissé sur le haut de « Famille » : il tombe juste avant
   await page.evaluate(() => scrollTo(0, 0));
-  await page.locator('[data-add="yesno"]').dragTo(block(page, 'family'), { targetPosition: { x: 40, y: 2 } });
+  await tile(page, 'yesno').dragTo(block(page, 'family'), { targetPosition: { x: 40, y: 2 } });
   await editing(page).waitFor();
   await write(editing(page).locator('#fLabel'), 'Est-il en fleur ?');
   await editing(page).locator('[data-done]').click();
   // Un clic sur un élément vierge l'ajoute sous l'élément choisi
   await block(page, 'family').click();
-  await page.locator('[data-add="heading"]').click();
+  await tile(page, 'heading').click();
   await write(editing(page).locator('#fLabel'), 'En plus');
   await saved(page);
   assert.deepEqual((await names(page)).slice(0, 5), ['Nom scientifique', 'Nom commun', 'Est-il en fleur ?', 'Famille', 'En plus']);
@@ -314,7 +318,7 @@ test('MOD-06 : la fiche du centre se voit comme un élève, sur un téléphone o
   await page.getByText('D’après la fiche « Tilleul ».').waitFor();
   const architect = page.locator('#tplBlocks .tpl-block', { hasText: 'Architecte' });
   assert.equal(await architect.getAttribute('class'), 'tpl-block later', 'pendant le cours, grisé : l’élève ne le lit qu’à la correction');
-  assert.deepEqual(await texts(architect.locator('.aud')), ['Révélé à la correction']);
+  assert.deepEqual(await texts(architect.locator('.aud-badge')), ['Révélé à la correction']);
   assert.equal(await canvas.getAttribute('class'), 'tpl-canvas desktop');
   await page.getByRole('button', { name: 'Téléphone' }).click();
   assert.equal(await canvas.getAttribute('class'), 'tpl-canvas phone');
@@ -323,6 +327,47 @@ test('MOD-06 : la fiche du centre se voit comme un élève, sur un téléphone o
   await page.getByRole('button', { name: 'À la correction' }).click();
   assert.equal(await architect.getAttribute('class'), 'tpl-block');
   assert.deepEqual(await texts(architect.locator('.facts > div')), ['ArchitecteJean']);
+
+  // L'aperçu réel : la fiche exactement comme l'élève la lira, sans rien de l'éditeur
+  await page.getByRole('button', { name: 'Aperçu réel' }).click();
+  const real = canvas.locator('.tpl-real');
+  await real.waitFor();
+  assert.equal(await canvas.locator('.tpl-block, .tpl-marks, [data-handle]').count(), 0);
+  assert.deepEqual(await texts(real.locator('.facts > div', { hasText: 'Architecte' })), ['ArchitecteJean'], 'à la correction, révélé');
+  assert.equal(await real.locator('.measures [data-k="temperature"]').count(), 1, 'les questions, dans leur cadre');
+  await page.getByRole('button', { name: 'Pendant le cours' }).click();
+  assert.equal(await real.getByText('Architecte').count(), 0, 'pendant le cours, rien de ce qui n’est révélé qu’à la correction');
+  await page.getByRole('button', { name: 'Revenir à l’éditeur' }).click();
+  await blocks(page).first().waitFor();
+});
+
+test('MOD-09 : un champ à remplir dans chaque fiche a sa case dans le formulaire de l’onglet « Fiches », une question pour l’élève non', async (t) => {
+  const { page } = await teacherPage(t);
+  await page.getByLabel('Nom du nouveau cours').fill('Roches');
+  await page.getByRole('button', { name: 'Créer un nouveau cours' }).click();
+  await page.locator('#newFiche').waitFor();
+  await page.getByRole('tab', { name: 'Éditeur de fiches' }).click();
+  await tile(page, 'text', 'info').click();
+  assert.equal(await editing(page).locator('#fAudience').inputValue(), 'info');
+  await write(editing(page).locator('#fLabel'), 'Couleur');
+  assert.deepEqual(await texts(editing(page).locator('.aud-badge')), ['À remplir dans chaque fiche']);
+  await tile(page, 'text').click();
+  await write(editing(page).locator('#fLabel'), 'Décris sa texture');
+  assert.deepEqual(await texts(editing(page).locator('.aud-badge')), ['Question pour l’élève']);
+  await saved(page);
+
+  // Sans titre, la fiche n'a pas de nom : l'éditeur le dit
+  await block(page, 'titre').click();
+  await editing(page).locator('#fRole').selectOption('');
+  await page.locator('.tpl-warn', { hasText: 'Aucun champ ne sert de titre' }).waitFor();
+  await editing(page).locator('#fRole').selectOption('title');
+  await page.locator('.tpl-warn').waitFor({ state: 'detached' });
+
+  await page.getByRole('tab', { name: 'Fiches', exact: true }).click();
+  await page.locator('#newFiche').click();
+  const form = page.locator('#eFields');
+  await form.getByLabel('Couleur').waitFor();
+  assert.equal(await form.getByText('Décris sa texture').count(), 0, 'l’élève y répond : rien à remplir ici');
 });
 
 /* --- Étape 5 : créer, reprendre, dupliquer --- */

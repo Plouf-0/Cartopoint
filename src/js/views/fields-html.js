@@ -284,7 +284,8 @@ function columnsHTML(items, { compact = false } = {}) {
     .join('');
 }
 
-const EMOJIS = ['☀️', '🌤️', '⛅', '☁️', '💧', '💦', '🚿', '🌱', '🪨', '🍂', '🌡️', '🔥', '❄️', '🌬️', '✂️', '🌸', '🌿', '🌳', '🐝', '⭐', '✅', '⚠️', '🚫', '❗'];
+// Des marques de toutes les matières ; le soleil et l'eau restent, dont se servent les fiches botaniques (exposition, arrosage)
+const EMOJIS = ['☀️', '🌤️', '⛅', '☁️', '💧', '💦', '🌡️', '🔥', '❄️', '🌬️', '⭐', '✅', '❌', '⚠️', '🚫', '❗', '❓', '💡', '📌', '📏', '➡️', '🔴', '🟢', '🔵'];
 const EMOJI_HINT = "Cliquez dans une case, puis sur un émoji pour l'ajouter";
 const emojiBarHTML = () =>
   `<div class="emoji-bar" id="emojiBar" role="toolbar" aria-label="Émojis">${EMOJIS.map((e) => `<button type="button" data-emoji="${e}" title="Ajouter ${e}">${e}</button>`).join('')}</div>`;

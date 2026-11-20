@@ -28,5 +28,8 @@ test('MOD-09 : chaque élément vierge glissé dans la fiche est déjà valide, 
   }
   assert.equal(blankField('choice').choices.length, 2, 'deux propositions, le minimum');
   assert.equal(blankField('date').audience, 'info', 'une date n’est pas une question');
+  assert.deepEqual([blankField('text', 'info').audience, blankField('text', 'info').label], ['info', 'Nouveau champ'], 'à remplir dans chaque fiche');
+  assert.deepEqual([blankField('text').audience, blankField('text').label], ['question', 'Nouvelle question']);
+  for (const type of TYPES) assert.deepEqual(templateProblems({ fields: [blankField(type, 'info')] }), [], `${type} à remplir`);
   assert.notEqual(blankField('text').id, blankField('text').id, 'un identifiant neuf à chaque fois');
 });

@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.53** · 20 novembre 2026 · établie à partir du code
+**Version 0.54** · 20 novembre 2026 · établie à partir du code
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -606,8 +606,10 @@ Code : [`fields.js`](../src/js/fields.js), [`views/fields-html.js`](../src/js/vi
   recherche, ses numéros et ses résultats, et rien n'est réécrit. Ce modèle intégré ne change jamais : chaque cours en reçoit
   une copie, qu'il peut modifier.
 - **MOD-03** Dans la page d'un cours, l'onglet « Éditeur de fiches » montre au centre, à la place du plan, la fiche que
-  composent ses champs, dans leur ordre, telle que la liront les élèves ; chaque champ dit son type, son public, son rôle,
-  sa correction et s'il paraît dans la liste. Un champ choisi d'un clic s'écrit à sa place (`MOD-09`) et déplie ses
+  composent ses champs, dans leur ordre, telle que la liront les élèves ; chaque champ dit son type, son rôle, sa correction
+  et s'il paraît dans la liste, et en couleur qui le remplit : « À remplir dans chaque fiche », « Question pour l'élève »,
+  « Révélé à la correction » ou « Vu par vous seul ». Sans champ qui serve de titre, l'éditeur prévient que les fiches
+  n'auront pas de nom. Un champ choisi d'un clic s'écrit à sa place (`MOD-09`) et déplie ses
   réglages, seulement ceux qui ont un sens pour son type et son public (libellé, type, public, correction, propositions,
   échelle, unité et clavier, rôle, icône, exemple, liste, recherche, obligatoire, aide) ; l'enseignant le range avec ▲ ▼
   ou en le glissant par sa poignée, et renomme le modèle. Chaque modification s'enregistre en quittant sa case ; un champ
@@ -622,7 +624,8 @@ Code : [`fields.js`](../src/js/fields.js), [`views/fields-html.js`](../src/js/vi
 - **MOD-06** La fiche du centre est l'aperçu : la carte de la liste et la fiche ouverte telles que les verra un élève, dans
   la largeur d'un téléphone ou d'un ordinateur, pendant le cours, un champ révélé à la correction y étant grisé, ou à la
   correction, avec un verdict d'exemple. Elle part de la première fiche remplie, sinon des exemples du modèle. Une note de
-  l'enseignant y porte « Vu par vous seul ».
+  l'enseignant y porte « Vu par vous seul ». « Aperçu réel » montre la fiche exactement comme l'élève la lira, sans rien de
+  l'éditeur : un champ révélé à la correction n'y paraît qu'à la correction, et une note de l'enseignant jamais.
 - **MOD-07** « Créer un nouveau cours », dans la liste des cours, lui donne un titre et une fiche sans matière, un titre et
   une description, et l'ouvre sur l'onglet « Fiches ». En tête de l'onglet « Éditeur de fiches », « Reprendre la fiche
   d'un autre cours » propose ses propres cours, et un fichier de cours (`.json` ou `.html`) venu d'un collègue : le modèle
@@ -632,8 +635,10 @@ Code : [`fields.js`](../src/js/fields.js), [`views/fields-html.js`](../src/js/vi
 - **MOD-08** « Dupliquer », dans la liste des cours, crée « … - copie » : une copie complète (modèle, cartes, fiches
   masquées comprises, positions réelles, photos, dont les fichiers restent partagés), non publiée, sans versions ni
   lancements.
-- **MOD-09** Sur le côté de la fiche, les champs vierges (texte court, texte long, nombre, date, choix, oui ou non, échelle,
-  intertitre) se glissent dans la fiche, à l'endroit voulu : un trait montre où ils tomberont. Un clic sur l'un l'ajoute
+- **MOD-09** Sur le côté de la fiche, les champs vierges se glissent dans la fiche, à l'endroit voulu : un trait montre où
+  ils tomberont. Ils sont en trois groupes : « À remplir dans chaque fiche » (texte court, texte long, nombre, date, choix,
+  oui ou non, échelle), que l'enseignant écrit dans le formulaire de chaque fiche, onglet « Fiches », et que l'élève lit ;
+  « Questions pour l'élève » (les mêmes, sans la date), auxquelles l'élève répond ; « Mise en page » (l'intertitre). Un clic sur l'un l'ajoute
   sous le champ choisi, sinon à la fin, ce qui sert au clavier et au doigt. Le champ ajouté arrive choisi, avec un libellé
   de départ prêt à remplacer, et s'écrit à sa place, comme l'élève le lira : son libellé, son aide, l'exemple dans sa
   case, l'unité d'un nombre, les propositions d'un choix, le maximum et le symbole d'une échelle.
@@ -1333,3 +1338,4 @@ Ils ne sont pas réutilisés.
 | 0.51    | 20 novembre 2026  | Retours de l'essai en préproduction : la correction s'ouvre là où il reste à corriger (`QST-04`), le premier plan compte le placement d'une note sur un maximum (`QST-05`), l'en-tête et les choix sur un téléphone (`MOB-01`) |
 | 0.52    | 20 novembre 2026  | Demandes de l'utilisateur après son essai : la fiche se compose sur elle-même, au centre, avec des champs vierges à glisser (`MOD-03`, `MOD-06`, `MOD-09`) ; « … - copie » (`MOD-08`) ; les cinq onglets sans défiler |
 | 0.53    | 20 novembre 2026  | « Créer un nouveau cours » seul dans la liste, qui ouvre sur « Fiches » ; la fiche d'un autre cours se reprend en tête de l'onglet, renommé « Éditeur de fiches » (`MOD-07`) |
+| 0.54    | 20 novembre 2026  | Les champs vierges en trois groupes, et qui remplit chaque champ dit en couleur (`MOD-09`, `MOD-03`) ; l'éditeur prévient d'une fiche sans titre (`MOD-03`) ; « Aperçu réel » (`MOD-06`) |

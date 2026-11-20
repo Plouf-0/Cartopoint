@@ -241,7 +241,7 @@ test('CHP-05, EDI-01, EDI-03, EDI-05, EDI-06 : le formulaire d’une fiche suit 
 
   await form.locator('#e-c-nom').fill('Halle aux grains');
   await form.locator('#e-c-facade').click();
-  await form.locator('[data-emoji="🌳"]').click();
+  await form.locator('[data-emoji="💡"]').click();
   await form.locator('#e-c-style').selectOption('roman');
   await form.locator('#e-c-classe').selectOption('non');
   await form.locator('#e-c-materiaux input[value="brique"]').check();
@@ -252,7 +252,7 @@ test('CHP-05, EDI-01, EDI-03, EDI-05, EDI-06 : le formulaire d’une fiche suit 
   await toast(page, '✓ Fiche créée');
 
   await page.locator('.row', { hasText: 'Halle aux grains' }).locator('[data-edit]').click();
-  assert.equal(await form.locator('#e-c-facade').inputValue(), '🌳');
+  assert.equal(await form.locator('#e-c-facade').inputValue(), '💡');
   assert.equal(await form.locator('#e-c-style').inputValue(), 'roman');
   assert.equal(await form.locator('#e-c-classe').inputValue(), 'non');
   assert.equal(await form.locator('#e-c-materiaux input[value="brique"]').isChecked(), true);

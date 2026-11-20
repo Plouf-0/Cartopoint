@@ -61,6 +61,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .empty-box { border: 2px dashed var(--line); border-radius: var(--radius); padding: 22px; text-align: center; color: var(--ink-soft); font-size: 14px; }
 .mini-h { font: 500 16px/1.2 var(--serif); margin: 14px 0 6px; }
 .banner { background: #fbe5e8; color: #7a1a2a; padding: 10px 16px; font-size: 14px; }
+/* Fin du cours, côté élève : aligné sur l'en-tête, pas collé au bord de l'écran */
+.draft-banner { margin: 0; padding: 10px clamp(12px, 2vw, 24px); border-bottom: 1px solid var(--line); background: var(--sand-soft); color: var(--ink); font-size: 14px; }
 
 /* 3. Boutons --------------------------------------------------------------- */
 .btn {
@@ -175,7 +177,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .num { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 2px dashed var(--line); color: var(--ink-soft); }
 .num.on { background: var(--student); border: 2px solid var(--student); color: #fff; }
 .state { font-size: 12px; color: var(--ink-soft); }
-.grade { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 2px 8px; }
+.grade { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
 .grade.ok { background: #e1f1e6; color: var(--ok); }
 .grade.near { background: #fbefd9; color: var(--near); }
 .grade.far { background: #fbe5e8; color: var(--far); }
@@ -333,6 +335,8 @@ dialog::backdrop { background: color-mix(in srgb, var(--ink) 65%, transparent); 
 .saved-note { font-size: 13px; color: var(--ok); min-height: 1.2em; margin-top: 6px; }
 @media (max-width: 560px) { .measure-grid { grid-template-columns: 1fr; } }
 .measure.wide { grid-column: 1 / -1; }
+/* Une réponse fausse et sa bonne réponse ne tiennent pas dans une case de nombre étroite : la question prend toute la ligne */
+.measure-grid .measure:has(.verdict.wrong, .verdict.half) { grid-column: 1 / -1; }
 fieldset.measure { border: 0; padding: 0; margin: 0; min-width: 0; }
 fieldset.measure legend { padding: 0; font-size: 13px; font-weight: 700; margin-bottom: 3px; }
 .measure textarea { width: 100%; min-height: 80px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 9px; background: #fff; font: inherit; resize: vertical; }
@@ -342,6 +346,8 @@ fieldset.measure legend { padding: 0; font-size: 13px; font-weight: 700; margin-
 .choice { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: #fff; cursor: pointer; font-weight: 600; }
 .choice input { margin: 0; }
 .choice:has(input:checked) { background: var(--ink); border-color: var(--ink); color: #fff; }
+/* Plus précis que « .measure label », qui mettrait la case et son texte l'un sous l'autre */
+.choices .choice { display: inline-flex; margin: 0; }
 .choice:has(input:disabled) { cursor: default; opacity: 0.75; }
 .choice:focus-within { outline: 3px solid var(--focus); outline-offset: 1px; }
 .prose h3 { font: 500 16px/1.2 var(--serif); margin: 14px 0 4px; }
@@ -499,7 +505,9 @@ table.teachers .row-actions .btn { white-space: normal; }
 /* Sur un téléphone : le titre et l'icône sur la première ligne, le nom de l'élève, parfois long, en dessous */
 @media (max-width: 600px) {
   .net { order: 2; }
-  .map-choice { order: 3; }
+  /* Le choix de la carte sur sa propre ligne : sinon il écrase le titre du cours, lettre par lettre */
+  .map-choice { order: 3; width: 100%; }
+  .map-choice select { flex: 1; min-width: 0; max-width: none; }
   .student-who { order: 3; width: 100%; margin-left: 0; }
 }
 .link-btn { background: none; border: 0; padding: 0; font: inherit; font-weight: 400; font-size: 13px; color: var(--ink-soft); text-decoration: underline; cursor: pointer; }
@@ -549,6 +557,7 @@ table.teachers .row-actions .btn { white-space: normal; }
 .answers-score { font-weight: 700; margin: 8px 0 2px; }
 /* Corriger les réponses d'un lancement (QST-04) */
 .review-choose { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 10px; }
+.review-pick { max-width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; background: #fff; color: var(--ink); font: inherit; }
 .review-list { display: grid; gap: 8px; }
 .review-row { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; background: var(--surface); }
 .review-row.pending { border-left-color: #e5c27d; }

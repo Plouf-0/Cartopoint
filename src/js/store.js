@@ -8,7 +8,7 @@
 import { Meta, Maps, Files, Progress } from './db.js';
 import { localBackend } from './backends/local.js';
 import { debounce, uid, blobToDataURL, dataURLToBlob, toast, errorText } from './util.js';
-import { normalizeProject, normalizeProgress, emptyProgress, placedPos, evaluate, gradeOf, withoutTeacherNotes, VERSION, FORMAT } from './model.js';
+import { normalizeProject, normalizeProgress, emptyProgress, placedPos, evaluate, gradeOf, hasPlan, withoutTeacherNotes, VERSION, FORMAT } from './model.js';
 import { emptyAnswers, hasAnswers, questionFields } from './fields.js';
 import { questionVerdicts } from './verdicts.js';
 
@@ -196,6 +196,19 @@ export const storeFile = (file) => backend.storeFile(file);
 
 /** Enregistre l'image d'un plan et renvoie l'adresse à mettre dans la carte. */
 export const storeMapImage = (file) => backend.storeMapImage(file);
+
+/**
+ * Met une image de plan sur une carte. Le premier plan du cours fait compter le placement dans une note sur un maximum :
+ * tant que le cours n'avait pas de plan, l'enseignant ne pouvait pas le choisir, la case n'étant pas proposée (QST-05).
+ */
+export async function setMapImage(map, file) {
+  const first = !S.project.maps.some(hasPlan);
+  map.image = await storeMapImage(file);
+  if (first && S.project.grading?.mode === 'auto' && !S.project.grading.placement) {
+    S.project.grading = { ...S.project.grading, placement: true };
+    changedMeta();
+  }
+}
 
 /** Oublie une carte déjà retirée du projet. */
 export const forgetMap = (id) => backend.deleteMap(id);

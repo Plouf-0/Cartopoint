@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.50** · 19 novembre 2026 · établie à partir du code
+**Version 0.51** · 20 novembre 2026 · établie à partir du code
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -358,7 +358,8 @@ Demande : EV-46 (Q-K). Code : [`views/reader.js`](../src/js/views/reader.js), [`
 - **MOB-01** Sur un téléphone, la fiche ouverte prend tout l'écran, montée du bas, et « Placer sur le plan » reste en bas,
   sous le pouce. Au doigt, chaque bouton et chaque case fait 44 px de haut au moins, et le texte d'une case 16 px, que
   l'iPhone ne grossit pas à la saisie ; la case où l'on écrit remonte au-dessus du clavier. Un groupe de renseignements se
-  replie sous son intertitre, pour aller plus vite aux questions, qui, elles, ne se replient pas.
+  replie sous son intertitre, pour aller plus vite aux questions, qui, elles, ne se replient pas. Dans l'en-tête, le choix
+  de la carte passe sous le titre du cours, qui garde sa largeur ; la case d'un choix est alignée sur son texte.
 - **MOB-02** Dans la fiche ouverte, « Fiche précédente » et « Fiche suivante » mènent aux fiches voisines de la liste, sans y
   repasser, avec leur rang (« 2 / 12 ») ; les flèches ← → du clavier aussi, sauf dans une case, où elles déplacent le
   curseur.
@@ -689,7 +690,9 @@ Demande : EV-46. Code : [`verdicts.js`](../src/js/verdicts.js), [`server/answers
   « Corrigée plus tard par l'enseignant », et un message dit combien il y en a (Q-O) : sa correction ne viendra pas sur ce
   téléphone (`CRG-08`).
 - **QST-04** Dans la page d'un lancement, « Corriger les réponses » montre les réponses des élèves qui ont rendu, question
-  par question pour toute la classe ou élève par élève, d'abord celles qui restent à corriger. Pour chacune : ce que
+  par question pour toute la classe ou élève par élève, d'abord celles qui restent à corriger. Elle s'ouvre sur la
+  première question, et le premier élève, qui ont une réponse à corriger, et chacun dit combien il en reste
+  (« Votre avis (2 à corriger) »). Pour chacune : ce que
   l'élève a écrit, la bonne réponse s'il y en a une, le verdict et qui l'a donné. L'enseignant choisit juste, à moitié
   juste ou faux, avec un commentaire facultatif ; son verdict l'emporte sur celui du serveur, qu'il peut aussi changer
   (une faute d'orthographe) ou lui rendre. Chaque correction s'enregistre aussitôt, et la liste des élèves compte pour
@@ -704,7 +707,9 @@ Demande : EV-46. Code : [`verdicts.js`](../src/js/verdicts.js), [`server/answers
   à l'écran, et paraît dans la page du lancement, l'Excel (`HIS-08`) et le compte rendu de l'enseignant (`HIS-09`) ; l'élève
   n'en voit pas. Un lancement reprend la notation de sa version, et l'enseignant peut la changer dans la page du lancement :
   ses notes se recalculent, celles des autres lancements ne bougent pas. Le serveur refuse une notation qui ne convient
-  pas au modèle, et l'éditeur retire le barème d'une question qui ne se corrige plus.
+  pas au modèle, et l'éditeur retire le barème d'une question qui ne se corrige plus. Une note sur un maximum choisie
+  avant que le cours ait un plan compte le placement dès le premier plan, la case n'ayant pas pu être proposée avant ; un
+  plan de plus ne revient pas sur le choix de l'enseignant.
 - **QST-06** Une question peut être obligatoire, et le dit à côté de son libellé. « Terminer » prévient de combien de
   réponses obligatoires manquent encore, sans bloquer.
 
@@ -1317,3 +1322,4 @@ Ils ne sont pas réutilisés.
 | 0.48    | 20 novembre 2026  | Zéro plan ou plusieurs : une carte sans plan est une liste (`CAR-07`), une fiche change de carte (`CAR-08`) |
 | 0.49    | 20 novembre 2026  | Téléphone et ordinateur : fiche plein écran, fiche suivante, fiche à côté du plan (`MOB-01` à `MOB-03`, section 4.8) |
 | 0.50    | 20 novembre 2026  | Le fichier de secours suit le modèle et corrige les questions fermées (`EXP-02`, `EXP-05`) |
+| 0.51    | 20 novembre 2026  | Retours de l'essai en préproduction : la correction s'ouvre là où il reste à corriger (`QST-04`), le premier plan compte le placement d'une note sur un maximum (`QST-05`), l'en-tête et les choix sur un téléphone (`MOB-01`) |

@@ -847,6 +847,34 @@ const MUTANTS = [
   ['QST-04 : verdict inventé accepté', 'server/launches.mjs', 'if (verdict !== null && !VERDICTS.includes(verdict))', 'if (false)'],
   ['QST-04 : la liste ne recompte pas', 'src/js/prof/review-dialog.js', '      onChange();\n', ''],
   [
+    'QST-04 : la fenêtre s’ouvre sur une question sans rien à corriger',
+    'src/js/prof/review-dialog.js',
+    '(questions.find((field) => pendingOfQuestion(field)) ?? questions[0])?.id',
+    'questions[0]?.id'
+  ],
+  ['QST-04 : rien ne dit ce qui reste à corriger', 'src/js/prof/review-dialog.js', '(count ? `${label} (${count} à corriger)` : label)', 'label'],
+  [
+    'QST-05 : le premier plan ne compte pas le placement',
+    'src/js/store.js',
+    "if (first && S.project.grading?.mode === 'auto'",
+    "if (false && S.project.grading?.mode === 'auto'"
+  ],
+  [
+    'QST-05 : chaque plan revient sur le choix de l’enseignant',
+    'src/js/store.js',
+    '  const first = !S.project.maps.some(hasPlan);\n',
+    '  const first = true;\n'
+  ],
+  [
+    'CAR-07 : placer une fiche d’une liste',
+    'src/js/views/editor.js',
+    "(hasPlan(S.map) ? '✓ Fiche créée — placez sa position réelle sur le plan' : '✓ Fiche créée')",
+    "'✓ Fiche créée — placez sa position réelle sur le plan'"
+  ],
+  ['CAR-07 : des placements sur une liste', 'src/js/eleve/main.js', "${S.project.maps.some(hasPlan) ? 'vos placements", "${true ? 'vos placements"],
+  ['MOB-01 : le choix de la carte écrase le titre', 'src/css/app.css', '  .map-choice { order: 3; width: 100%; }', '  .map-choice { order: 3; }'],
+  ['MOB-01 : la case d’un choix décalée', 'src/css/app.css', '.choices .choice { display: inline-flex; margin: 0; }', ''],
+  [
     'QST-05 : la notation du lancement ignorée',
     'server/launches.mjs',
     '(row.grading ? normalizeGrading(JSON.parse(row.grading), project.template) : project.grading)',
@@ -2139,7 +2167,7 @@ const TESTS_FOR = {
   'src/js/db.js': ['e2e/legacy'],
   'src/js/store.js': ['e2e/legacy', 'e2e/courses', 'e2e/launches', 'e2e/correction', 'e2e/template'],
   'src/js/project-io.js': ['e2e/legacy', 'e2e/fallback'],
-  'src/js/views/editor.js': ['e2e/courses', 'e2e/template'],
+  'src/js/views/editor.js': ['e2e/courses', 'e2e/template', 'e2e/no-plan'],
   'src/js/views/admin/fiches.js': ['e2e/no-plan', 'e2e/courses'],
   'src/js/views/admin/settings.js': ['e2e/courses', 'e2e/legacy'],
   'src/js/views/admin/maps.js': ['e2e/no-plan', 'e2e/courses', 'e2e/legacy'],
@@ -2152,7 +2180,7 @@ const TESTS_FOR = {
   'src/js/admin/main.js': ['e2e/accounts', 'e2e/courses', 'e2e/launches', 'e2e/incidents'],
   'src/js/compte/main.js': ['e2e/accounts'],
   'src/js/compte/ui.js': ['e2e/accounts'],
-  'src/css/app.css': ['offline-site', 'e2e/accounts', 'e2e/courses', 'e2e/launches', 'e2e/offline']
+  'src/css/app.css': ['offline-site', 'e2e/accounts', 'e2e/courses', 'e2e/launches', 'e2e/offline', 'e2e/no-plan']
 };
 const testsFor = (file) => (TESTS_FOR[file] ?? []).map((name) => `tests/${name}.test.js`);
 

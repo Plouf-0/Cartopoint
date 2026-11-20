@@ -150,7 +150,8 @@ async function drawReport(names, { date, results = '' } = {}) {
   const planH = plan ? Math.round((plan.height / plan.width) * CW) : 0;
   const ROW = 76;
   const headerH = results ? 270 : 230;
-  const H = headerH + (plan ? planH + 104 : 0) + 56 + ROW * (rows.length + 1) + 90;
+  const GAP = 40;
+  const H = headerH + (plan ? planH + 104 : GAP) + 56 + ROW * (rows.length + 1) + 90;
 
   const c = document.createElement('canvas');
   c.width = W;
@@ -231,7 +232,7 @@ async function drawReport(names, { date, results = '' } = {}) {
       }, 'Écart');
     }
     y += 60;
-  }
+  } else y += GAP; // Sans plan, le tableau ne touche pas la ligne des résultats
 
   // Tableau
   ctx.textBaseline = 'alphabetic';

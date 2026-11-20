@@ -159,7 +159,7 @@ function footHTML() {
   if (!submission) {
     return `<div class="panel-foot">
       <button type="button" class="btn" id="finishBtn">Terminer</button>
-      <p class="hint">Quand vous avez fini : vos placements et vos mesures seront figés, puis envoyés à l'enseignant. D'ici là, votre travail reste dans ce navigateur.</p>
+      <p class="hint">Quand vous avez fini : ${S.project.maps.some(hasPlan) ? 'vos placements et vos réponses seront figés, puis envoyés' : 'vos réponses seront figées, puis envoyées'} à l'enseignant. D'ici là, votre travail reste dans ce navigateur.</p>
     </div>`;
   }
   return `<div class="panel-foot">

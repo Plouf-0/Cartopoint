@@ -10,7 +10,7 @@
  */
 import { $, $$, esc, toast, normKey, errorText } from '../util.js';
 import { S, fiches, byId, entryOf, mediaURL, storeFile, forgetFile, deleteFiches, changedMap, changedProgress, courseTemplate } from '../store.js';
-import { newFiche, normalizeFiche, normalizeMedia, numberOf, titleOf, thumbOf } from '../model.js';
+import { hasPlan, newFiche, normalizeFiche, normalizeMedia, numberOf, titleOf, thumbOf } from '../model.js';
 import { isEmpty, questionFields, subtitleField, titleField } from '../fields.js';
 import { render } from '../render.js';
 import { openPhoto } from './viewer.js';
@@ -130,7 +130,8 @@ async function save() {
   changedMap();
   $('#dlgEdit').close();
   render();
-  toast(edit.isNew ? '✓ Fiche créée — placez sa position réelle sur le plan' : '✓ Fiche enregistrée');
+  // Sur une liste sans plan, il n'y a rien à placer (CAR-07)
+  toast(edit.isNew ? (hasPlan(S.map) ? '✓ Fiche créée — placez sa position réelle sur le plan' : '✓ Fiche créée') : '✓ Fiche enregistrée');
 }
 
 async function remove() {

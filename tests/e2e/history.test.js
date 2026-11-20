@@ -506,7 +506,8 @@ const QUIZ = {
 
 test('QST-04 : l’enseignant corrige les réponses, question par question ou élève par élève, et la liste recompte', async (t) => {
   const { site, teacher, launch, openLaunch } = await setup(t, {
-    template: QUIZ,
+    // Une question corrigée par le serveur d'abord : la fenêtre doit s'ouvrir sur celle qui attend l'enseignant
+    template: { fields: [QUIZ.fields[0], QUIZ.fields[2], QUIZ.fields[1]] },
     maps: (plan, fiche) => [
       {
         id: 'm1',
@@ -532,7 +533,8 @@ test('QST-04 : l’enseignant corrige les réponses, question par question ou é
 
   await teacher.getByRole('button', { name: 'Corriger les réponses' }).click();
   const dialog = teacher.locator('dialog.review-dialog');
-  assert.equal(await dialog.locator('#reviewQuestion').inputValue(), 'c-avis', 'la première question corrigée');
+  assert.equal(await dialog.locator('#reviewQuestion').inputValue(), 'c-avis', 'la première question qui a une réponse à corriger');
+  assert.deepEqual(await dialog.locator('#reviewQuestion option').allTextContents(), ['Quel arbre ?', 'Votre avis (2 à corriger)']);
   const rows = dialog.locator('.review-row');
   assert.deepEqual(await rows.locator('.review-where').allTextContents(), ['Léa · 1. Noisetier', 'Léa · 2. Sureau'], 'seulement ce qui reste à corriger');
   assert.equal(await rows.first().locator('.review-answer').textContent(), 'Il est <b>beau</b>', 'SEC-04 : du texte, jamais du code');
@@ -541,9 +543,11 @@ test('QST-04 : l’enseignant corrige les réponses, question par question ou é
   await row(teacher, 'Léa')
     .getByText(/questions : 0 juste\(s\), 1 à moitié, 2 fausse\(s\), 1 à corriger$/)
     .waitFor({ timeout: 2000 }); // aussitôt, sans attendre le rechargement de la liste toutes les 5 secondes
+  assert.equal(await dialog.locator('#reviewQuestion option:checked').textContent(), 'Votre avis (1 à corriger)');
 
   await dialog.getByRole('button', { name: 'Par élève' }).click();
-  await dialog.locator('#reviewStudent').selectOption({ label: 'Léa' });
+  assert.deepEqual(await dialog.locator('#reviewStudent option').allTextContents(), ['Léa (1 à corriger)', 'Tom']);
+  assert.equal(await dialog.locator('#reviewStudent').inputValue(), await dialog.locator('#reviewStudent option').first().getAttribute('value'));
   await dialog.locator('#reviewTodo').uncheck();
   assert.equal(await rows.count(), 4, '2 fiches, 2 questions corrigées');
   const nom = rows.filter({ hasText: '1. Noisetier · Quel arbre ?' });

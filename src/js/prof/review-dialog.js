@@ -53,6 +53,19 @@ export function openReviews(launchId, sheets, onChange) {
     return { review, verdict: review?.verdict ?? student.results.maps[mapId]?.fiches[ficheId]?.questions?.[questionId] };
   };
 
+  /** Combien de réponses restent à corriger pour une question, ou pour un élève. */
+  const pendingFor = (keep) => {
+    let count = 0;
+    for (const student of students)
+      for (const map of project.maps)
+        for (const fiche of visibleFiches(map))
+          for (const field of questions) if (keep(student, field) && verdictOf(student, map.id, fiche.id, field.id).verdict === 'pending') count++;
+    return count;
+  };
+  const pendingOfQuestion = (field) => pendingFor((student, each) => each === field);
+  const pendingOfStudent = (student) => pendingFor((each) => each === student);
+  const withCount = (label, count) => (count ? `${label} (${count} à corriger)` : label);
+
   async function save(student, mapId, ficheId, questionId, verdict, comment = '') {
     error.hidden = true;
     try {
@@ -139,13 +152,17 @@ export function openReviews(launchId, sheets, onChange) {
       state.by === 'question'
         ? el(
             'select',
-            { id: 'reviewQuestion', 'aria-label': 'Question' },
-            ...questions.map((field) => el('option', { value: field.id, selected: field.id === state.question }, field.label))
+            { id: 'reviewQuestion', className: 'review-pick', 'aria-label': 'Question' },
+            ...questions.map((field) =>
+              el('option', { value: field.id, selected: field.id === state.question }, withCount(field.label, pendingOfQuestion(field)))
+            )
           )
         : el(
             'select',
-            { id: 'reviewStudent', 'aria-label': 'Élève' },
-            ...students.map((student) => el('option', { value: student.id, selected: student.id === state.student }, student.names))
+            { id: 'reviewStudent', className: 'review-pick', 'aria-label': 'Élève' },
+            ...students.map((student) =>
+              el('option', { value: student.id, selected: student.id === state.student }, withCount(student.names, pendingOfStudent(student)))
+            )
           );
     picker.addEventListener('change', () => {
       state[state.by === 'question' ? 'question' : 'student'] = picker.value;
@@ -165,6 +182,9 @@ export function openReviews(launchId, sheets, onChange) {
     list.replaceChildren(...(found.length ? found : [el('div', { className: 'empty-box' }, state.todo ? 'Plus rien à corriger ici.' : 'Aucune réponse ici.')]));
   }
 
+  // La fenêtre s'ouvre là où il y a du travail : la première question, et le premier élève, qui ont une réponse à corriger
+  state.question = (questions.find((field) => pendingOfQuestion(field)) ?? questions[0])?.id;
+  state.student = (students.find((student) => pendingOfStudent(student)) ?? students[0])?.id;
   if (!questions.length || !students.length) {
     list.replaceChildren(el('div', { className: 'empty-box' }, questions.length ? 'Personne n’a encore rendu.' : 'Ce cours n’a pas de question à corriger.'));
   } else draw();

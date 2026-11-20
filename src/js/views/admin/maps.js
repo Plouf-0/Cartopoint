@@ -2,7 +2,7 @@
  * Onglet « Cartes » : plusieurs plans par projet, chacun avec ses fiches ; échelle.
  */
 import { $, esc, num, toast, pickFile, errorText } from '../../util.js';
-import { S, switchMap, changedMap, changedMeta, forgetFile, forgetMap, storeMapImage } from '../../store.js';
+import { S, switchMap, changedMap, changedMeta, forgetFile, forgetMap, setMapImage } from '../../store.js';
 import { normalizeMap, hasPlan, hasRef, emptyProgress } from '../../model.js';
 import { render } from '../../render.js';
 
@@ -68,7 +68,7 @@ export function bind(panel) {
         )
           return;
         try {
-          m.image = await storeMapImage(file);
+          await setMapImage(m, file);
         } catch (e) {
           return toast('⚠ Image impossible à enregistrer : ' + errorText(e));
         }
@@ -122,13 +122,12 @@ export function bind(panel) {
     const file = await pickFile('image/*');
     if (!file) return;
     const name = prompt('Nom de la carte :', file.name.replace(/\.[^.]+$/, '')) || 'Nouvelle carte';
-    let image;
+    const m = normalizeMap({ name, image: '' }, '', S.project.template);
     try {
-      image = await storeMapImage(file);
+      await setMapImage(m, file);
     } catch (e) {
       return toast('⚠ Image impossible à enregistrer : ' + errorText(e));
     }
-    const m = normalizeMap({ name, image }, '', S.project.template);
     S.project.maps.push(m);
     S.progress[m.id] = emptyProgress();
     changedMap(m);

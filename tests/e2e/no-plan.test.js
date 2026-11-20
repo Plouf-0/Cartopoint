@@ -84,6 +84,12 @@ test('CAR-07, CAR-08 : l’enseignant fait d’une carte une liste, ajoute une l
   await teacher.locator('.map-row', { hasText: 'Salle de classe' }).getByText('Liste', { exact: true }).waitFor();
   assert.equal(await teacher.locator('#widthM').count(), 0, 'une liste n’a pas d’échelle');
   await teacher.locator('#planEmpty').getByText('les élèves y verront une simple liste').waitFor();
+  await teacher.getByRole('tab', { name: 'Fiches' }).click();
+  await teacher.locator('#newFiche').click();
+  await teacher.locator('#e-common').fill('Calcaire');
+  await teacher.locator('#eSave').click();
+  assert.equal(await teacher.locator('#toast').textContent(), '✓ Fiche créée', 'rien à placer sur une liste');
+  await teacher.getByRole('tab', { name: 'Cartes' }).click();
 
   await teacher.locator('.map-row', { hasText: 'Carrière' }).getByRole('button', { name: 'Afficher' }).click();
   await teacher.getByRole('tab', { name: 'Fiches' }).click();
@@ -97,7 +103,13 @@ test('CAR-07, CAR-08 : l’enseignant fait d’une carte une liste, ajoute une l
     content.maps.map((map) => [map.name, map.fiches.map((f) => [f.common, f.refX])]),
     [
       ['Carrière', [['Basalte', 30]]],
-      ['Salle de classe', [['Granite', null]]]
+      [
+        'Salle de classe',
+        [
+          ['Calcaire', null],
+          ['Granite', null]
+        ]
+      ]
     ]
   );
 
@@ -147,6 +159,7 @@ test('CAR-07 : un cours sans plan, de bout en bout : l’élève lit, répond, t
   assert.equal(await student.locator('.panel h2').textContent(), 'Fiches');
   assert.equal(await student.locator('[data-place], [data-filter]').count(), 0, 'ni « Placer », ni filtres de placement');
   assert.equal(await student.locator('#mapChoiceBox').isHidden(), true, 'une seule carte');
+  assert.match(await student.locator('.panel-foot .hint').textContent(), /^Quand vous avez fini : vos réponses seront figées, puis envoyées à l'enseignant\./);
 
   await student.locator('.label', { hasText: 'Granite' }).locator('[data-answer="c-dure"]').selectOption('oui');
   await student.locator('.label', { hasText: 'Craie' }).locator('h3').click();
@@ -207,4 +220,26 @@ test('CAR-07, Q-N : des fiches sur un plan et d’autres sans, dans le même cou
   const asked = new Promise((resolve) => student.once('dialog', (confirm) => (resolve(confirm.message()), confirm.dismiss())));
   await student.getByRole('button', { name: 'Terminer', exact: true }).click();
   assert.match(await asked, /^1 fiche\(s\) ne sont pas placée\(s\)/, 'seule la fiche du plan est à placer');
+  assert.match(await student.locator('.panel-foot .hint').textContent(), /vos placements et vos réponses seront figés, puis envoyés/);
+
+  // MOB-01 : sur un téléphone, le choix de la carte passe sous le titre au lieu de l'écraser, et la case d'un choix est
+  // alignée sur son texte
+  const phone = await openPage(t, browser, { base: site.base, viewport: { width: 390, height: 844 }, touch: true });
+  await phone.goto(`/c/${code}`);
+  await phone.getByLabel(/Votre prénom et votre nom/).fill('Tom');
+  await phone.getByRole('button', { name: 'Commencer' }).click();
+  await phone.locator('.label').first().waitFor();
+  await phone.evaluate(() => (document.querySelector('#pageTitle').textContent = 'Sortie géologie de fin d’année'));
+  const title = await phone.locator('#pageTitle').boundingBox();
+  const choice = await phone.locator('#mapChoiceBox').boundingBox();
+  assert.ok(title.width > 200, `titre large de ${title.width} px`);
+  assert.ok(choice.y >= title.y + title.height, 'le choix de la carte sous le titre');
+  await phone.locator('.label', { hasText: 'Granite' }).locator('h3').click();
+  const pill = phone.locator('#dlgRead [data-k="c-dure"] .choice').first();
+  // Les deux boîtes au même instant : la fiche monte encore du bas de l'écran
+  const gap = await pill.evaluate((label) => {
+    const middle = (node) => node.getBoundingClientRect().y + node.getBoundingClientRect().height / 2;
+    return middle(label.querySelector('input')) - middle(label.querySelector('span'));
+  });
+  assert.ok(Math.abs(gap) < 1.5, `case décalée de ${gap} px par rapport à son texte`);
 });

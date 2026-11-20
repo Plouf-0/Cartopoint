@@ -1247,6 +1247,45 @@ test('EV-34 : l’espace enseignant s’appelle Cartopoint, garde le vert par d�
   assert.equal((await download).suggestedFilename(), 'Modèle de fiches.csv');
 });
 
+test('QST-05 : une note sur un maximum choisie avant le plan compte le placement dès que le premier plan arrive', async (t) => {
+  const { site, page } = await setup(t);
+  const template = {
+    fields: [
+      { id: 'titre', type: 'text', label: 'Titre', audience: 'info', role: 'title' },
+      { id: 'c-ok', type: 'yesno', label: 'Est-il ouvert ?', audience: 'question' }
+    ]
+  };
+  const course = await page.evaluate(async (template) => {
+    const draft = {
+      format: 'inventaire-botanique',
+      version: 4,
+      title: 'Ville',
+      theme: {},
+      template,
+      grading: { mode: 'auto', max: 20, placement: false },
+      maps: [{ id: 'm1', name: 'Plan', image: '', fiches: [] }]
+    };
+    return (await fetch('/api/courses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ draft }) })).json();
+  }, template);
+  assert.equal(draftInDb(site, course.id).grading.placement, false, 'sans plan, la case n’est pas proposée');
+  await page.goto(`/prof/cours/${course.id}`);
+  await choosePlan(page);
+  await saved(page);
+  assert.deepEqual(draftInDb(site, course.id).grading, { mode: 'auto', max: 20, placement: true });
+  await page.getByRole('tab', { name: 'Modèle de fiche' }).click();
+  assert.equal(await page.locator('#gradingPlacement').isChecked(), true);
+  await page.locator('#gradingPlacement').uncheck();
+  await saved(page);
+  await page.getByRole('tab', { name: 'Cartes' }).click();
+  page.once('dialog', (dialog) => dialog.accept('Deuxième plan'));
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: '＋ Ajouter une carte' }).click();
+  await (await chooser).setFiles({ name: 'plan.png', mimeType: 'image/png', buffer: PNG });
+  await page.locator('.map-row', { hasText: 'Deuxième plan' }).waitFor();
+  await saved(page);
+  assert.equal(draftInDb(site, course.id).grading.placement, false, 'un plan de plus ne revient pas sur le choix de l’enseignant');
+});
+
 test('POS-03 : cliquer sur un repère du plan ouvre sa fiche pour la modifier', async (t) => {
   const { page } = await setup(t);
   await createCourse(page);

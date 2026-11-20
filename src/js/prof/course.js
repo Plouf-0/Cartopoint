@@ -6,7 +6,7 @@ import { api } from '../api.js';
 import { reportIncident } from '../incident.js';
 import { draftOf, hasRef, normalizeProject } from '../model.js';
 import { onRender, render } from '../render.js';
-import { S, activate, changedMap, fiches, flush, hasPendingChanges, hasUnsentChanges, storeMapImage, useBackend } from '../store.js';
+import { S, activate, changedMap, fiches, flush, hasPendingChanges, hasUnsentChanges, setMapImage, useBackend } from '../store.js';
 import { applyTheme } from '../themes.js';
 import { $, errorText, fatal, pickFile, toast } from '../util.js';
 import { setProjectTab, setTemplateTab } from '../views/admin/index.js';
@@ -61,7 +61,7 @@ function bindPlanChoice() {
     const file = await pickFile('image/*');
     if (!file) return;
     try {
-      S.map.image = await storeMapImage(file);
+      await setMapImage(S.map, file);
     } catch (e) {
       return toast('⚠ Image impossible à enregistrer : ' + errorText(e));
     }

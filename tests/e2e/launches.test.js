@@ -627,7 +627,7 @@ test('COU-01 : sans publication, le bouton de lancement est bloqué et dit pourq
   const { teacher } = await setup(t);
   await teacher.getByLabel('Nom du nouveau cours').fill('Brouillon');
   await teacher.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
-  await teacher.locator('#planChoose').waitFor();
+  await teacher.locator('#tplSummary').waitFor();
   await teacher.getByRole('tab', { name: 'Cours' }).click();
   assert.equal(await teacher.getByRole('button', { name: 'Lancer le cours' }).isDisabled(), true);
   await teacher.locator('#launchHint').getByText("Publiez d'abord le cours").waitFor();
@@ -1123,6 +1123,8 @@ test('CRG-09 : publier mesure le plan, et le serveur calcule l’écart avec ses
   // Un plan quatre fois plus large que haut, et une position réelle au centre
   await teacher.getByLabel('Nom du nouveau cours').fill('Plan large');
   await teacher.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
+  await teacher.locator('#tplSummary').waitFor();
+  await teacher.getByRole('tab', { name: 'Fiches' }).click();
   const chooser = teacher.waitForEvent('filechooser');
   await teacher.locator('#planChoose').click();
   await (await chooser).setFiles({ name: 'plan.png', mimeType: 'image/png', buffer: makePng(400, 100) });
@@ -1171,6 +1173,8 @@ test('un plan qui ne se charge plus bloque la publication et le dit', async (t) 
   const { teacher } = await setup(t);
   await teacher.getByLabel('Nom du nouveau cours').fill('Plan cassé');
   await teacher.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
+  await teacher.locator('#tplSummary').waitFor();
+  await teacher.getByRole('tab', { name: 'Fiches' }).click();
   const chooser = teacher.waitForEvent('filechooser');
   await teacher.locator('#planChoose').click();
   await (await chooser).setFiles({ name: 'plan.png', mimeType: 'image/png', buffer: PNG });

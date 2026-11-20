@@ -43,5 +43,21 @@ export function bindAdminPanel(panel) {
         panel.querySelector('.panel-scroll').scrollTop = 0;
       })
   );
-  (TABS[S.ui.tab] || TABS.fiches)[1].bind(panel);
+  const tab = (TABS[S.ui.tab] || TABS.fiches)[1];
+  tab.bind(panel);
+  showStage(tab.stage);
+}
+
+/**
+ * Un onglet peut prendre le centre de la page, à la place du plan : le modèle de fiche y montre la fiche qu'il compose
+ * (MOD-09). Les autres onglets rendent le plan.
+ */
+function showStage(draw) {
+  const own = document.getElementById('tabStage');
+  const map = document.getElementById('stageInner');
+  if (!own || !map) return;
+  own.hidden = !draw;
+  map.hidden = Boolean(draw);
+  if (draw) draw(own);
+  else own.replaceChildren();
 }

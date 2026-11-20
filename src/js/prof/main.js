@@ -39,10 +39,12 @@ function courseRow(course, { error, refresh }) {
 
   // Une copie complète, fiches masquées comprises (Q-P), sans versions ni lancements : les fichiers restent partagés (SRV-15)
   const duplicate = el('button', { className: 'btn ghost sm', type: 'button' }, 'Dupliquer');
+  const COPY = ' - copie';
   duplicate.addEventListener('click', () =>
     run(error, async () => {
       const { draft } = await api('GET', `/courses/${course.id}`);
-      await api('POST', '/courses', { draft: { ...draft, title: `Copie de ${course.title}`.slice(0, 200) } });
+      // « Sortie au parc - copie » : le nom d'origine d'abord, pour que la copie se range à côté de lui (MOD-08)
+      await api('POST', '/courses', { draft: { ...draft, title: `${course.title.slice(0, 200 - COPY.length)}${COPY}` } });
       await refresh();
     })
   );

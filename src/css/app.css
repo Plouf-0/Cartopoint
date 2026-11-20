@@ -114,6 +114,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .stage-inner { width: 100%; margin: 0 auto; }
 /* Sur grand écran, le plan tient en hauteur dans la fenêtre (--ratio = largeur / hauteur de l'image). */
 @media (min-width: 901px) { .stage-inner { width: min(100%, calc((100dvh - 150px) * var(--ratio, 1.16))); } }
+/* Page d'un cours : les cinq onglets de l'enseignant tiennent sans défiler (MOD-03) ; la colonne de l'élève ne change pas */
+@media (min-width: 901px) { .layout.wide-panel { grid-template-columns: minmax(0, 1fr) 490px; } }
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; }
   /* min-width : sans lui, une rangée d'onglets trop longue élargit toute la page au lieu de défiler en elle-même */
@@ -522,28 +524,68 @@ table.teachers .row-actions .btn { white-space: normal; }
 
 /* Onglet « Modèle de fiche » (prof/template-tab.js) */
 .tpl-summary { font-size: 13px; font-weight: 700; margin: 4px 0 10px; }
-.tpl-rows { gap: 6px; }
-.tpl-row { display: grid; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: grab; }
-.tpl-row.is-heading { background: var(--sand-soft); border-color: var(--sand); }
-.tpl-row.drop { outline: 3px solid var(--focus); outline-offset: 1px; }
-.tpl-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
-.tpl-main strong { overflow-wrap: anywhere; }
-.tpl-row .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+/* Modèle de fiche : la fiche au centre, à la place du plan, et les éléments à glisser dedans (MOD-09) */
+.tab-stage { min-width: 0; }
+.tpl-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; margin: 0 2px 10px; }
+.tpl-bar .chips { margin: 0; }
+.tpl-canvas { margin: 0 auto; max-width: 100%; }
+.tpl-canvas.phone { width: min(100%, 390px); }
+.tpl-canvas.desktop { width: min(100%, 760px); }
+.tpl-canvas .preview-card { margin-bottom: 14px; }
+.tpl-canvas .preview-fiche { position: static; max-height: none; box-shadow: none; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.tpl-blocks { display: grid; gap: 4px; }
+.tpl-block { position: relative; min-width: 0; border: 1px dashed transparent; border-radius: 10px; padding: 2px 8px 8px; cursor: pointer; }
+.tpl-block:hover { border-color: var(--line); }
+.tpl-block.selected { border: 2px solid var(--accent); background: var(--surface); cursor: default; }
+.tpl-block.later .tpl-view { opacity: .55; }
+.tpl-block.teacher-only { background: repeating-linear-gradient(135deg, transparent 0 10px, var(--sand-soft) 10px 20px); }
+.tpl-block-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 32px; }
+.tpl-marks { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; flex: 1; min-width: 0; font-size: 12px; }
+.tpl-tools { display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
+.tpl-block:hover .tpl-tools, .tpl-block:focus-within .tpl-tools, .tpl-block.selected .tpl-tools { opacity: 1; }
+@media (hover: none) { .tpl-tools { opacity: 1; } }
+.tpl-handle { border: 0; background: none; cursor: grab; font-size: 18px; line-height: 1; padding: 4px 6px; color: var(--ink-soft); border-radius: 6px; }
+.tpl-handle:hover { background: var(--accent-tint); }
+.tpl-view .measures, .tpl-view .prose, .tpl-view .facts { margin: 4px 0 0; }
+.tpl-role { margin: 4px 0 0; font-size: 14px; color: var(--ink-soft); }
+.tpl-end { border: 2px dashed var(--line); border-radius: 10px; padding: 14px; text-align: center; color: var(--ink-soft); font-size: 13px; }
+.tpl-drop-line { height: 4px; border-radius: 2px; background: var(--accent); }
+.tpl-edit { margin-top: 4px; }
+.tpl-edit.measures { padding: 12px; }
+.tpl-label-row { display: flex; align-items: center; gap: 6px; }
+.tpl-inline { border: 1px dashed var(--line); border-radius: 6px; padding: 4px 6px; background: #fff; font: inherit; color: var(--ink); min-width: 0; }
+.tpl-inline:focus { outline: 3px solid var(--focus); outline-offset: 1px; border-style: solid; }
+.tpl-label { flex: 1; font-weight: 700; font-size: 14px; }
+.tpl-label.mini-h { font: 500 17px/1.2 var(--serif); width: 100%; }
+.tpl-help { display: block; width: 100%; margin-top: 6px; font-size: 13px; color: var(--ink-soft); resize: vertical; }
+.tpl-answer { margin-top: 6px; }
+.tpl-sample { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 9px; background: #fff; font: inherit; color: var(--ink-soft); }
+.tpl-answer.long .tpl-sample { min-height: 60px; }
+.unit-input.tpl-answer .tpl-sample { border: 0; }
+.tpl-unit { width: 6em; border: 0; border-left: 1px solid var(--line); padding: 8px 9px; background: transparent; font: inherit; color: var(--ink-soft); }
+.tpl-edit .choices { margin-top: 6px; }
+.choices .tpl-choice { padding: 4px 4px 4px 12px; gap: 4px; }
+.tpl-choice .tpl-inline { width: 9em; border-style: solid; }
+.tpl-x { border: 0; background: none; font-size: 16px; cursor: pointer; color: var(--ink-soft); padding: 2px 6px; }
+.tpl-x:disabled { visibility: hidden; }
+.tpl-add-choice { border-style: dashed; color: var(--accent-dark); cursor: pointer; font: inherit; font-weight: 600; }
+.tpl-inline-settings { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 8px; font-size: 13px; }
+.tpl-symbol { width: 4em; }
+.tpl-settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px 14px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.tpl-checks { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.tpl-icon { width: 6em; }
+.tpl-palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.tpl-tile { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; text-align: left; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: grab; font: inherit; color: var(--ink); }
+.tpl-tile:hover { border-color: var(--accent); background: var(--accent-tint); }
+.tpl-tile-mark { grid-row: 1 / 3; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: var(--accent-tint); font-weight: 700; color: var(--accent-dark); }
+.tpl-tile .state { font-size: 12px; }
 .check-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; border: 1px solid var(--line); }
 .check-badge.auto { background: #e1f1e6; border-color: #9fcfae; color: #2e7d4f; }
 .check-badge.teacher { background: #fbefd9; border-color: #e5c27d; color: #8a5a0f; }
 .check-badge.none { background: #eef0ec; color: #55615a; }
 .field-dialog { width: min(600px, 96vw); }
 .field-dialog .form-error { flex: 1 1 100%; margin: 0; }
-.choice-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
-.choice-row input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 /* Aperçu : la fiche dans la largeur d'un téléphone ou d'un ordinateur */
-.preview-dialog { width: min(900px, 96vw); }
-.preview-frame { margin: 12px auto 0; border: 1px dashed var(--line); border-radius: 12px; padding: 12px; background: var(--paper); max-width: 100%; overflow-x: auto; }
-.preview-frame.phone { width: 375px; }
-.preview-frame.desktop { width: 760px; }
-.preview-frame .preview-card { margin-bottom: 14px; }
-.preview-frame .preview-fiche { position: static; max-height: none; box-shadow: none; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 /* Bonne réponse d'une question corrigée automatiquement, dans le formulaire d'une fiche (QST-01) */
 .expected-number { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .expected-number .unit-input { width: 9em; }

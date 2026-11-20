@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.51** · 20 novembre 2026 · établie à partir du code
+**Version 0.52** · 20 novembre 2026 · établie à partir du code
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -605,30 +605,38 @@ Code : [`fields.js`](../src/js/fields.js), [`views/fields-html.js`](../src/js/vi
   avec le modèle botanique : les champs de toujours, sous leurs noms de toujours. Il garde ses valeurs, ses titres, sa
   recherche, ses numéros et ses résultats, et rien n'est réécrit. Ce modèle intégré ne change jamais : chaque cours en reçoit
   une copie, qu'il peut modifier.
-- **MOD-03** Dans la page d'un cours, l'onglet « Modèle de fiche » liste les champs dans leur ordre, avec leur type, leur
-  public, leur rôle et leur place dans la liste. L'enseignant ajoute un champ de chaque type, à la fin ; il le règle dans
-  une fenêtre qui ne montre que ce qui a un sens pour son type et son public (libellé, type, public, correction,
-  propositions, échelle, unité et clavier, rôle, icône, exemple, liste, recherche, obligatoire, aide) ; il le range avec
-  ▲ ▼ ou en le glissant ; il renomme le modèle. Un modèle impossible, comme deux titres ou un choix sans proposition, est
-  refusé avec la raison, sans rien changer. Les élèves voient le modèle à la prochaine publication, et un lancement en cours
-  garde le sien.
+- **MOD-03** Dans la page d'un cours, l'onglet « Modèle de fiche » montre au centre, à la place du plan, la fiche que
+  composent ses champs, dans leur ordre, telle que la liront les élèves ; chaque champ dit son type, son public, son rôle,
+  sa correction et s'il paraît dans la liste. Un champ choisi d'un clic s'écrit à sa place (`MOD-09`) et déplie ses
+  réglages, seulement ceux qui ont un sens pour son type et son public (libellé, type, public, correction, propositions,
+  échelle, unité et clavier, rôle, icône, exemple, liste, recherche, obligatoire, aide) ; l'enseignant le range avec ▲ ▼
+  ou en le glissant par sa poignée, et renomme le modèle. Chaque modification s'enregistre en quittant sa case ; un champ
+  impossible, comme un libellé vide, deux titres ou un choix sans proposition, le dit avec la raison, et rien n'est
+  enregistré tant qu'il dure. Les élèves voient le modèle à la prochaine publication, et un lancement en cours garde le
+  sien. Les cinq onglets de la page tiennent sans défiler sur un écran d'ordinateur.
 - **MOD-04** Chaque question porte sa correction (`CHP-08`) : « Corrigée automatiquement », « À corriger par vous » ou
   « Non corrigée ». L'onglet le résume : « 6 questions : 4 corrigées automatiquement, 2 à corriger par vous ».
 - **MOD-05** Un champ dont des fiches ont déjà une valeur ne change que vers un type qui la garde : texte court et texte
   long, nombre ou date vers texte. Supprimer un champ, ou le changer de sorte que des fiches perdent ou voient changer leur
   valeur, demande une confirmation qui dit combien. Supprimer une question ne touche pas les réponses déjà rendues.
-- **MOD-06** Un aperçu montre la carte de la liste et la fiche ouverte telles que les verra un élève, dans la largeur d'un
-  téléphone ou d'un ordinateur, pendant le cours ou à la correction. Il part de la première fiche remplie, sinon des
-  exemples du modèle.
+- **MOD-06** La fiche du centre est l'aperçu : la carte de la liste et la fiche ouverte telles que les verra un élève, dans
+  la largeur d'un téléphone ou d'un ordinateur, pendant le cours, un champ révélé à la correction y étant grisé, ou à la
+  correction, avec un verdict d'exemple. Elle part de la première fiche remplie, sinon des exemples du modèle. Une note de
+  l'enseignant y porte « Vu par vous seul ».
 - **MOD-07** Un nouveau cours choisit sa fiche. « Créer le modèle de fiche » lui donne un modèle sans matière, un titre et
   une description, et l'ouvre sur l'onglet « Modèle de fiche ». « Reprendre la fiche d'un autre cours » propose ses propres
   cours, et un fichier de cours (`.json` ou `.html`) venu d'un collègue : le modèle est copié sans les fiches, avec son
   origine pour information, et modifier ensuite l'autre cours ne change rien à la copie. Dans un cours existant, l'onglet
   « Modèle de fiche » propose aussi de reprendre la fiche d'un autre cours : les valeurs des champs qu'ils ont en commun
   sont gardées, et une confirmation dit combien de fiches perdent quelque chose.
-- **MOD-08** « Dupliquer », dans la liste des cours, crée « Copie de … » : une copie complète (modèle, cartes, fiches
+- **MOD-08** « Dupliquer », dans la liste des cours, crée « … - copie » : une copie complète (modèle, cartes, fiches
   masquées comprises, positions réelles, photos, dont les fichiers restent partagés), non publiée, sans versions ni
   lancements.
+- **MOD-09** Sur le côté de la fiche, les champs vierges (texte court, texte long, nombre, date, choix, oui ou non, échelle,
+  intertitre) se glissent dans la fiche, à l'endroit voulu : un trait montre où ils tomberont. Un clic sur l'un l'ajoute
+  sous le champ choisi, sinon à la fin, ce qui sert au clavier et au doigt. Le champ ajouté arrive choisi, avec un libellé
+  de départ prêt à remplacer, et s'écrit à sa place, comme l'élève le lira : son libellé, son aide, l'exemple dans sa
+  case, l'unité d'un nombre, les propositions d'un choix, le maximum et le symbole d'une échelle.
 - **CHP-01** Un champ a un type : texte court, texte long, nombre, date, choix unique ou multiple, oui ou non, échelle de 2 à 5
   ou intertitre. Il a un public : renseignement lu par l'élève, question à laquelle il répond, champ révélé à la correction,
   ou note de l'enseignant. Un modèle mal formé est refusé, avec la raison : 60 champs au plus, un libellé de 120 caractères au
@@ -1323,3 +1331,4 @@ Ils ne sont pas réutilisés.
 | 0.49    | 20 novembre 2026  | Téléphone et ordinateur : fiche plein écran, fiche suivante, fiche à côté du plan (`MOB-01` à `MOB-03`, section 4.8) |
 | 0.50    | 20 novembre 2026  | Le fichier de secours suit le modèle et corrige les questions fermées (`EXP-02`, `EXP-05`) |
 | 0.51    | 20 novembre 2026  | Retours de l'essai en préproduction : la correction s'ouvre là où il reste à corriger (`QST-04`), le premier plan compte le placement d'une note sur un maximum (`QST-05`), l'en-tête et les choix sur un téléphone (`MOB-01`) |
+| 0.52    | 20 novembre 2026  | Demandes de l'utilisateur après son essai : la fiche se compose sur elle-même, au centre, avec des champs vierges à glisser (`MOD-03`, `MOD-06`, `MOD-09`) ; « … - copie » (`MOD-08`) ; les cinq onglets sans défiler |

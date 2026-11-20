@@ -1,6 +1,6 @@
 /**
- * L'onglet « Modèle de fiche » de la page d'un cours (MOD-03 à MOD-05) : composer les champs, les régler, les ranger, les
- * supprimer, et voir la fiche comme un élève, sur un téléphone et sur un ordinateur.
+ * L'onglet « Modèle de fiche » de la page d'un cours (MOD-03 à MOD-06, MOD-09) : la fiche se compose sur elle-même, au
+ * centre de la page, à la place du plan ; les éléments vierges se glissent dedans, et chacun s'écrit à sa place.
  */
 import { before, after, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -53,10 +53,20 @@ async function setup(t, options) {
 const draft = (site, title) =>
   JSON.parse((title ? site.db.prepare('SELECT draft FROM courses WHERE title = ?').get(title) : site.db.prepare('SELECT draft FROM courses').get()).draft);
 const saved = (page) => page.locator('#saveState', { hasText: '✓ Enregistré' }).waitFor();
-const rows = (page) => page.locator('.tpl-row');
-const row = (page, label) => page.locator('.tpl-row', { has: page.locator('strong', { hasText: label }) });
-const fieldDialog = (page) => page.locator('dialog.field-dialog');
+const blocks = (page) => page.locator('#tplBlocks .tpl-block');
+/** Un élément de la fiche, par son identifiant. */
+const block = (page, id) => page.locator(`#tplBlocks [data-block="${id}"]`);
+/** L'élément choisi, qui s'écrit à sa place. */
+const editing = (page) => page.locator('#tplBlocks .tpl-block.selected');
+/** Les éléments de la fiche, dans l'ordre, par leur nom. */
+const names = (page) =>
+  page.locator('#tplBlocks [data-up]').evaluateAll((buttons) => buttons.map((b) => b.getAttribute('aria-label').replace(/^Monter « (.*) »$/, '$1')));
 const texts = (locator) => locator.evaluateAll((nodes) => nodes.map((node) => node.textContent.trim().replace(/\s+/g, ' ')));
+/** Écrit dans une case de l'élément choisi, puis la quitte : c'est en la quittant qu'elle s'enregistre. */
+async function write(locator, value) {
+  await locator.fill(value);
+  await locator.blur();
+}
 /** Répond à la prochaine confirmation, et rend son texte ; échoue si elle ne vient pas. */
 const nextConfirm = (page, accept = true) =>
   new Promise((resolve, reject) => {
@@ -68,49 +78,67 @@ const nextConfirm = (page, accept = true) =>
     });
   });
 
+/** Ajoute un élément d'un clic, écrit son libellé, règle le reste, puis le referme. */
 async function addQuestion(page, type, label, fill = async () => {}) {
+  const before = await blocks(page).count();
   await page.locator(`[data-add="${type}"]`).click();
-  await fieldDialog(page).locator('#fLabel').fill(label);
-  await fill(fieldDialog(page));
-  await fieldDialog(page).getByRole('button', { name: 'Enregistrer' }).click();
-  await fieldDialog(page).waitFor({ state: 'detached' });
+  await blocks(page).nth(before).waitFor();
+  await write(editing(page).locator('#fLabel'), label);
+  await fill(editing(page));
+  await editing(page).locator('[data-done]').click();
+  await editing(page).waitFor({ state: 'detached' });
+  await saved(page);
 }
 
-test('MOD-03, MOD-04 : un nouveau cours montre son modèle, avec ses intertitres et la correction de chaque question', async (t) => {
-  const { page } = await setup(t);
+test('MOD-03, MOD-04, MOD-09 : le modèle d’un cours se montre au centre, à la place du plan, comme la fiche que liront les élèves', async (t) => {
+  const { page } = await setup(t, { viewport: { width: 1366, height: 768 } });
+  const tabs = await page.locator('.tabs').evaluate((node) => node.scrollWidth - node.clientWidth);
+  assert.ok(tabs <= 0, `les cinq onglets tiennent sans défiler (${tabs} px de trop)`);
+  assert.equal(await page.locator('#stageInner').isHidden(), true, 'plus de plan au centre');
   assert.equal(await page.locator('#tplName').inputValue(), 'Inventaire botanique');
   assert.equal(await page.locator('#tplSummary').textContent(), '3 questions : 3 non corrigées.');
-  assert.equal(await rows(page).count(), 17);
-  assert.deepEqual(await texts(page.locator('.tpl-row.is-heading strong')), ['Besoins', 'Vos mesures', 'Fin du groupe']);
-  assert.deepEqual(await texts(row(page, 'Température').locator('.state, .check-badge')), ['Nombre · Question · dans la liste', 'Non corrigée']);
-  assert.deepEqual(await texts(row(page, 'Nom commun').locator('.state')), ['Texte court · Renseignement · titre']);
-  assert.equal(await row(page, 'Nom commun').locator('.check-badge').count(), 0, 'un renseignement ne se corrige pas');
+  assert.equal(await blocks(page).count(), 17);
+  assert.deepEqual(await texts(page.locator('#tplBlocks .is-heading .tpl-view h3')), ['Besoins', 'Vos mesures']);
+  assert.equal(await page.locator('#tplBlocks .is-heading .tpl-view', { hasText: 'Fin du groupe' }).count(), 1);
+  assert.deepEqual(await texts(block(page, 'temperature').locator('.tpl-marks > *')), ['Nombre · Question · dans la liste', 'Non corrigée']);
+  assert.deepEqual(await texts(block(page, 'common').locator('.tpl-marks > *')), ['Texte court · Renseignement · titre']);
+  assert.equal(await block(page, 'temperature').locator('[data-answer], input').count(), 1, 'la case de réponse, comme l’élève la voit');
+  await page.getByText('D’après les exemples du modèle.').waitFor();
+  assert.equal(await page.locator('.tpl-canvas .preview-card h3').textContent(), 'Olivier', 'sans fiche, les exemples du modèle la remplissent');
+
+  await page.getByRole('tab', { name: 'Fiches' }).click();
+  assert.equal(await page.locator('#stageInner').isVisible(), true, 'le plan revient avec les autres onglets');
+  assert.equal(await page.locator('#tabStage').isHidden(), true);
 });
 
-test('MOD-03, MOD-04 : ajouter une question à choix, voir son badge, et la retrouver dans le modèle enregistré', async (t) => {
+test('MOD-03, MOD-04, MOD-09 : un élément ajouté d’un clic s’écrit à sa place : libellé, propositions, aide, réglages', async (t) => {
   const { site, page } = await setup(t);
   await page.locator('[data-add="choice"]').click();
-  const dialog = fieldDialog(page);
-  assert.equal(await page.evaluate(() => document.activeElement.id), 'fLabel');
-  assert.equal(await dialog.locator('#fAudience').inputValue(), 'question', 'un nouveau champ est d’abord une question');
-  assert.equal(await dialog.locator('#fCheck').inputValue(), 'auto');
-  await dialog.locator('#fLabel').fill('Quel est ce style ?');
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
-  await dialog.locator('.form-error', { hasText: 'proposition invalide' }).waitFor();
-  await dialog.getByLabel('Proposition 1', { exact: true }).fill('Roman');
-  await dialog.getByLabel('Proposition 2', { exact: true }).fill('Gothique');
-  await dialog.getByRole('button', { name: '＋ Proposition' }).click();
-  await dialog.getByLabel('Proposition 3', { exact: true }).fill('Baroque');
-  await dialog.locator('#fMultiple').check();
-  await dialog.locator('#fList').check();
-  await dialog.locator('#fIcon').fill('🏛️');
-  await dialog.locator('#fHelp').fill('Regardez les fenêtres.');
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
-  await page.locator('#toast', { hasText: '✓ Champ « Quel est ce style ? » ajouté' }).waitFor();
-
-  const added = row(page, 'Quel est ce style ?');
-  assert.deepEqual(await texts(added.locator('.state, .check-badge')), ['Choix multiple · Question · dans la liste', 'Corrigée automatiquement']);
-  assert.equal(await page.locator('#tplSummary').textContent(), '4 questions : 1 corrigée automatiquement, 3 non corrigées.');
+  const edited = editing(page);
+  await edited.waitFor();
+  assert.deepEqual(
+    await page.evaluate(() => [document.activeElement.id, document.activeElement.selectionStart, document.activeElement.selectionEnd]),
+    ['fLabel', 0, 'Nouvelle question'.length],
+    'le libellé de départ, prêt à remplacer'
+  );
+  assert.equal(await edited.locator('#fAudience').inputValue(), 'question', 'un nouvel élément est d’abord une question');
+  assert.equal(await edited.locator('#fCheck').inputValue(), 'auto');
+  assert.deepEqual(await names(page).then((all) => all.at(-1)), 'Nouvelle question', 'sans élément choisi, à la fin');
+  await page.keyboard.type('Quel est ce style ?');
+  await page.keyboard.press('Tab');
+  await saved(page);
+  assert.equal(draft(site).template.fields.at(-1).label, 'Quel est ce style ?', 'enregistré en quittant la case');
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), 'Proposition 1', 'la case suivante garde le curseur');
+  await write(edited.getByLabel('Proposition 1', { exact: true }), 'Roman');
+  await write(edited.getByLabel('Proposition 2', { exact: true }), 'Gothique');
+  await edited.getByRole('button', { name: '＋ Proposition' }).click();
+  await edited.getByLabel('Proposition 3', { exact: true }).waitFor();
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), 'Proposition 3');
+  await page.keyboard.type('Baroque');
+  await edited.locator('#fMultiple').check();
+  await edited.locator('#fList').check();
+  await write(edited.locator('#fIcon'), '🏛️');
+  await write(edited.locator('#fHelp'), 'Regardez les fenêtres.');
   await saved(page);
   const field = draft(site).template.fields.at(-1);
   assert.match(field.id, /^c-/);
@@ -129,49 +157,74 @@ test('MOD-03, MOD-04 : ajouter une question à choix, voir son badge, et la retr
     }
   );
 
-  await added.getByRole('button', { name: /^Modifier/ }).click();
-  await fieldDialog(page).locator('#fCheck').selectOption('none');
-  await fieldDialog(page).getByRole('button', { name: 'Enregistrer' }).click();
-  await row(page, 'Quel est ce style ?').locator('.check-badge', { hasText: 'Non corrigée' }).waitFor();
+  // Un élément impossible le dit, et rien n'est enregistré ; en le quittant, il reprend ce qui l'était
+  await write(edited.locator('#fLabel'), '');
+  await edited.locator('.form-error', { hasText: 'il faut un libellé' }).waitFor();
+  assert.equal(draft(site).template.fields.at(-1).label, 'Quel est ce style ?');
+  await edited.locator('[data-done]').click();
+  await page.locator('#toast', { hasText: 'Modification annulée : il faut un libellé' }).waitFor();
+  assert.equal(await editing(page).count(), 0);
+
+  const added = block(page, field.id);
+  assert.deepEqual(await texts(added.locator('.tpl-marks > *')), ['Choix multiple · Question · dans la liste', 'Corrigée automatiquement']);
+  assert.deepEqual(await texts(added.locator('.choice')), ['Roman', 'Gothique', 'Baroque'], 'comme l’élève le lira');
+  assert.equal(await page.locator('#tplSummary').textContent(), '4 questions : 1 corrigée automatiquement, 3 non corrigées.');
+  await added.click();
+  await editing(page).locator('#fCheck').selectOption('none');
+  await editing(page).locator('.check-badge', { hasText: 'Non corrigée' }).waitFor();
   assert.equal(await page.locator('#tplSummary').textContent(), '4 questions : 4 non corrigées.');
 });
 
 test('MOD-03 : chaque réglage qui n’a pas de sens pour le type ou le public disparaît, et un modèle impossible est refusé', async (t) => {
   const { site, page } = await setup(t);
   await page.locator('[data-add="date"]').click();
-  const dialog = fieldDialog(page);
-  assert.equal(await dialog.locator('#fAudience option[value="question"]').isDisabled(), true, 'une date n’est pas une question');
-  await dialog.locator('#fType').selectOption('text');
-  await dialog.locator('#fAudience').selectOption('info');
-  assert.equal(await dialog.locator('#fRole').count(), 1);
-  await dialog.locator('#fRole').selectOption('title');
-  await dialog.locator('#fLabel').fill('Monument');
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
-  await dialog.locator('.form-error', { hasText: 'un seul champ peut servir de titre' }).waitFor();
-  await dialog.locator('#fRole').selectOption('');
-  await dialog.locator('#fAudience').selectOption('teacher');
-  assert.equal(await dialog.locator('#fRole, #fSearch, #fCheck').count(), 0, 'ni rôle, ni recherche, ni correction pour une note de l’enseignant');
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
-  await dialog.waitFor({ state: 'detached' });
+  const edited = editing(page);
+  assert.equal(await edited.locator('#fAudience option[value="question"]').isDisabled(), true, 'une date n’est pas une question');
+  await edited.locator('#fType').selectOption('text');
+  await edited.locator('#fAudience').selectOption('info');
+  assert.equal(await edited.locator('#fRole').count(), 1);
+  await write(edited.locator('#fLabel'), 'Monument');
+  await edited.locator('#fRole').selectOption('title');
+  await edited.locator('.form-error', { hasText: 'un seul champ peut servir de titre' }).waitFor();
+  await edited.locator('#fRole').selectOption('');
+  await edited.locator('#fAudience').selectOption('teacher');
+  assert.equal(await edited.locator('#fRole, #fSearch, #fCheck').count(), 0, 'ni rôle, ni recherche, ni correction pour une note de l’enseignant');
+  await edited.locator('.aud', { hasText: 'Vu par vous seul' }).waitFor();
   await saved(page);
   assert.deepEqual({ ...draft(site).template.fields.at(-1), id: undefined }, { id: undefined, type: 'text', label: 'Monument', audience: 'teacher' });
 });
 
-test('MOD-03 : ranger les champs avec ▲ ▼ ou en les glissant, et ajouter un intertitre', async (t) => {
+test('MOD-03, MOD-09 : ranger les éléments avec ▲ ▼ ou en les glissant, et glisser un élément vierge à l’endroit voulu', async (t) => {
   const { site, page } = await setup(t);
-  await row(page, 'Famille').getByRole('button', { name: 'Monter « Famille »' }).click();
-  await page.locator('.tpl-row strong').nth(1).filter({ hasText: 'Famille' }).waitFor();
-  await row(page, 'Nom scientifique').dragTo(row(page, 'Nom commun'));
-  await page.locator('.tpl-row strong').first().filter({ hasText: 'Nom scientifique' }).waitFor();
-  await addQuestion(page, 'heading', 'En plus');
-  assert.deepEqual((await texts(page.locator('.tpl-row strong'))).slice(0, 3), ['Nom scientifique', 'Nom commun', 'Famille']);
-  assert.equal((await texts(page.locator('.tpl-row strong'))).at(-1), 'En plus');
+  await block(page, 'family').getByRole('button', { name: 'Monter « Famille »' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('#tplBlocks [data-block]')[1]?.dataset.block === 'family');
+  await block(page, 'species')
+    .locator('[data-handle]')
+    .dragTo(block(page, 'common'), { targetPosition: { x: 40, y: 2 } });
+  await page.waitForFunction(() => document.querySelector('#tplBlocks [data-block]')?.dataset.block === 'species');
+  // Un élément vierge, glissé sur le haut de « Famille » : il tombe juste avant
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.locator('[data-add="yesno"]').dragTo(block(page, 'family'), { targetPosition: { x: 40, y: 2 } });
+  await editing(page).waitFor();
+  await write(editing(page).locator('#fLabel'), 'Est-il en fleur ?');
+  await editing(page).locator('[data-done]').click();
+  // Un clic sur un élément vierge l'ajoute sous l'élément choisi
+  await block(page, 'family').click();
+  await page.locator('[data-add="heading"]').click();
+  await write(editing(page).locator('#fLabel'), 'En plus');
   await saved(page);
+  assert.deepEqual((await names(page)).slice(0, 5), ['Nom scientifique', 'Nom commun', 'Est-il en fleur ?', 'Famille', 'En plus']);
   assert.deepEqual(
     draft(site)
-      .template.fields.slice(0, 3)
-      .map((field) => field.id),
-    ['species', 'common', 'family']
+      .template.fields.slice(0, 5)
+      .map((field) => [field.type, field.id.replace(/^([ch])-.*/, '$1-…')]),
+    [
+      ['text', 'species'],
+      ['text', 'common'],
+      ['yesno', 'c-…'],
+      ['text', 'family'],
+      ['heading', 'h-…']
+    ]
   );
 });
 
@@ -191,30 +244,29 @@ test('MOD-05 : un champ rempli ne change que vers un type qui garde ses valeurs,
   }
   await page.getByRole('tab', { name: 'Modèle de fiche' }).click();
 
-  await row(page, 'Famille')
+  await block(page, 'family')
     .getByRole('button', { name: /^Modifier/ })
     .click();
-  const dialog = fieldDialog(page);
+  const edited = editing(page);
   assert.deepEqual(
-    await dialog.locator('#fType option:not([disabled])').evaluateAll((options) => options.map((option) => option.value)),
+    await edited.locator('#fType option:not([disabled])').evaluateAll((options) => options.map((option) => option.value)),
     ['text', 'longtext'],
     'texte court ou texte long seulement'
   );
-  await dialog.getByText('Des fiches ont déjà une valeur ici').waitFor();
-  await dialog.locator('#fType').selectOption('longtext');
-  await dialog.locator('#fAudience').selectOption('question');
+  await edited.getByText('Des fiches ont déjà une valeur ici').waitFor();
+  await edited.locator('#fType').selectOption('longtext');
+  await edited.locator('.tpl-marks', { hasText: /^Texte long/ }).waitFor();
   const question = nextConfirm(page, false);
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
+  await edited.locator('#fAudience').selectOption('question');
   assert.match(await question, /^2 fiche\(s\) perdront ou verront changer ce qu’elles ont écrit dans « Famille »/);
-  await dialog.locator('#fAudience').selectOption('info');
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
-  await dialog.waitFor({ state: 'detached' });
-  assert.match(await row(page, 'Famille').locator('.state').textContent(), /^Texte long/);
+  await page.waitForFunction(() => document.querySelector('#fAudience')?.value === 'info');
+  await saved(page);
+  assert.deepEqual(draft(site).template.fields.find((field) => field.id === 'family').audience, 'info', 'refusé, rien n’a changé');
 
   const removal = nextConfirm(page);
-  await row(page, 'Famille').getByRole('button', { name: 'Supprimer « Famille »' }).click();
+  await block(page, 'family').getByRole('button', { name: 'Supprimer « Famille »' }).click();
   assert.match(await removal, /Supprimer « Famille » du modèle \?\n\n2 fiche\(s\) perdront ce qu’elles y ont écrit\./);
-  await page.locator('#toast', { hasText: 'Champ « Famille » supprimé' }).waitFor();
+  await page.locator('#toast', { hasText: 'Élément « Famille » supprimé' }).waitFor();
   await saved(page);
   const content = draft(site);
   assert.equal(
@@ -224,7 +276,7 @@ test('MOD-05 : un champ rempli ne change que vers un type qui garde ses valeurs,
   assert.equal(JSON.stringify(content.maps).includes('Oleaceae'), false, 'les valeurs partent avec le champ');
 
   const kept = nextConfirm(page);
-  await row(page, 'Température').getByRole('button', { name: 'Supprimer « Température »' }).click();
+  await block(page, 'temperature').getByRole('button', { name: 'Supprimer « Température »' }).click();
   assert.match(await kept, /Les réponses déjà rendues restent dans l’historique de leur lancement\./);
 });
 
@@ -232,7 +284,7 @@ test('MOD-03, QST-01 : dans le formulaire d’une fiche, une question ne paraît
   const { page } = await setup(t);
   await addQuestion(page, 'yesno', 'Est-il ouvert ?');
   await addQuestion(page, 'longtext', 'Votre avis');
-  await addQuestion(page, 'text', 'Architecte', async (dialog) => dialog.locator('#fAudience').selectOption('correction'));
+  await addQuestion(page, 'text', 'Architecte', async (edited) => edited.locator('#fAudience').selectOption('correction'));
   await page.getByRole('tab', { name: 'Fiches' }).click();
   await page.locator('#newFiche').click();
   const form = page.locator('#eFields');
@@ -243,21 +295,12 @@ test('MOD-03, QST-01 : dans le formulaire d’une fiche, une question ne paraît
   assert.equal(await form.locator('label', { hasText: 'Architecte' }).locator('.aud').textContent(), 'Révélé à la correction');
 });
 
-test('MOD-06 : l’aperçu montre la fiche comme un élève, sur un téléphone ou un ordinateur, pendant le cours ou à la correction', async (t) => {
+test('MOD-06 : la fiche du centre se voit comme un élève, sur un téléphone ou un ordinateur, pendant le cours ou à la correction', async (t) => {
   const { page } = await setup(t, { viewport: { width: 390, height: 844 }, touch: true });
-  await page.locator('#tplPreview').click();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390, 'les cinq onglets défilent dans le panneau, sans élargir la page');
-  const preview = page.locator('dialog.preview-dialog');
-  await preview.getByText('D’après les exemples du modèle.').waitFor();
-  const frame = preview.locator('.preview-frame');
-  assert.equal(await frame.getAttribute('class'), 'preview-frame phone');
-  assert.equal(await frame.locator('.preview-card h3').textContent(), 'Olivier', 'sans fiche, les exemples du modèle la remplissent');
-  assert.equal(await frame.locator('[data-answer]').count(), 3, 'les cases des trois mesures');
-  assert.equal(await frame.locator('.measures h3').textContent(), 'Vos mesures');
-  await preview.getByRole('button', { name: 'Fermer' }).click();
-  await preview.waitFor({ state: 'detached' });
-
-  await addQuestion(page, 'text', 'Architecte', async (dialog) => dialog.locator('#fAudience').selectOption('correction'));
+  const canvas = page.locator('.tpl-canvas');
+  assert.equal(await canvas.locator('.preview-card [data-answer]').count(), 3, 'les cases des trois mesures, dans la liste');
+  await addQuestion(page, 'text', 'Architecte', async (edited) => edited.locator('#fAudience').selectOption('correction'));
   await page.getByRole('tab', { name: 'Fiches' }).click();
   await page.locator('#newFiche').click();
   await page.locator('#e-common').fill('Tilleul');
@@ -268,15 +311,18 @@ test('MOD-06 : l’aperçu montre la fiche comme un élève, sur un téléphone 
   await page.locator('#eSave').click();
   await page.locator('#dlgEdit').waitFor({ state: 'hidden' });
   await page.getByRole('tab', { name: 'Modèle de fiche' }).click();
-  await page.locator('#tplPreview').click();
-  await preview.getByText('D’après la fiche « Tilleul ».').waitFor();
-  assert.equal(await frame.getByText('Architecte').count(), 0, 'pendant le cours, rien de ce qui est révélé à la correction');
-  await preview.getByRole('button', { name: 'Ordinateur' }).click();
-  assert.equal(await frame.getAttribute('class'), 'preview-frame desktop');
-  assert.equal(await preview.getByRole('button', { name: 'Ordinateur' }).getAttribute('aria-pressed'), 'true');
-  assert.equal(await preview.getByRole('button', { name: 'Téléphone' }).getAttribute('aria-pressed'), 'false');
-  await preview.getByRole('button', { name: 'À la correction' }).click();
-  assert.deepEqual(await texts(frame.locator('.facts > div', { hasText: 'Architecte' })), ['ArchitecteJean']);
+  await page.getByText('D’après la fiche « Tilleul ».').waitFor();
+  const architect = page.locator('#tplBlocks .tpl-block', { hasText: 'Architecte' });
+  assert.equal(await architect.getAttribute('class'), 'tpl-block later', 'pendant le cours, grisé : l’élève ne le lit qu’à la correction');
+  assert.deepEqual(await texts(architect.locator('.aud')), ['Révélé à la correction']);
+  assert.equal(await canvas.getAttribute('class'), 'tpl-canvas desktop');
+  await page.getByRole('button', { name: 'Téléphone' }).click();
+  assert.equal(await canvas.getAttribute('class'), 'tpl-canvas phone');
+  assert.equal(await page.getByRole('button', { name: 'Téléphone' }).getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.getByRole('button', { name: 'Ordinateur' }).getAttribute('aria-pressed'), 'false');
+  await page.getByRole('button', { name: 'À la correction' }).click();
+  assert.equal(await architect.getAttribute('class'), 'tpl-block');
+  assert.deepEqual(await texts(architect.locator('.facts > div')), ['ArchitecteJean']);
 });
 
 /* --- Étape 5 : créer, reprendre, dupliquer --- */
@@ -296,7 +342,7 @@ test('MOD-07 : « Créer le modèle de fiche » : un nouveau cours part d’un t
   await page.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
   await page.locator('#tplSummary').waitFor();
   assert.equal(await page.getByRole('tab', { name: 'Modèle de fiche' }).getAttribute('aria-selected'), 'true');
-  assert.deepEqual(await texts(page.locator('.tpl-row strong')), ['Titre', 'Description']);
+  assert.deepEqual(await names(page), ['Titre', 'Description']);
   assert.match(await page.locator('#tplSummary').textContent(), /^Aucune question/);
   assert.deepEqual(
     draft(site).template.fields.map((field) => [field.id, field.role ?? null]),
@@ -322,7 +368,7 @@ test('MOD-07 : reprendre la fiche d’un de ses cours, ou d’un fichier de cour
   assert.equal(await page.getByRole('button', { name: /Cours d’un collègue/ }).count(), 0, 'ENS-03 : ses cours seulement');
   await page.getByRole('button', { name: 'Fiche de « Ville »' }).click();
   await page.locator('#tplSummary').waitFor();
-  assert.deepEqual(await texts(page.locator('.tpl-row strong')), ['Monument', 'Siècle', 'Est-il gothique ?']);
+  assert.deepEqual(await names(page), ['Monument', 'Siècle', 'Est-il gothique ?']);
   const copy = draft(site, 'Ville bis');
   const source = site.db.prepare("SELECT id FROM courses WHERE title = 'Ville'").get().id;
   assert.deepEqual(copy.template, { ...VILLE, source: { courseId: source, title: 'Ville' } });
@@ -357,10 +403,10 @@ test('MOD-08 : dupliquer un cours : une copie complète, fiches masquées compri
   );
   await page.reload();
   await page.locator('.course-row', { hasText: 'Ville' }).getByRole('button', { name: 'Dupliquer' }).click();
-  await page.locator('.course-row', { hasText: 'Copie de Ville' }).getByText('Pas encore publié').waitFor();
+  await page.locator('.course-row', { hasText: 'Ville - copie' }).getByText('Pas encore publié').waitFor();
   const original = draft(site, 'Ville');
-  assert.deepEqual(draft(site, 'Copie de Ville'), { ...original, title: 'Copie de Ville' });
-  const copy = site.db.prepare("SELECT id FROM courses WHERE title = 'Copie de Ville'").get().id;
+  assert.deepEqual(draft(site, 'Ville - copie'), { ...original, title: 'Ville - copie' });
+  const copy = site.db.prepare("SELECT id FROM courses WHERE title = 'Ville - copie'").get().id;
   assert.equal(site.db.prepare('SELECT COUNT(*) AS n FROM course_versions WHERE course_id = ?').get(copy).n, 0);
 });
 
@@ -489,11 +535,11 @@ test('QST-05 : la notation du cours se règle dans l’onglet du modèle : sans 
   assert.deepEqual(draft(site).grading, { mode: 'points', points: { 'c-nom': 2.5 }, placement: 1 });
 
   // Une question qui ne se corrige plus emporte son barème : le serveur refuserait sinon le cours
-  await row(page, 'Quel arbre ?')
+  await block(page, 'c-nom')
     .getByRole('button', { name: /^Modifier/ })
     .click();
-  await fieldDialog(page).locator('#fCheck').selectOption('none');
-  await fieldDialog(page).getByRole('button', { name: 'Enregistrer' }).click();
+  await editing(page).locator('#fCheck').selectOption('none');
+  await editing(page).locator('.check-badge', { hasText: 'Non corrigée' }).waitFor();
   await saved(page);
   assert.deepEqual(draft(site).grading, { mode: 'points', points: {}, placement: 1 });
 });

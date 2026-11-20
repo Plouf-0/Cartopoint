@@ -1229,7 +1229,7 @@ test('EV-34 : l’espace enseignant s’appelle Cartopoint, garde le vert par d�
 
   // Un cours créé sans nom reçoit les valeurs par défaut, et un modèle de fiche sans matière (Q-E)
   await page.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
-  await page.locator('#planChoose').waitFor();
+  await page.locator('#tplSummary').waitFor();
   assert.equal(await page.locator('#pageTitle').textContent(), 'Cartopoint');
   assert.equal(await page.locator('#mapName').textContent(), 'Plan');
   assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--accent')), '#2e6e45');

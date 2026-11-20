@@ -135,8 +135,14 @@ C'est le contenu d'un cours exporté en `.json`, et du bloc `<script id="embedde
 | Compte rendu JPG, Excel d'un lancement, détail d'un élève | `report.js`, `prof/results-workbook.js`, `prof/launch-results.js` |
 
 **L'éditeur du modèle** (`prof/template-tab.js`, onglet « Modèle de fiche » de l'espace enseignant seulement) modifie
-`S.project.template` champ par champ. Une fenêtre règle un champ sur une copie ; à l'enregistrement, `cleanField()` ne garde
-que ce qui a un sens pour son type et son public, `templateProblems()` refuse un modèle impossible, et `applyTemplate()`
+`S.project.template` champ par champ, sur la fiche elle-même. L'onglet fournit, en plus de `html()` et `bind()`, un
+`stage()` que `views/admin/index.js` appelle pour dessiner au centre de la page (`#tabStage`), à la place du plan
+(`#stageInner`) : la fiche telle que la lira un élève, chaque champ rendu par `ficheBodyHTML()`, sauf le champ choisi, qui
+s'écrit à sa place. Les champs vierges du panneau se glissent dans la fiche (glisser-déposer du navigateur, un trait montre
+la place) ou s'ajoutent d'un clic. Le champ choisi garde un brouillon (`view.draft`), mis à jour à chaque frappe : la page
+peut se redessiner sans rien perdre, et `stage()` rend le curseur à la case où l'on écrivait. En quittant une case,
+`commit()` passe le brouillon à `cleanField()`, qui ne garde que ce qui a un sens pour son type et son public ;
+`templateProblems()` refuse un modèle impossible, dont le champ dit alors la raison, et `applyTemplate()`
 relit chaque fiche avec le nouveau modèle (`normalizeFiche()`), si bien qu'une valeur suit son champ et qu'un champ supprimé
 emporte ses valeurs. Avant de rien changer, l'éditeur compte les fiches dont la valeur changerait et le demande. Un champ
 déjà rempli ne change de type que vers un type de `COMPATIBLE`. La correction d'une question (`check`) a une valeur par

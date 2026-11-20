@@ -4,7 +4,8 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { summaryText } from '../src/js/prof/template-tab.js';
+import { blankField, summaryText } from '../src/js/prof/template-tab.js';
+import { TYPES, templateProblems } from '../src/js/fields.js';
 import { BOTANIQUE } from '../src/js/templates/botanique.js';
 
 const question = (id, type, check) => ({ id, type, label: id, audience: 'question', ...(check ? { check } : {}) });
@@ -17,4 +18,15 @@ test('MOD-04 : le résumé dit combien de questions seront corrigées automatiqu
   );
   assert.equal(summaryText({ fields: [question('a', 'longtext')] }), '1 question : 1 à corriger par vous.');
   assert.match(summaryText({ fields: [{ id: 'c-a', type: 'text', label: 'Nom', audience: 'info' }] }), /^Aucune question/);
+});
+
+test('MOD-09 : chaque élément vierge glissé dans la fiche est déjà valide, avec un libellé de départ à remplacer', () => {
+  for (const type of TYPES) {
+    const field = blankField(type);
+    assert.deepEqual(templateProblems({ fields: [field] }), [], type);
+    assert.equal(field.type, type);
+  }
+  assert.equal(blankField('choice').choices.length, 2, 'deux propositions, le minimum');
+  assert.equal(blankField('date').audience, 'info', 'une date n’est pas une question');
+  assert.notEqual(blankField('text').id, blankField('text').id, 'un identifiant neuf à chaque fois');
 });

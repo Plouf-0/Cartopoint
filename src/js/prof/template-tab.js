@@ -1,10 +1,14 @@
 /**
- * Onglet « Modèle de fiche » de la page d'un cours (MOD-03, étape 4 de la version 2.0.0) : les champs de ses fiches, leur
- * ordre et leurs réglages, et un aperçu de la fiche telle que la verront les élèves, sur un téléphone ou un ordinateur.
+ * Onglet « Modèle de fiche » de la page d'un cours (MOD-03, MOD-06, MOD-09) : la fiche se compose sur elle-même.
+ *
+ * Au centre, à la place du plan, la fiche telle que la lira un élève, dans la largeur d'un téléphone ou d'un ordinateur,
+ * pendant le cours ou à la correction : elle sert d'aperçu. Sur le côté, les éléments vierges, à glisser dans la fiche à
+ * l'endroit voulu, ou à ajouter d'un clic. Un élément choisi s'écrit à sa place, comme l'élève le lira (libellé, aide,
+ * exemple, propositions, unité), et déplie ses réglages ; chaque modification s'applique aussitôt.
  *
  * Chaque modification passe par templateProblems() avant d'être enregistrée : un modèle mal formé ne part jamais, et le
- * serveur le refuserait de toute façon (CHP-07). Quand des fiches ont déjà des valeurs, l'éditeur dit ce qu'elles
- * perdraient avant de rien changer (6.3).
+ * serveur le refuserait de toute façon (CHP-07). Tant qu'un élément est impossible (un libellé vide), il le dit et rien
+ * n'est enregistré. Quand des fiches ont déjà des valeurs, l'éditeur dit ce qu'elles perdraient avant de rien changer (MOD-05).
  */
 import { S, changedMap, changedMeta, courseTemplate } from '../store.js';
 import { render } from '../render.js';
@@ -85,61 +89,188 @@ const moved = (fields, from, to) => {
   copy.splice(to, 0, ...copy.splice(from, 1));
   return copy;
 };
+const savedField = (id) => courseTemplate().fields.find((field) => field.id === id);
 
 /* ------------------------------------------------------------------ */
-/* La liste des champs                                                  */
+/* L'élément choisi                                                     */
 /* ------------------------------------------------------------------ */
 
-function rowHTML(field, i, count) {
-  const heading = isHeading(field);
-  const name = esc(field.label || 'fin du groupe');
-  const details = heading
-    ? [TYPE_LABELS.heading]
-    : [
-        TYPE_LABELS[field.type] + (field.type === 'choice' && field.multiple ? ' multiple' : ''),
-        AUDIENCE_LABELS[field.audience],
-        field.role === 'title' && 'titre',
-        field.role === 'subtitle' && 'sous-titre',
-        field.list && 'dans la liste'
-      ].filter(Boolean);
-  const check = checkOf(field);
-  const label =
-    heading && !field.label ? '<em>Fin du groupe</em>' : `${field.icon ? `<span aria-hidden="true">${esc(field.icon)}</span> ` : ''}${esc(field.label)}`;
-  return `<div class="tpl-row${heading ? ' is-heading' : ''}" draggable="true" data-row="${esc(field.id)}">
-      <div class="tpl-main">
-        <strong>${label}</strong>
-        <span class="state">${esc(details.join(' · '))}</span>
-        ${check ? `<span class="check-badge ${check}">${CHECK_LABELS[check]}</span>` : ''}
-      </div>
-      <div class="actions">
-        <button type="button" class="btn ghost sm" data-up="${i}" aria-label="Monter « ${name} »" ${i === 0 ? 'disabled' : ''}>▲</button>
-        <button type="button" class="btn ghost sm" data-down="${i}" aria-label="Descendre « ${name} »" ${i === count - 1 ? 'disabled' : ''}>▼</button>
-        <button type="button" class="btn soft sm" data-field="${esc(field.id)}" aria-label="Modifier « ${name} »">Modifier</button>
-        <button type="button" class="btn danger sm" data-remove="${esc(field.id)}" aria-label="Supprimer « ${name} »" title="Supprimer le champ">🗑</button>
-      </div>
-    </div>`;
+/**
+ * Ce que montre la fiche du centre : sa largeur, le moment du cours, l'élément choisi et son brouillon. Le brouillon garde ce
+ * qui est écrit tant que ce n'est pas enregistré : la page peut se redessiner entre-temps sans rien perdre.
+ */
+const view = { width: 'desktop', revealed: false, selected: null, draft: null, error: '', focus: null };
+
+/**
+ * Choisit un élément, ou aucun. Un brouillon impossible ne s'enregistre pas : en partant ailleurs, l'enseignant le laisse,
+ * et l'élément reprend ce qui était enregistré.
+ */
+function select(id) {
+  if (view.error && view.selected !== id) toast(`Modification annulée : ${view.error}`);
+  view.selected = id;
+  view.draft = id ? structuredClone(savedField(id)) : null;
+  view.error = '';
 }
+
+/** Après le changement en cours : un clic ailleurs fait d'abord enregistrer la case que l'on quitte. */
+const later = (fn) => setTimeout(fn, 0);
+
+/** Un élément neuf, prêt à écrire : un libellé de départ et, pour un choix, deux propositions. */
+export function blankField(type) {
+  if (type === 'heading') return { id: newFieldId('h'), type, label: 'Intertitre' };
+  const question = type !== 'date';
+  const field = { id: newFieldId('c'), type, label: question ? 'Nouvelle question' : 'Date', audience: question ? 'question' : 'info' };
+  if (type === 'choice')
+    field.choices = [
+      { id: newFieldId('r'), label: 'Proposition 1' },
+      { id: newFieldId('r'), label: 'Proposition 2' }
+    ];
+  if (type === 'scale') field.max = 5;
+  return field;
+}
+
+/** Ajoute un élément vierge à cette place (sous l'élément choisi, sinon à la fin), le choisit, et sélectionne son libellé. */
+function addField(type, at) {
+  const fields = courseTemplate().fields;
+  const after = fields.findIndex((field) => field.id === view.selected);
+  const index = at ?? (after >= 0 ? after + 1 : fields.length);
+  const field = blankField(type);
+  select(null);
+  Object.assign(view, { selected: field.id, draft: structuredClone(field), focus: { key: 'label', all: true } });
+  const problem = applyTemplate(withFields([...fields.slice(0, index), field, ...fields.slice(index)]));
+  if (problem) {
+    select(null);
+    toast(`⚠ ${problem}`);
+  }
+}
+
+/** Déplace un élément devant celui qui est à cette place (ou à la fin). */
+function moveField(id, index) {
+  const fields = courseTemplate().fields;
+  const from = fields.findIndex((field) => field.id === id);
+  const to = from < index ? index - 1 : index;
+  if (from < 0 || to === from) return;
+  applyTemplate(withFields(moved(fields, from, to)));
+}
+
+function removeField(id) {
+  const field = savedField(id);
+  const lost = field.audience === 'question' ? [] : filled(id);
+  const name = field.label || 'cette fin de groupe';
+  const message =
+    `Supprimer « ${name} » du modèle ?` +
+    (lost.length ? `\n\n${lost.length} fiche(s) perdront ce qu’elles y ont écrit.` : '') +
+    (field.audience === 'question' ? '\n\nLes réponses déjà rendues restent dans l’historique de leur lancement.' : '');
+  if (!confirm(message)) return;
+  if (view.selected === id) Object.assign(view, { selected: null, draft: null, error: '' });
+  const problem = applyTemplate(withFields(courseTemplate().fields.filter((x) => x.id !== id)));
+  toast(problem ? `⚠ ${problem}` : `Élément « ${name} » supprimé`);
+}
+
+/**
+ * Enregistre le brouillon d'un élément, s'il est possible ; sinon, le dit dans l'élément. Un changement qui fait perdre ou
+ * changer la valeur de fiches déjà remplies demande d'abord une confirmation (MOD-05).
+ */
+function commit(draft) {
+  const saved = savedField(draft.id);
+  if (!saved) return;
+  const current = view.selected === draft.id;
+  const field = cleanField(draft);
+  const next = withFields(courseTemplate().fields.map((x) => (x.id === field.id ? field : x)));
+  const [problem] = templateProblems(next);
+  if (problem) {
+    if (current) view.error = problem.replace(/^champ \d+ : /, '');
+    return redraw();
+  }
+  if (current) view.error = '';
+  if (JSON.stringify(field) === JSON.stringify(saved)) return redraw();
+  const lost = changedBy(next, field.id);
+  if (lost && !confirm(`${lost} fiche(s) perdront ou verront changer ce qu’elles ont écrit dans « ${saved.label} ». Continuer ?`)) {
+    if (current) view.draft = structuredClone(saved);
+    return redraw();
+  }
+  if (current) view.draft = structuredClone(field);
+  applyTemplate(next);
+}
+
+/** Un changement de type garde ce qui a encore un sens, et donne au reste un réglage de départ. */
+function setType(draft, type) {
+  draft.type = type;
+  if (type === 'choice' && !draft.choices?.length) draft.choices = blankField('choice').choices;
+  if (type === 'scale') draft.max ??= 5;
+  if (type === 'date' && draft.audience === 'question') draft.audience = 'info';
+  delete draft.check;
+}
+
+/** Ce qu'une case de l'élément choisi change dans son brouillon. */
+function readControl(control) {
+  const draft = view.draft;
+  const key = control.dataset.edit;
+  const value = control.type === 'checkbox' ? control.checked : control.value;
+  if (key.startsWith('choice-')) draft.choices[Number(key.slice(7))].label = value;
+  else if (key === 'type') setType(draft, value);
+  else if (key === 'max') draft.max = Number(value);
+  else if (key === 'role') draft.role = value || undefined;
+  else draft[key] = value;
+}
+
+/* ------------------------------------------------------------------ */
+/* Le panneau : les éléments vierges                                    */
+/* ------------------------------------------------------------------ */
+
+const TILES = {
+  text: ['Aa', 'Une ligne'],
+  longtext: ['¶', 'Un paragraphe'],
+  number: ['12', 'Avec son unité'],
+  date: ['31', 'Un jour'],
+  choice: ['◉', 'Des propositions'],
+  yesno: ['✓', 'Oui ou non'],
+  scale: ['★', 'De 1 à 5'],
+  heading: ['H', 'Le titre d’un groupe']
+};
 
 export function html() {
   const template = courseTemplate();
-  const rows = template.fields.map((field, i) => rowHTML(field, i, template.fields.length)).join('');
+  const tiles = TYPES.map(
+    (type) =>
+      `<button type="button" class="tpl-tile" draggable="true" data-add="${type}"><span class="tpl-tile-mark" aria-hidden="true">${TILES[type][0]}</span><strong>${esc(TYPE_LABELS[type])}</strong><span class="state">${TILES[type][1]}</span></button>`
+  ).join('');
   return `
-    <div class="inline spread"><h2 style="margin:0">Modèle de fiche</h2><span class="inline"><button type="button" class="btn ghost sm" id="tplReuse">Reprendre la fiche d’un autre cours</button><button type="button" class="btn soft sm" id="tplPreview">Aperçu</button></span></div>
-    <p class="sub">Les champs de toutes les fiches de ce cours, dans l’ordre où les élèves les lisent. Les élèves voient vos changements à la prochaine publication ; un lancement en cours garde la version avec laquelle il a été lancé.</p>
+    <div class="inline spread"><h2 style="margin:0">Modèle de fiche</h2><button type="button" class="btn ghost sm" id="tplReuse">Reprendre la fiche d’un autre cours</button></div>
+    <p class="sub">La fiche se compose au centre, telle que la liront les élèves : glissez-y un élément, puis cliquez dessus pour l’écrire à sa place. Les élèves voient vos changements à la prochaine publication ; un lancement en cours garde la version avec laquelle il a été lancé.</p>
     <div class="field"><label for="tplName">Nom du modèle</label>
       <div class="inline"><input id="tplName" class="text-input" maxlength="${LIMITS.name}" value="${esc(template.name ?? '')}"><button type="button" class="btn soft sm" id="tplRename">Renommer</button></div></div>
     <p class="tpl-summary" id="tplSummary">${esc(summaryText(template))}</p>
-    <div class="rows tpl-rows">${rows || '<div class="empty-box">Aucun champ : les fiches n’ont que leur réf. photo, leurs photos et leur place sur le plan.</div>'}</div>
-    ${gradingHTML(template)}
     <div class="section">
-      <h3>Ajouter un champ</h3>
-      <p>Il s’ajoute à la fin : déplacez-le ensuite avec ▲ ▼, ou en le glissant.</p>
-      <div class="inline">${TYPES.map((type) => `<button type="button" class="btn ghost sm" data-add="${type}">＋ ${TYPE_LABELS[type]}</button>`).join('')}</div>
-    </div>`;
+      <h3>Éléments</h3>
+      <p>Glissez un élément dans la fiche, à l’endroit voulu. Un clic l’ajoute sous l’élément choisi, sinon à la fin.</p>
+      <div class="tpl-palette">${tiles}</div>
+    </div>
+    ${gradingHTML(template)}`;
 }
 
+/** Ce qu'on glisse : le navigateur ne laisse pas lire son contenu pendant le survol, seulement au dépôt. */
+const DRAG = 'application/x-cartopoint-element';
+let dragged = null;
+function startDrag(e, what) {
+  dragged = what;
+  e.dataTransfer.setData(DRAG, JSON.stringify(what));
+  e.dataTransfer.setData('text/plain', what.add ?? what.move);
+  e.dataTransfer.effectAllowed = what.add ? 'copy' : 'move';
+}
+const draggedBy = (e) => {
+  try {
+    return JSON.parse(e.dataTransfer.getData(DRAG));
+  } catch {
+    return dragged;
+  }
+};
+globalThis.document?.addEventListener('dragend', () => {
+  dragged = null;
+  document.querySelector('.tpl-drop-line')?.remove();
+});
+
 export function bind(panel) {
-  const fields = () => courseTemplate().fields;
   $('#tplRename').onclick = () => {
     const name = $('#tplName').value.trim();
     const next = { ...courseTemplate(), name };
@@ -147,18 +278,11 @@ export function bind(panel) {
     const problem = applyTemplate(next);
     toast(problem ? `⚠ ${problem}` : 'Modèle renommé');
   };
-  $('#tplPreview').onclick = () => openPreview();
   $('#tplReuse').onclick = () => openReuse();
-  for (const b of panel.querySelectorAll('[data-add]')) b.onclick = () => openField(null, b.dataset.add);
-  for (const b of panel.querySelectorAll('[data-field]')) b.onclick = () => openField(fields().find((field) => field.id === b.dataset.field));
-  for (const b of panel.querySelectorAll('[data-up], [data-down]')) {
-    b.onclick = () => {
-      const i = Number(b.dataset.up ?? b.dataset.down);
-      applyTemplate(withFields(moved(fields(), i, b.dataset.up !== undefined ? i - 1 : i + 1)));
-    };
+  for (const tile of panel.querySelectorAll('[data-add]')) {
+    tile.onclick = () => later(() => addField(tile.dataset.add));
+    tile.addEventListener('dragstart', (e) => startDrag(e, { add: tile.dataset.add }));
   }
-  for (const b of panel.querySelectorAll('[data-remove]')) b.onclick = () => removeField(b.dataset.remove);
-  bindDrag(panel);
   bindGrading(panel);
 }
 
@@ -216,265 +340,6 @@ function bindGrading(panel) {
     if (grading.mode === 'auto') save({ mode: 'auto', max: $('#gradingMax').value, placement: $('#gradingPlacement')?.checked ?? false });
   };
   for (const input of panel.querySelectorAll('[data-points], #pointsPlacement, #gradingMax, #gradingPlacement')) input.onchange = read;
-}
-
-/** Glisser une ligne sur une autre la place avant elle. */
-function bindDrag(panel) {
-  for (const row of panel.querySelectorAll('[data-row]')) {
-    row.addEventListener('dragstart', (e) => {
-      e.dataTransfer.setData('text/plain', row.dataset.row);
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    row.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      row.classList.add('drop');
-    });
-    row.addEventListener('dragleave', () => row.classList.remove('drop'));
-    row.addEventListener('drop', (e) => {
-      e.preventDefault();
-      row.classList.remove('drop');
-      const fields = courseTemplate().fields;
-      const from = fields.findIndex((field) => field.id === e.dataTransfer.getData('text/plain'));
-      const to = fields.findIndex((field) => field.id === row.dataset.row);
-      if (from < 0 || to < 0 || from === to) return;
-      applyTemplate(withFields(moved(fields, from, from < to ? to - 1 : to)));
-    });
-  }
-}
-
-function removeField(id) {
-  const field = courseTemplate().fields.find((x) => x.id === id);
-  const lost = field.audience === 'question' ? [] : filled(id);
-  const name = field.label || 'cette fin de groupe';
-  const message =
-    `Supprimer « ${name} » du modèle ?` +
-    (lost.length ? `\n\n${lost.length} fiche(s) perdront ce qu’elles y ont écrit.` : '') +
-    (field.audience === 'question' ? '\n\nLes réponses déjà rendues restent dans l’historique de leur lancement.' : '');
-  if (!confirm(message)) return;
-  const problem = applyTemplate(withFields(courseTemplate().fields.filter((x) => x.id !== id)));
-  toast(problem ? `⚠ ${problem}` : `Champ « ${name} » supprimé`);
-}
-
-/* ------------------------------------------------------------------ */
-/* La fenêtre d'un champ                                                */
-/* ------------------------------------------------------------------ */
-
-const QUESTION_TYPES = ['text', 'longtext', 'number', 'choice', 'yesno', 'scale'];
-const ROLE_LABELS = { '': 'Aucun', title: 'Titre de la fiche', subtitle: 'Sous-titre, en italique' };
-const KEYBOARD_LABELS = { decimal: 'Nombre à virgule', numeric: 'Nombre entier' };
-
-/** Un champ neuf, avec un réglage de départ pour son type. */
-function blankField(type) {
-  if (type === 'heading') return { id: newFieldId('h'), type, label: '' };
-  const field = { id: newFieldId('c'), type, label: '', audience: type === 'date' ? 'info' : 'question' };
-  if (type === 'choice')
-    field.choices = [
-      { id: newFieldId('r'), label: '' },
-      { id: newFieldId('r'), label: '' }
-    ];
-  if (type === 'scale') field.max = 5;
-  return field;
-}
-
-const select = (id, value, options, { disabled = () => false } = {}) =>
-  el('select', { id }, ...Object.entries(options).map(([key, label]) => el('option', { value: key, selected: key === value, disabled: disabled(key) }, label)));
-const labelled = (text, control, help = '') =>
-  el('div', { className: 'field' }, el('label', { htmlFor: control.id }, text), control, ...(help ? [el('span', { className: 'hint' }, help)] : []));
-const checkbox = (id, text, checked) => el('label', { className: 'check' }, el('input', { type: 'checkbox', id, checked: Boolean(checked) }), ` ${text}`);
-
-/**
- * Ouvre la fenêtre d'un champ, ou d'un nouveau champ de ce type. Rien ne change avant « Enregistrer » ; la fenêtre se refait
- * quand le type ou le public change, pour ne montrer que les réglages qui ont un sens.
- */
-export function openField(existing, type) {
-  const isNew = !existing;
-  const draft = structuredClone(existing ?? blankField(type));
-  // Un champ déjà rempli ne change de type que vers un type qui garde ses valeurs (6.3)
-  const locked = !isNew && draft.audience !== 'question' && filled(draft.id).length > 0;
-  const body = el('div', { className: 'dlg-body' });
-  const error = el('p', { className: 'form-error', role: 'alert', hidden: true });
-  const close = button('×', 'x', () => dialog.close());
-  close.setAttribute('aria-label', 'Fermer');
-  const save = button('Enregistrer', 'btn', () => submit());
-  const dialog = el(
-    'dialog',
-    { className: 'field-dialog', 'aria-label': isNew ? 'Nouveau champ' : `Champ « ${draft.label} »` },
-    el(
-      'div',
-      { className: 'dlg' },
-      el('div', { className: 'dlg-head' }, el('h2', {}, isNew ? `Nouveau champ : ${TYPE_LABELS[draft.type].toLowerCase()}` : 'Modifier le champ'), close),
-      body,
-      el(
-        'div',
-        { className: 'dlg-foot' },
-        error,
-        button('Annuler', 'btn ghost', () => dialog.close()),
-        save
-      )
-    )
-  );
-  dialog.addEventListener('close', () => dialog.remove());
-
-  function build() {
-    const heading = isHeading(draft);
-    const parts = [];
-    const label = el('input', { id: 'fLabel', value: draft.label ?? '', maxLength: LIMITS.label });
-    label.oninput = () => (draft.label = label.value);
-    parts.push(
-      labelled(
-        heading ? 'Intertitre' : 'Libellé',
-        label,
-        heading ? 'Laissé vide, il ferme le groupe précédent : les champs suivants ne sont plus sous un intertitre.' : ''
-      )
-    );
-    if (!heading) {
-      const types = Object.fromEntries(TYPES.filter((t) => t !== 'heading').map((t) => [t, TYPE_LABELS[t]]));
-      const typeSelect = select('fType', draft.type, types, { disabled: (t) => locked && !COMPATIBLE[existing.type].includes(t) });
-      typeSelect.onchange = () => {
-        draft.type = typeSelect.value;
-        if (draft.type === 'choice' && !draft.choices?.length) draft.choices = blankField('choice').choices;
-        if (draft.type === 'scale') draft.max ??= 5;
-        if (draft.type === 'date' && draft.audience === 'question') draft.audience = 'info';
-        delete draft.check;
-        build();
-      };
-      parts.push(
-        labelled(
-          'Type',
-          typeSelect,
-          locked ? 'Des fiches ont déjà une valeur ici : seuls les types qui la gardent sont proposés. Pour un autre, créez un nouveau champ.' : ''
-        )
-      );
-      const audience = select('fAudience', draft.audience, AUDIENCE_LABELS, { disabled: (a) => a === 'question' && !QUESTION_TYPES.includes(draft.type) });
-      audience.onchange = () => {
-        draft.audience = audience.value;
-        build();
-      };
-      parts.push(
-        labelled(
-          'Qui le remplit, qui le voit',
-          audience,
-          {
-            info: 'Vous le remplissez, l’élève le lit.',
-            question: 'L’élève y répond ; vous lisez sa réponse.',
-            correction: 'Vous le remplissez ; l’élève ne le lit qu’à la correction, à la fin du cours.',
-            teacher: 'Vous le remplissez ; personne d’autre ne le lit.'
-          }[draft.audience]
-        )
-      );
-      if (draft.audience === 'question') {
-        const check = select('fCheck', checkOf(draft), Object.fromEntries(CHECKS[draft.type].map((c) => [c, CHECK_LABELS[c]])));
-        check.onchange = () => (draft.check = check.value);
-        parts.push(
-          labelled(
-            'Correction',
-            check,
-            'Corrigée automatiquement : vous donnerez la bonne réponse de chaque fiche. À corriger par vous : vous la corrigerez après le cours. Non corrigée : la réponse est seulement recueillie, comme une mesure.'
-          )
-        );
-      }
-      if (draft.type === 'choice') parts.push(choicesEditor());
-      if (draft.type === 'scale') {
-        const max = select('fMax', String(draft.max ?? 5), { 2: '2', 3: '3', 4: '4', 5: '5' });
-        max.onchange = () => (draft.max = Number(max.value));
-        const symbol = el('input', { id: 'fSymbol', value: draft.symbol ?? '', maxLength: LIMITS.icon, placeholder: '⭐' });
-        symbol.oninput = () => (draft.symbol = symbol.value);
-        parts.push(
-          el(
-            'div',
-            { className: 'form-grid' },
-            labelled('De 1 à', max),
-            labelled('Symbole', symbol, 'Répété pour chaque cran : ⭐⭐⭐. Sans symbole, un chiffre.')
-          )
-        );
-      }
-      if (draft.type === 'number') {
-        const unit = el('input', { id: 'fUnit', value: draft.unit ?? '', maxLength: LIMITS.unit, placeholder: '°C' });
-        unit.oninput = () => (draft.unit = unit.value);
-        const keyboard = select('fKeyboard', draft.keyboard ?? 'decimal', KEYBOARD_LABELS);
-        keyboard.onchange = () => (draft.keyboard = keyboard.value);
-        parts.push(el('div', { className: 'form-grid' }, labelled('Unité', unit), labelled('Clavier du téléphone', keyboard)));
-      }
-      if (draft.type === 'text' && draft.audience === 'info') {
-        const role = select('fRole', draft.role ?? '', ROLE_LABELS);
-        role.onchange = () => (draft.role = role.value || undefined);
-        parts.push(labelled('Rôle', role, 'Le titre nomme la fiche partout ; le sous-titre s’affiche dessous.'));
-      }
-      const icon = el('input', { id: 'fIcon', value: draft.icon ?? '', maxLength: LIMITS.icon, placeholder: '☀️' });
-      icon.oninput = () => (draft.icon = icon.value);
-      parts.push(labelled('Icône', icon, 'Un émoji, montré devant le libellé.'));
-      if (['text', 'longtext', 'number'].includes(draft.type)) {
-        const placeholder = el('input', { id: 'fPlaceholder', value: draft.placeholder ?? '', maxLength: LIMITS.placeholder });
-        placeholder.oninput = () => (draft.placeholder = placeholder.value);
-        parts.push(labelled('Exemple', placeholder, 'Montré en gris dans la case vide, et repris par le modèle de tableur.'));
-      }
-      const options = [];
-      const list = checkbox('fList', 'Dans la liste des fiches', draft.list);
-      list.querySelector('input').onchange = (e) => (draft.list = e.target.checked);
-      options.push(list);
-      if (['text', 'longtext'].includes(draft.type) && draft.audience === 'info') {
-        const search = checkbox('fSearch', 'Sert à la recherche', draft.search);
-        search.querySelector('input').onchange = (e) => (draft.search = e.target.checked);
-        options.push(search);
-      }
-      if (draft.audience === 'question') {
-        const required = checkbox('fRequired', 'Obligatoire', draft.required);
-        required.querySelector('input').onchange = (e) => (draft.required = e.target.checked);
-        options.push(required);
-      }
-      parts.push(el('div', { className: 'field' }, ...options));
-    }
-    const help = el('textarea', { id: 'fHelp', value: draft.help ?? '', maxLength: LIMITS.help, rows: 2 });
-    help.oninput = () => (draft.help = help.value);
-    parts.push(labelled('Aide', help, heading ? 'Sous l’intertitre, pour les élèves.' : 'Une phrase sous le champ, pour les élèves.'));
-    body.replaceChildren(...parts);
-  }
-
-  /** Les propositions d'un choix, dans l'ordre : chacune garde son identifiant, et donc les réponses déjà données. */
-  function choicesEditor() {
-    const rows = draft.choices.map((choice, i) => {
-      const input = el('input', { value: choice.label, maxLength: LIMITS.label, 'aria-label': `Proposition ${i + 1}` });
-      input.oninput = () => (choice.label = input.value);
-      const remove = button('🗑', 'btn danger sm', () => {
-        draft.choices.splice(i, 1);
-        build();
-      });
-      remove.setAttribute('aria-label', `Retirer la proposition ${i + 1}`);
-      remove.disabled = draft.choices.length <= 2;
-      return el('div', { className: 'choice-row' }, input, remove);
-    });
-    const add = button('＋ Proposition', 'btn ghost sm', () => {
-      draft.choices.push({ id: newFieldId('r'), label: '' });
-      build();
-      body.querySelector('.choice-row:last-of-type input')?.focus();
-    });
-    add.disabled = draft.choices.length >= LIMITS.choices;
-    const multiple = checkbox('fMultiple', 'Plusieurs réponses possibles', draft.multiple);
-    multiple.querySelector('input').onchange = (e) => (draft.multiple = e.target.checked);
-    return el('div', { className: 'field' }, el('span', { className: 'field-title' }, 'Propositions'), ...rows, add, multiple);
-  }
-
-  function submit() {
-    const field = cleanField(draft);
-    const fields = courseTemplate().fields;
-    const next = withFields(isNew ? [...fields, field] : fields.map((x) => (x.id === field.id ? field : x)));
-    const [problem] = templateProblems(next);
-    if (problem) {
-      error.textContent = problem.replace(/^champ \d+ : /, '');
-      error.hidden = false;
-      return;
-    }
-    const lost = isNew ? 0 : changedBy(next, field.id);
-    if (lost && !confirm(`${lost} fiche(s) perdront ou verront changer ce qu’elles ont écrit dans « ${existing.label} ». Continuer ?`)) return;
-    applyTemplate(next);
-    dialog.close();
-    toast(isNew ? `✓ Champ « ${field.label || 'fin de groupe'} » ajouté` : '✓ Champ enregistré');
-  }
-
-  build();
-  document.body.append(dialog);
-  dialog.showModal();
-  $('#fLabel').focus();
 }
 
 /* ------------------------------------------------------------------ */
@@ -570,10 +435,10 @@ export async function openReuse() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Aperçu                                                               */
+/* La fiche au centre                                                   */
 /* ------------------------------------------------------------------ */
 
-/** Une fiche pour l'aperçu : la première qui a quelque chose, sinon une fiche faite des exemples du modèle. */
+/** Une fiche pour la fiche du centre : la première qui a quelque chose, sinon une fiche faite des exemples du modèle. */
 function sampleFiche(template) {
   const fiche = allFiches().find((f) => template.fields.some((field) => !isEmpty(f[field.id])));
   if (fiche) return { fiche, source: `D’après la fiche « ${titleOf(fiche, template)} ».` };
@@ -581,60 +446,391 @@ function sampleFiche(template) {
   return { fiche: newFiche(values, template), source: 'D’après les exemples du modèle.' };
 }
 
-/** La fiche telle que la voit un élève, dans la largeur d'un téléphone ou d'un ordinateur, pendant le cours ou à la correction. */
-export function openPreview() {
-  const template = courseTemplate();
-  const { fiche, source } = sampleFiche(template);
-  const state = { width: 'phone', revealed: false };
-  const frame = el('div', { className: 'preview-frame' });
-  const toggle = (key, value, label) => {
-    const node = button(label, 'chip', () => {
-      state[key] = value;
-      draw();
-    });
-    node.dataset.preview = `${key}:${value}`;
-    return node;
-  };
-  const toggles = [
-    toggle('width', 'phone', 'Téléphone'),
-    toggle('width', 'desktop', 'Ordinateur'),
-    toggle('revealed', false, 'Pendant le cours'),
-    toggle('revealed', true, 'À la correction')
+/** Ce qu'un élève lirait de cet élément, et à la correction un verdict d'exemple. */
+const SAMPLE_VERDICT = { auto: 'ok', teacher: 'pending' };
+const QUESTION_TYPES = ['text', 'longtext', 'number', 'choice', 'yesno', 'scale'];
+const ROLE_LABELS = { '': 'Aucun', title: 'Titre de la fiche', subtitle: 'Sous-titre, en italique' };
+const KEYBOARD_LABELS = { decimal: 'Nombre à virgule', numeric: 'Nombre entier' };
+const AUDIENCE_HINTS = {
+  info: 'Vous le remplissez dans chaque fiche, l’élève le lit.',
+  question: 'L’élève y répond ; vous lisez sa réponse.',
+  correction: 'Vous le remplissez ; l’élève ne le lit qu’à la correction, à la fin du cours.',
+  teacher: 'Vous le remplissez ; personne d’autre ne le lit.'
+};
+
+function detailsOf(field) {
+  if (isHeading(field)) return TYPE_LABELS.heading;
+  return [
+    TYPE_LABELS[field.type] + (field.type === 'choice' && field.multiple ? ' multiple' : ''),
+    AUDIENCE_LABELS[field.audience],
+    field.role === 'title' && 'titre',
+    field.role === 'subtitle' && 'sous-titre',
+    field.list && 'dans la liste'
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** Un élément tel que le lira l'élève, avec le rendu de sa fiche (views/fields-html.js). */
+function viewHTML(template, fiche, field) {
+  if (isHeading(field))
+    return field.label
+      ? `<h3 class="mini-h">${esc(field.label)}</h3>${field.help ? `<p class="hint">${esc(field.help)}</p>` : ''}`
+      : '<p class="hint"><em>Fin du groupe</em> : les éléments suivants ne sont plus sous un intertitre.</p>';
+  if (field.role)
+    return `<p class="tpl-role"><strong>${esc(field.label)}</strong> · ${field.role === 'title' ? 'le titre de la fiche, en haut, et partout où elle est nommée' : 'sous le titre, en italique'}</p>`;
+  const verdict = view.revealed && SAMPLE_VERDICT[checkOf(field)];
+  const body = ficheBodyHTML(
+    { ...template, fields: [field] },
+    fiche,
+    {},
+    {
+      disabled: true,
+      revealed: true,
+      teacher: true,
+      correction: verdict ? { questions: { [field.id]: verdict } } : null
+    }
+  );
+  if (body.trim()) return body;
+  return `<dl class="facts"><div><dt>${esc(field.label)}</dt><dd><em class="hint">Rempli dans chaque fiche</em></dd></div></dl>`;
+}
+
+const attr = (value) => esc(String(value ?? ''));
+const editInput = (key, value, { id = '', label, placeholder = '', max, className = 'tpl-inline' }) =>
+  `<input${id ? ` id="${id}"` : ''} data-edit="${key}" class="${className}" value="${attr(value)}" maxlength="${max}" placeholder="${attr(placeholder)}" aria-label="${attr(label)}">`;
+
+/** La case de réponse, ou ce qui en tient lieu, écrite à sa place : l'exemple dans la case, l'unité à côté, les propositions. */
+function controlHTML(field) {
+  const question = field.audience === 'question';
+  const example = editInput('placeholder', field.placeholder, {
+    id: 'fPlaceholder',
+    label: 'Exemple',
+    placeholder: question ? 'Exemple, en gris dans la case vide (facultatif)' : 'Exemple, repris par le modèle de tableur (facultatif)',
+    max: LIMITS.placeholder,
+    className: 'tpl-sample'
+  });
+  switch (field.type) {
+    case 'text':
+    case 'longtext':
+      return `<div class="tpl-answer${field.type === 'longtext' ? ' long' : ''}">${example}</div>`;
+    case 'number':
+      return `<div class="unit-input tpl-answer">${example}${editInput('unit', field.unit, { id: 'fUnit', label: 'Unité', placeholder: 'unité', max: LIMITS.unit, className: 'tpl-unit' })}</div>`;
+    case 'date':
+      return '<div class="tpl-answer"><span class="hint">jj/mm/aaaa : une date choisie dans un calendrier</span></div>';
+    case 'yesno':
+      return '<div class="choices"><span class="choice"><input type="radio" disabled><span>Oui</span></span><span class="choice"><input type="radio" disabled><span>Non</span></span></div>';
+    case 'scale': {
+      const max = field.max ?? 5;
+      const steps = Array.from(
+        { length: max },
+        (_, i) => `<span class="choice"><span>${esc(field.symbol ? field.symbol.repeat(i + 1) : String(i + 1))}</span></span>`
+      ).join('');
+      const options = [2, 3, 4, 5].map((n) => `<option value="${n}"${n === max ? ' selected' : ''}>${n}</option>`).join('');
+      return `<div class="choices">${steps}</div>
+        <div class="tpl-inline-settings"><label>De 1 à <select id="fMax" data-edit="max">${options}</select></label>
+        <label>Symbole ${editInput('symbol', field.symbol, { id: 'fSymbol', label: 'Symbole', placeholder: '⭐', max: LIMITS.icon, className: 'tpl-symbol' })}</label>
+        <span class="hint">Répété pour chaque cran : ⭐⭐⭐. Sans symbole, un chiffre.</span></div>`;
+    }
+    case 'choice': {
+      const type = field.multiple ? 'checkbox' : 'radio';
+      const pills = field.choices
+        .map(
+          (choice, i) =>
+            `<span class="choice tpl-choice"><input type="${type}" disabled>${editInput(`choice-${i}`, choice.label, { label: `Proposition ${i + 1}`, max: LIMITS.label })}<button type="button" class="tpl-x" data-choice-remove="${i}" aria-label="Retirer la proposition ${i + 1}"${field.choices.length <= 2 ? ' disabled' : ''}>×</button></span>`
+        )
+        .join('');
+      return `<div class="choices">${pills}<button type="button" class="choice tpl-add-choice" data-choice-add${field.choices.length >= LIMITS.choices ? ' disabled' : ''}>＋ Proposition</button></div>`;
+    }
+  }
+  return '';
+}
+
+/** L'élément choisi, écrit à sa place : son libellé, sa case, son aide. */
+function editHTML(field) {
+  const heading = isHeading(field);
+  const label = editInput('label', field.label, {
+    id: 'fLabel',
+    label: heading ? 'Intertitre' : 'Libellé',
+    placeholder: heading ? 'Intertitre ; vide, il ferme le groupe précédent' : 'Libellé',
+    max: LIMITS.label,
+    className: `tpl-inline tpl-label${heading ? ' mini-h' : ''}`
+  });
+  const help = `<textarea id="fHelp" data-edit="help" class="tpl-inline tpl-help" rows="1" maxlength="${LIMITS.help}" placeholder="${heading ? 'Une phrase sous l’intertitre, pour les élèves (facultatif)' : 'Une aide sous l’élément, pour les élèves (facultatif)'}" aria-label="Aide">${esc(field.help ?? '')}</textarea>`;
+  if (heading) return `<div class="tpl-edit">${label}${help}</div>`;
+  const icon = field.icon ? `<span aria-hidden="true">${esc(field.icon)}</span>` : '';
+  const required = field.required ? '<span class="required">obligatoire</span>' : '';
+  return `<div class="tpl-edit${field.audience === 'question' ? ' measures' : ''}"><div class="tpl-label-row">${icon}${label}${required}</div>${controlHTML(field)}${help}</div>`;
+}
+
+const selectHTML = (id, key, value, options, disabled = () => false) =>
+  `<select id="${id}" data-edit="${key}">${Object.entries(options)
+    .map(([option, label]) => `<option value="${option}"${option === value ? ' selected' : ''}${disabled(option) ? ' disabled' : ''}>${esc(label)}</option>`)
+    .join('')}</select>`;
+const checkHTML = (id, key, label, checked) =>
+  `<label class="check"><input type="checkbox" id="${id}" data-edit="${key}"${checked ? ' checked' : ''}> ${label}</label>`;
+const settingHTML = (id, label, control, hint = '') =>
+  `<div class="field"><label for="${id}">${label}</label>${control}${hint ? `<span class="hint">${hint}</span>` : ''}</div>`;
+
+/** Les réglages de l'élément choisi, seulement ceux qui ont un sens pour son type et son public (MOD-03). */
+function settingsHTML(field, saved) {
+  if (isHeading(field)) return '';
+  // Un champ déjà rempli ne change de type que vers un type qui garde ses valeurs (MOD-05)
+  const locked = saved.audience !== 'question' && filled(saved.id).length > 0;
+  const types = Object.fromEntries(TYPES.filter((type) => type !== 'heading').map((type) => [type, TYPE_LABELS[type]]));
+  const parts = [
+    settingHTML(
+      'fType',
+      'Type',
+      selectHTML('fType', 'type', field.type, types, (type) => locked && !COMPATIBLE[saved.type].includes(type)),
+      locked ? 'Des fiches ont déjà une valeur ici : seuls les types qui la gardent sont proposés.' : ''
+    ),
+    settingHTML(
+      'fAudience',
+      'Qui le remplit, qui le voit',
+      selectHTML('fAudience', 'audience', field.audience, AUDIENCE_LABELS, (audience) => audience === 'question' && !QUESTION_TYPES.includes(field.type)),
+      AUDIENCE_HINTS[field.audience]
+    )
   ];
-  const close = button('×', 'x', () => dialog.close());
-  close.setAttribute('aria-label', 'Fermer');
-  const dialog = el(
-    'dialog',
-    { className: 'preview-dialog', 'aria-label': 'Aperçu de la fiche' },
-    el(
-      'div',
-      { className: 'dlg' },
-      el('div', { className: 'dlg-head' }, el('div', { style: 'flex:1' }, el('h2', {}, 'Aperçu de la fiche'), el('p', { className: 'state' }, source)), close),
-      el('div', { className: 'dlg-body' }, el('div', { className: 'chips' }, ...toggles), frame)
+  if (field.audience === 'question')
+    parts.push(
+      settingHTML(
+        'fCheck',
+        'Correction',
+        selectHTML('fCheck', 'check', checkOf(field), Object.fromEntries(CHECKS[field.type].map((check) => [check, CHECK_LABELS[check]]))),
+        {
+          auto: 'Vous donnerez la bonne réponse de chaque fiche, dans l’onglet « Fiches ».',
+          teacher: 'Vous la corrigerez après le cours, dans la page du lancement.',
+          none: 'La réponse est seulement recueillie, comme une mesure.'
+        }[checkOf(field)]
+      )
+    );
+  if (field.type === 'text' && field.audience === 'info')
+    parts.push(
+      settingHTML(
+        'fRole',
+        'Rôle',
+        selectHTML('fRole', 'role', field.role ?? '', ROLE_LABELS),
+        'Le titre nomme la fiche partout ; le sous-titre s’affiche dessous.'
+      )
+    );
+  if (field.type === 'number')
+    parts.push(settingHTML('fKeyboard', 'Clavier du téléphone', selectHTML('fKeyboard', 'keyboard', field.keyboard ?? 'decimal', KEYBOARD_LABELS)));
+  parts.push(
+    settingHTML(
+      'fIcon',
+      'Icône',
+      editInput('icon', field.icon, { id: 'fIcon', label: 'Icône', placeholder: '☀️', max: LIMITS.icon, className: 'text-input tpl-icon' }),
+      'Un émoji, devant le libellé.'
     )
   );
-  dialog.addEventListener('close', () => dialog.remove());
+  const options = [checkHTML('fList', 'list', 'Dans la liste des fiches', field.list)];
+  if (['text', 'longtext'].includes(field.type) && field.audience === 'info') options.push(checkHTML('fSearch', 'search', 'Sert à la recherche', field.search));
+  if (field.audience === 'question') options.push(checkHTML('fRequired', 'required', 'Obligatoire', field.required));
+  if (field.type === 'choice') options.push(checkHTML('fMultiple', 'multiple', 'Plusieurs réponses possibles', field.multiple));
+  parts.push(`<div class="field tpl-checks">${options.join('')}</div>`);
+  return `<div class="tpl-settings">${parts.join('')}</div>`;
+}
 
-  function draw() {
-    for (const node of toggles)
-      node.setAttribute('aria-pressed', String(node.dataset.preview === `width:${state.width}` || node.dataset.preview === `revealed:${state.revealed}`));
-    frame.className = `preview-frame ${state.width}`;
-    const sub = subtitleOf(fiche, template);
-    frame.innerHTML = `
+function blockHTML(template, fiche, saved, i) {
+  const selected = view.selected === saved.id;
+  const field = selected ? view.draft : saved;
+  const heading = isHeading(field);
+  const name = esc(saved.label || 'fin du groupe');
+  const check = checkOf(field);
+  const notYet = field.audience === 'correction' && !view.revealed;
+  const marks = [
+    `<span class="state">${esc(detailsOf(field))}</span>`,
+    check ? `<span class="check-badge ${check}">${CHECK_LABELS[check]}</span>` : '',
+    field.audience === 'teacher' ? '<span class="aud">Vu par vous seul</span>' : '',
+    notYet ? '<span class="aud">Révélé à la correction</span>' : ''
+  ].join('');
+  const classes = ['tpl-block', selected && 'selected', heading && 'is-heading', notYet && 'later', field.audience === 'teacher' && 'teacher-only'];
+  const count = template.fields.length;
+  return `<section class="${classes.filter(Boolean).join(' ')}" data-block="${esc(saved.id)}">
+      <div class="tpl-block-bar">
+        <button type="button" class="tpl-handle" draggable="true" data-handle="${esc(saved.id)}" aria-label="Glisser « ${name} »" title="Glisser pour déplacer">⠿</button>
+        <div class="tpl-marks">${marks}</div>
+        <div class="tpl-tools">
+          <button type="button" class="btn ghost sm" data-up="${i}" aria-label="Monter « ${name} »"${i === 0 ? ' disabled' : ''}>▲</button>
+          <button type="button" class="btn ghost sm" data-down="${i}" aria-label="Descendre « ${name} »"${i === count - 1 ? ' disabled' : ''}>▼</button>
+          ${selected ? `<button type="button" class="btn sm" data-done aria-label="Terminer « ${name} »">OK</button>` : `<button type="button" class="btn soft sm" data-field="${esc(saved.id)}" aria-label="Modifier « ${name} »">Modifier</button>`}
+          <button type="button" class="btn danger sm" data-remove="${esc(saved.id)}" aria-label="Supprimer « ${name} »" title="Supprimer l’élément">🗑</button>
+        </div>
+      </div>
+      <div class="tpl-view">${selected ? editHTML(field) : viewHTML(template, fiche, field)}</div>
+      ${selected ? settingsHTML(field, saved) : ''}
+      ${selected && view.error ? `<p class="form-error" role="alert">${esc(view.error)}</p>` : ''}
+    </section>`;
+}
+
+function canvasHTML(template) {
+  const { fiche, source } = sampleFiche(template);
+  const toggles = [
+    ['width', 'phone', 'Téléphone'],
+    ['width', 'desktop', 'Ordinateur'],
+    ['revealed', false, 'Pendant le cours'],
+    ['revealed', true, 'À la correction']
+  ]
+    .map(([key, value, label]) => `<button type="button" class="chip" data-view="${key}:${value}" aria-pressed="${view[key] === value}">${label}</button>`)
+    .join('');
+  const title = esc(titleOf(fiche, template));
+  const sub = subtitleOf(fiche, template);
+  const blocks = template.fields.map((field, i) => blockHTML(template, fiche, field, i)).join('');
+  return `
+    <div class="tpl-bar"><div class="chips">${toggles}</div><span class="state">${esc(source)}</span></div>
+    <div class="tpl-canvas ${view.width}">
       <p class="field-title">Dans la liste</p>
       <article class="label preview-card">
         <div class="photo"></div>
-        <div class="label-body"><h3>${esc(titleOf(fiche, template))}</h3>${sub ? `<p class="sci">${esc(sub)}</p>` : ''}${listLinesHTML(template, fiche)}</div>
+        <div class="label-body"><h3>${title}</h3>${sub ? `<p class="sci">${esc(sub)}</p>` : ''}${listLinesHTML(template, fiche)}</div>
         ${cardAnswersHTML(template, fiche, {}, { title: titleOf(fiche, template) })}
       </article>
       <p class="field-title">Fiche ouverte</p>
       <div class="dlg preview-fiche">
-        <div class="dlg-head"><div style="flex:1;min-width:0"><h2><span class="num">1</span>${esc(titleOf(fiche, template))}</h2>${sub ? `<p class="sci">${esc(sub)}</p>` : ''}</div></div>
-        <div class="dlg-body"><div class="read-text">${ficheBodyHTML(template, fiche, {}, { revealed: state.revealed })}</div></div>
-      </div>`;
+        <div class="dlg-head"><div style="flex:1;min-width:0"><h2><span class="num">1</span>${title}</h2>${sub ? `<p class="sci">${esc(sub)}</p>` : ''}</div></div>
+        <div class="dlg-body"><div class="read-text"><div class="tpl-blocks" id="tplBlocks">${blocks}<div class="tpl-end" data-end>${template.fields.length ? 'Glissez un élément ici pour l’ajouter à la fin.' : 'Glissez ici un premier élément.'}</div></div></div></div>
+      </div>
+    </div>`;
+}
+
+/** La case où l'on écrit, pour la retrouver après que la page s'est redessinée. */
+function focused(container) {
+  const active = document.activeElement;
+  if (!active?.dataset?.edit || !container.contains(active)) return null;
+  return { key: active.dataset.edit, start: active.selectionStart, end: active.selectionEnd };
+}
+function restore(container, focus) {
+  const node = focus && container.querySelector(`[data-edit="${focus.key}"]`);
+  if (!node) return;
+  node.focus({ preventScroll: !focus.all });
+  if (focus.all) {
+    node.scrollIntoView({ block: 'nearest' });
+    node.select?.();
+  } else if (focus.start !== null && focus.start !== undefined) {
+    try {
+      node.setSelectionRange(focus.start, focus.end);
+    } catch {
+      // une liste ou une case à cocher n'a pas de curseur
+    }
+  }
+}
+
+/** La fiche du centre, à la place du plan, tant que l'onglet est ouvert (views/admin/index.js). */
+export function stage(container) {
+  if (view.selected && !savedField(view.selected)) Object.assign(view, { selected: null, draft: null, error: '' });
+  const keep = focused(container);
+  container.innerHTML = canvasHTML(courseTemplate());
+  bindCanvas(container);
+  restore(container, view.focus ?? keep);
+  view.focus = null;
+}
+function redraw() {
+  const container = $('#tabStage');
+  if (container && !container.hidden) stage(container);
+}
+
+function bindCanvas(container) {
+  const blocks = container.querySelector('#tplBlocks');
+  container.querySelectorAll('[data-view]').forEach((b) => {
+    b.onclick = () => {
+      const [key, value] = b.dataset.view.split(':');
+      view[key] = key === 'revealed' ? value === 'true' : value;
+      redraw();
+    };
+  });
+  container.querySelectorAll('[data-field]').forEach((b) => {
+    b.onclick = () =>
+      later(() => {
+        select(b.dataset.field);
+        view.focus = { key: 'label' };
+        redraw();
+      });
+  });
+  container.querySelector('[data-done]')?.addEventListener('click', () =>
+    later(() => {
+      select(null);
+      redraw();
+    })
+  );
+  container.querySelectorAll('[data-up], [data-down]').forEach((b) => {
+    b.onclick = () => {
+      const i = Number(b.dataset.up ?? b.dataset.down);
+      const fields = courseTemplate().fields;
+      later(() => moveField(fields[i].id, b.dataset.up !== undefined ? i - 1 : i + 2));
+    };
+  });
+  container.querySelectorAll('[data-remove]').forEach((b) => (b.onclick = () => later(() => removeField(b.dataset.remove))));
+  // Un clic dans un élément le choisit : il s'écrit alors à sa place
+  blocks.addEventListener('click', (e) => {
+    const block = e.target.closest('[data-block]');
+    if (!block || block.classList.contains('selected') || e.target.closest('button, input, textarea, select, a, summary')) return;
+    later(() => {
+      select(block.dataset.block);
+      view.focus = { key: 'label' };
+      redraw();
+    });
+  });
+
+  // L'élément choisi : chaque case écrit dans le brouillon, et s'enregistre en la quittant
+  const editing = container.querySelector('.tpl-block.selected');
+  if (editing) {
+    editing.addEventListener('input', (e) => {
+      if (e.target.dataset.edit && e.target.type !== 'checkbox' && e.target.tagName !== 'SELECT') readControl(e.target);
+    });
+    editing.addEventListener('change', (e) => {
+      if (!e.target.dataset.edit) return;
+      readControl(e.target);
+      const draft = view.draft;
+      later(() => commit(draft));
+    });
+    editing.querySelector('[data-choice-add]')?.addEventListener('click', () => {
+      const draft = view.draft;
+      draft.choices.push({ id: newFieldId('r'), label: `Proposition ${draft.choices.length + 1}` });
+      view.focus = { key: `choice-${draft.choices.length - 1}`, all: true };
+      later(() => commit(draft));
+    });
+    editing.querySelectorAll('[data-choice-remove]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const draft = view.draft;
+        draft.choices.splice(Number(b.dataset.choiceRemove), 1);
+        later(() => commit(draft));
+      })
+    );
   }
 
-  draw();
-  document.body.append(dialog);
-  dialog.showModal();
+  // Glisser : un élément vierge depuis le panneau, ou un élément de la fiche par sa poignée. Un trait montre où il tombera.
+  container.querySelectorAll('[data-handle]').forEach((handle) =>
+    handle.addEventListener('dragstart', (e) => {
+      startDrag(e, { move: handle.dataset.handle });
+      e.dataTransfer.setDragImage(handle.closest('[data-block]'), 16, 16);
+    })
+  );
+  const line = el('div', { className: 'tpl-drop-line' });
+  const indexAt = (y) => {
+    const all = [...blocks.querySelectorAll(':scope > [data-block]')];
+    const i = all.findIndex((block) => {
+      const box = block.getBoundingClientRect();
+      return y < box.top + box.height / 2;
+    });
+    return i < 0 ? all.length : i;
+  };
+  blocks.addEventListener('dragover', (e) => {
+    if (!dragged && !e.dataTransfer.types.includes(DRAG)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = dragged?.move ? 'move' : 'copy';
+    const at = blocks.querySelectorAll(':scope > [data-block]')[indexAt(e.clientY)] ?? blocks.querySelector('[data-end]');
+    if (line.nextSibling !== at) blocks.insertBefore(line, at);
+  });
+  blocks.addEventListener('dragleave', (e) => {
+    if (!blocks.contains(e.relatedTarget)) line.remove();
+  });
+  blocks.addEventListener('drop', (e) => {
+    e.preventDefault();
+    line.remove();
+    const what = draggedBy(e);
+    const at = indexAt(e.clientY);
+    dragged = null;
+    if (what?.add && TYPES.includes(what.add)) later(() => addField(what.add, at));
+    else if (what?.move) later(() => moveField(what.move, at));
+  });
 }

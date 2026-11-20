@@ -948,15 +948,20 @@ const MUTANTS = [
   ],
   ['MOD-07 : reprise sans confirmation', 'src/js/prof/template-tab.js', '  if (!confirm(message)) return false;\n', ''],
   ['MOD-07 : un cours se propose lui-même', 'src/js/prof/template-tab.js', '.filter((course) => course.id !== openCourseId())', '.filter(() => true)'],
-  ['MOD-08 : la copie garde le nom de l’original', 'src/js/prof/main.js', 'title: `Copie de ${course.title}`.slice(0, 200)', 'title: course.title'],
-  ['MOD-04 : badge de correction absent', 'src/js/prof/template-tab.js', '${check ? `<span class="check-badge', '${false ? `<span class="check-badge'],
+  ['MOD-08 : la copie garde le nom de l’original', 'src/js/prof/main.js', 'title: `${course.title.slice(0, 200 - COPY.length)}${COPY}`', 'title: course.title'],
+  [
+    'MOD-04 : badge de correction absent',
+    'src/js/prof/template-tab.js',
+    'check ? `<span class="check-badge ${check}">',
+    'false ? `<span class="check-badge ${check}">'
+  ],
   ['MOD-04 : résumé qui ne compte pas', 'src/js/prof/template-tab.js', 'counts[checkOf(field)]++;', 'counts.none++;'],
   ['CHP-08 : un nombre corrigé par défaut', 'src/js/fields.js', "number: 'none', choice: 'auto'", "number: 'auto', choice: 'auto'"],
   [
-    'MOD-03 : modèle impossible enregistré',
+    'MOD-03 : élément impossible sans message',
     'src/js/prof/template-tab.js',
-    '    if (problem) {\n      error.textContent',
-    '    if (false) {\n      error.textContent'
+    '  if (problem) {\n    if (current) view.error',
+    '  if (false) {\n    if (current) view.error'
   ],
   [
     'MOD-03 : les fiches gardent la valeur d’un champ supprimé',
@@ -964,17 +969,31 @@ const MUTANTS = [
     '    map.fiches = map.fiches.map((fiche) => normalizeFiche(fiche, next));\n',
     ''
   ],
-  ['MOD-03 : glisser sans effet', 'src/js/prof/template-tab.js', '      applyTemplate(withFields(moved(fields, from, from < to ? to - 1 : to)));', ''],
-  ['MOD-05 : type d’un champ rempli libre', 'src/js/prof/template-tab.js', 'disabled: (t) => locked && ', 'disabled: (t) => false && '],
+  ['MOD-03 : glisser sans effet', 'src/js/prof/template-tab.js', 'later(() => moveField(what.move, at));', 'null;'],
+  ['MOD-09 : un élément glissé tombe à la fin', 'src/js/prof/template-tab.js', 'later(() => addField(what.add, at));', 'later(() => addField(what.add));'],
+  [
+    'MOD-09 : un clic ajoute à la fin, même sous un élément choisi',
+    'src/js/prof/template-tab.js',
+    'const index = at ?? (after >= 0 ? after + 1 : fields.length);',
+    'const index = at ?? fields.length;'
+  ],
+  [
+    'MOD-09 : la case où l’on écrit perdue à l’enregistrement',
+    'src/js/prof/template-tab.js',
+    'restore(container, view.focus ?? keep);',
+    'restore(container, view.focus);'
+  ],
+  ['MOD-03 : le plan reste au centre', 'src/js/views/admin/index.js', '  showStage(tab.stage);\n', ''],
+  ['MOD-05 : type d’un champ rempli libre', 'src/js/prof/template-tab.js', 'locked && !COMPATIBLE', 'false && !COMPATIBLE'],
   ['MOD-05 : perte sans confirmation', 'src/js/prof/template-tab.js', 'if (lost && !confirm(', 'if (false && !confirm('],
   ['MOD-05 : suppression sans dire ce qui sera perdu', 'src/js/prof/template-tab.js', '(lost.length ? `', '(false ? `'],
-  ['MOD-06 : aperçu sans ce qui est révélé', 'src/js/prof/template-tab.js', '{ revealed: state.revealed }', '{ revealed: false }'],
   [
-    'MOD-06 : aperçu toujours sur un téléphone',
+    'MOD-06 : rien ne dit ce qui n’est révélé qu’à la correction',
     'src/js/prof/template-tab.js',
-    'frame.className = `preview-frame ${state.width}`;',
-    "frame.className = 'preview-frame phone';"
+    "const notYet = field.audience === 'correction' && !view.revealed;",
+    'const notYet = false;'
   ],
+  ['MOD-06 : la fiche toujours sur un téléphone', 'src/js/prof/template-tab.js', '<div class="tpl-canvas ${view.width}">', '<div class="tpl-canvas phone">'],
   [
     'CHP-07 : case sans longueur permise',
     'src/js/views/fields-html.js',
@@ -2157,6 +2176,7 @@ const TESTS_FOR = {
   'src/js/verdicts.js': ['verdicts', 'answers', 'courses', 'student-view'],
   'src/js/views/fields-html.js': ['wording', 'e2e/template', 'e2e/courses', 'e2e/correction'],
   'src/js/prof/template-tab.js': ['template-tab', 'e2e/template-editor'],
+  'src/js/views/admin/index.js': ['e2e/template-editor'],
   'src/js/themes.js': ['model', 'e2e/courses'],
   'src/js/views/reader.js': ['e2e/phone', 'wording', 'e2e/offline', 'e2e/launches', 'e2e/template'],
   'src/js/views/student-panel.js': ['e2e/fallback'],

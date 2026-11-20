@@ -875,6 +875,12 @@ const MUTANTS = [
   ['MOB-01 : le choix de la carte écrase le titre', 'src/css/app.css', '  .map-choice { order: 3; width: 100%; }', '  .map-choice { order: 3; }'],
   ['MOB-01 : la case d’un choix décalée', 'src/css/app.css', '.choices .choice { display: inline-flex; margin: 0; }', ''],
   [
+    'MOD-03 : la barre des onglets défile en hauteur',
+    'src/css/app.css',
+    'padding: 8px 10px; border-radius: 8px 8px 0 0;',
+    'padding: 8px 10px; margin-bottom: -1px; border-radius: 8px 8px 0 0;'
+  ],
+  [
     'QST-05 : la notation du lancement ignorée',
     'server/launches.mjs',
     '(row.grading ? normalizeGrading(JSON.parse(row.grading), project.template) : project.grading)',
@@ -2221,7 +2227,7 @@ const TESTS_FOR = {
   'src/js/admin/main.js': ['e2e/accounts', 'e2e/courses', 'e2e/launches', 'e2e/incidents'],
   'src/js/compte/main.js': ['e2e/accounts'],
   'src/js/compte/ui.js': ['e2e/accounts'],
-  'src/css/app.css': ['offline-site', 'e2e/accounts', 'e2e/courses', 'e2e/launches', 'e2e/offline', 'e2e/no-plan']
+  'src/css/app.css': ['offline-site', 'e2e/accounts', 'e2e/courses', 'e2e/launches', 'e2e/offline', 'e2e/no-plan', 'e2e/template-editor']
 };
 const testsFor = (file) => (TESTS_FOR[file] ?? []).map((name) => `tests/${name}.test.js`);
 

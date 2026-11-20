@@ -100,8 +100,14 @@ async function addElement(page, key, label, fill = async () => {}) {
 
 test('MOD-03, MOD-04, MOD-09 : le modèle d’un cours se montre au centre, à la place du plan, comme la fiche que liront les élèves', async (t) => {
   const { page } = await setup(t, { viewport: { width: 1366, height: 768 } });
-  const tabs = await page.locator('.tabs').evaluate((node) => node.scrollWidth - node.clientWidth);
-  assert.ok(tabs <= 0, `les cinq onglets tiennent sans défiler (${tabs} px de trop)`);
+  const tabs = await page.locator('.tabs').evaluate((node) => ({
+    wide: node.scrollWidth - node.clientWidth,
+    high: node.scrollHeight - node.clientHeight,
+    room: node.getBoundingClientRect().right - parseFloat(getComputedStyle(node).paddingRight) - node.lastElementChild.getBoundingClientRect().right
+  }));
+  assert.equal(tabs.wide, 0, 'les cinq onglets tiennent sans défiler');
+  assert.ok(tabs.room >= 15, `avec de la marge (${tabs.room} px)`);
+  assert.equal(tabs.high, 0, 'la barre des onglets ne défile pas non plus en hauteur');
   assert.equal(await page.locator('#stageInner').isHidden(), true, 'plus de plan au centre');
   assert.equal(await page.locator('#tplName').inputValue(), 'Inventaire botanique');
   assert.equal(await page.locator('#tplSummary').textContent(), '3 questions : 3 non corrigées.');

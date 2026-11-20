@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.55** · 20 novembre 2026 · établie à partir du code
+**Version 0.56** · 20 novembre 2026 · établie à partir du code
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -615,8 +615,8 @@ Code : [`fields.js`](../src/js/fields.js), [`views/fields-html.js`](../src/js/vi
   s'écrit dans le libellé. L'enseignant range les champs avec ▲ ▼ ou en les glissant par leur poignée, et renomme le
   modèle. Chaque modification s'enregistre en quittant sa case ; un champ impossible, comme un libellé vide ou un choix sans
   proposition, le dit avec la raison, et rien n'est enregistré tant qu'il dure. Les élèves voient le modèle à la
-  prochaine publication, et un lancement en cours garde le sien. Les cinq onglets de la page tiennent sans défiler sur un
-  écran d'ordinateur.
+  prochaine publication, et un lancement en cours garde le sien. Les cinq onglets de la page tiennent sans défiler, ni en
+  largeur ni en hauteur, sur un écran d'ordinateur.
 - **MOD-04** Chaque question porte sa correction (`CHP-08`), donnée par son élément vierge : corrigée automatiquement,
   corrigée par l'enseignant, ou sans correction. L'onglet le résume : « 6 questions : 4 corrigées automatiquement, 2 à
   corriger par vous ».
@@ -1353,3 +1353,4 @@ Ils ne sont pas réutilisés.
 | 0.53    | 20 novembre 2026  | « Créer un nouveau cours » seul dans la liste, qui ouvre sur « Fiches » ; la fiche d'un autre cours se reprend en tête de l'onglet, renommé « Éditeur de fiches » (`MOD-07`) |
 | 0.54    | 20 novembre 2026  | Les champs vierges en trois groupes, et qui remplit chaque champ dit en couleur (`MOD-09`, `MOD-03`) ; l'éditeur prévient d'une fiche sans titre (`MOD-03`) ; « Aperçu réel » (`MOD-06`) |
 | 0.55    | 20 novembre 2026  | Demande de l'utilisateur, qui trouvait les réglages trop complexes : chaque élément vierge fixe qui remplit le champ, sa correction et son rôle, et il ne reste que trois cases à cocher (`MOD-03` à `MOD-06`, `MOD-09`) ; la barre d'émojis est retirée (`EDI-06`) |
+| 0.56    | 20 novembre 2026  | La barre des onglets ne défile plus d'un pixel en hauteur (`MOD-03`) ; version 2.0.1 pour la production |

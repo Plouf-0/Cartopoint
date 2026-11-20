@@ -10,7 +10,8 @@ import { studentBackend } from '../backends/student.js';
 import { card, el, field, onSubmit, show } from '../compte/ui.js';
 import { Progress, openDb } from '../db.js';
 import { reportIncident } from '../incident.js';
-import { normalizeProgress, normalizeProject, placedPos } from '../model.js';
+import { missingRequired, normalizeProgress, normalizeProject, placedPos } from '../model.js';
+import { answersWord } from '../fields.js';
 import { onRender, render } from '../render.js';
 import { S, activate, flush, listed, posOf, switchMap, useBackend } from '../store.js';
 import { applyTheme } from '../themes.js';
@@ -130,7 +131,7 @@ async function loadWork(project) {
   const work = {};
   for (const map of project.maps) {
     const saved = await Progress.get(`${project.id}/${map.id}`);
-    if (saved) work[map.id] = normalizeProgress(saved);
+    if (saved) work[map.id] = normalizeProgress(saved, project.template);
   }
   return work;
 }
@@ -236,8 +237,10 @@ async function closeAtEnd() {
 
 async function finish() {
   const missing = unplacedCount();
-  const warning = missing ? `${missing} fiche(s) ne sont pas placée(s).\n\n` : '';
-  if (!confirm(`${warning}Terminer ? Vos placements et vos mesures seront figés, puis envoyés à l'enseignant.`)) return;
+  const required = missingRequired(S.project, S.progress);
+  const warning =
+    (missing ? `${missing} fiche(s) ne sont pas placée(s).\n\n` : '') + (required ? `${required} réponse(s) obligatoire(s) manquent encore.\n\n` : '');
+  if (!confirm(`${warning}Terminer ? Vos placements et vos ${answersWord(S.project.template)} seront figés, puis envoyés à l'enseignant.`)) return;
   await flush();
   submission = { answers: currentAnswers(), finishedAt: new Date().toISOString() };
   S.finished = true;

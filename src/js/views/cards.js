@@ -1,10 +1,11 @@
 /**
  * Morceaux d'interface partagés par le panneau élèves et le panneau gestion :
- * vignette, cases de mesures, clics sur une fiche.
+ * vignette, cases de réponse, clics sur une fiche.
  */
 import { esc, $$ } from '../util.js';
-import { S, byId, entryOf, stamped, mediaURL, changedProgress } from '../store.js';
-import { MEASURES, thumbOf, titleOf } from '../model.js';
+import { S, byId, entryOf, stamped, mediaURL, changedProgress, courseTemplate } from '../store.js';
+import { thumbOf, titleOf } from '../model.js';
+import { answerOf, cardAnswersHTML } from './fields-html.js';
 import { iconSVG } from '../themes.js';
 import { openFiche } from './fiche.js';
 import { openPhoto } from './viewer.js';
@@ -26,17 +27,11 @@ export async function hydrateThumbs(root) {
   }
 }
 
-/** Les trois cases de mesures (température, hygrométrie, éclairement) d'une fiche. */
-export function measuresHTML(f) {
-  const e = entryOf(f) || {};
-  return `<div class="card-measures">${MEASURES.map(
-    ([k, icon, unit, label, mode]) =>
-      `<label title="${label} (${unit})"><span aria-hidden="true">${icon}</span><input data-measure="${k}" data-id="${esc(f.id)}" inputmode="${mode}" value="${esc(e[k])}" ${S.finished ? 'disabled' : ''} placeholder="—" aria-label="${label} en ${unit}, ${esc(titleOf(f))}"><em>${unit}</em></label>`
-  ).join('')}</div>`;
-}
+/** Les cases de réponse d'une fiche dans la liste : les questions courtes du modèle marquées « dans la liste » (des mesures, par exemple). */
+export const measuresHTML = (f) => cardAnswersHTML(courseTemplate(), f, entryOf(f), { disabled: S.finished, title: titleOf(f, courseTemplate()) });
 
 export function bindMeasures(root) {
-  for (const input of $$('[data-measure]', root)) {
+  for (const input of $$('[data-answer]', root)) {
     // Sans cela, sélectionner le texte d'une case déclencherait le glisser-déposer de la fiche.
     const card = input.closest('[draggable]');
     input.addEventListener('pointerdown', () => {
@@ -45,10 +40,11 @@ export function bindMeasures(root) {
       card.setAttribute('draggable', 'false');
     });
     input.addEventListener('blur', () => card?.dataset.wasDraggable && card.setAttribute('draggable', card.dataset.wasDraggable));
-    input.addEventListener('input', () => {
+    input.addEventListener(input.matches('select') ? 'change' : 'input', () => {
       const f = byId(input.dataset.id);
       if (!f) return;
-      stamped(entryOf(f, true))[input.dataset.measure] = input.value.trim();
+      const field = courseTemplate().fields.find((x) => x.id === input.dataset.answer);
+      stamped(entryOf(f, true))[field.id] = answerOf(field, input);
       changedProgress();
     });
     input.addEventListener('keydown', (e) => e.key === 'Enter' && input.blur());

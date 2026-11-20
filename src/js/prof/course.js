@@ -9,7 +9,8 @@ import { onRender, render } from '../render.js';
 import { S, activate, changedMap, fiches, flush, hasPendingChanges, hasUnsentChanges, storeMapImage, useBackend } from '../store.js';
 import { applyTheme } from '../themes.js';
 import { $, errorText, fatal, pickFile, toast } from '../util.js';
-import { setProjectTab } from '../views/admin/index.js';
+import { setProjectTab, setTemplateTab } from '../views/admin/index.js';
+import * as templateTab from './template-tab.js';
 import { bindEditor } from '../views/editor.js';
 import { bindMap, renderMap } from '../views/map.js';
 import { renderPanel } from '../views/panel.js';
@@ -80,6 +81,9 @@ async function start() {
   S.admin = true;
   S.teacherSpace = true;
   setProjectTab('Cours', courseTab);
+  setTemplateTab('Modèle de fiche', templateTab);
+  // Un cours qui vient d'être créé s'ouvre sur son modèle de fiche, à compléter (4.2)
+  if (location.hash === '#modele') S.ui.tab = 'modele';
   $('#publishTop').onclick = courseTab.publishCourse;
 
   let course;

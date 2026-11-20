@@ -4,6 +4,7 @@
 import { $, esc, toast } from '../../util.js';
 import { S, changedMeta } from '../../store.js';
 import { DEFAULT_TITLE } from '../../model.js';
+import { answersWord, questionFields, questionNames } from '../../fields.js';
 import { render } from '../../render.js';
 import { saveProject, exportStudentVersion, openProjectFile, startNewProject, canBuildStandalone } from '../../project-io.js';
 
@@ -37,7 +38,7 @@ export function html() {
       <h3>Version pour les élèves</h3>
       <p>Sans les fiches masquées. ${standalone ? "Envoyez le fichier par l'ENT ou sur clé USB." : ''}</p>
       <label class="check light"><input type="checkbox" id="optClearPos" checked> Effacer les placements déjà faits</label>
-      <label class="check light"><input type="checkbox" id="optClearMeasures"> Effacer les mesures (température, hygrométrie, éclairement)</label>
+      ${questionFields(S.project.template).length ? `<label class="check light"><input type="checkbox" id="optClearMeasures"> Effacer les ${answersWord(S.project.template)} (${esc(questionNames(S.project.template))})</label>` : ''}
       <button type="button" class="btn soft block" id="exportStudents">Télécharger la version élèves</button>
     </div>
 
@@ -60,7 +61,8 @@ export function bind() {
   };
   $('#saveHtml')?.addEventListener('click', () => saveProject('html'));
   $('#saveJson').onclick = () => saveProject('json');
-  $('#exportStudents').onclick = () => exportStudentVersion({ clearPositions: $('#optClearPos').checked, clearMeasures: $('#optClearMeasures').checked });
+  $('#exportStudents').onclick = () =>
+    exportStudentVersion({ clearPositions: $('#optClearPos').checked, clearMeasures: Boolean($('#optClearMeasures')?.checked) });
   $('#openProject').onchange = async (e) => {
     const file = e.target.files[0];
     e.target.value = '';

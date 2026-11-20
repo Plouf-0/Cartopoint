@@ -625,7 +625,7 @@ test('un QR code resté ouvert se ferme quand le cours se termine', async (t) =>
 test('COU-01 : sans publication, le bouton de lancement est bloqué et dit pourquoi', async (t) => {
   const { teacher } = await setup(t);
   await teacher.getByLabel('Nom du nouveau cours').fill('Brouillon');
-  await teacher.getByRole('button', { name: 'Créer le cours' }).click();
+  await teacher.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
   await teacher.locator('#planChoose').waitFor();
   await teacher.getByRole('tab', { name: 'Cours' }).click();
   assert.equal(await teacher.getByRole('button', { name: 'Lancer le cours' }).isDisabled(), true);
@@ -834,7 +834,7 @@ test('HOR-08 : terminer demande confirmation, envoie les réponses, et l’ensei
   const page = await student(t, site);
   await enter(page, code);
   await placeFirstFiche(page);
-  await page.locator('[data-measure="temperature"]').first().fill('21');
+  await page.locator('[data-answer="temperature"]').first().fill('21');
   await teacher.locator('.participants li', { hasText: NAMES }).getByText('A commencé').waitFor({ timeout: 8000 });
 
   // Annuler ne change rien
@@ -877,7 +877,7 @@ test('HOR-06 : une fois terminé, plus rien ne bouge : ni placement, ni mesure, 
   const page = await student(t, site);
   await enter(page, code);
   await placeFirstFiche(page);
-  await page.locator('[data-measure="temperature"]').first().fill('21');
+  await page.locator('[data-answer="temperature"]').first().fill('21');
   await finish(page);
   await received(page);
 
@@ -885,8 +885,8 @@ test('HOR-06 : une fois terminé, plus rien ne bouge : ni placement, ni mesure, 
     assert.equal(await page.locator('[data-place]').count(), 0, 'plus de bouton pour placer');
     await page.locator('.label', { hasText: 'Laurier' }).getByText('Non placée').waitFor();
     assert.equal(await page.locator('.label', { hasText: 'Laurier' }).getAttribute('draggable'), 'false');
-    assert.equal(await page.locator('[data-measure="temperature"]').first().isDisabled(), true);
-    assert.equal(await page.locator('[data-measure="temperature"]').first().inputValue(), '21', 'on peut encore relire ses mesures');
+    assert.equal(await page.locator('[data-answer="temperature"]').first().isDisabled(), true);
+    assert.equal(await page.locator('[data-answer="temperature"]').first().inputValue(), '21', 'on peut encore relire ses mesures');
     assert.equal(await page.getByRole('button', { name: 'Terminer', exact: true }).count(), 0);
 
     const pin = page.locator('.pin').first();
@@ -1121,13 +1121,15 @@ test('CRG-09 : publier mesure le plan, et le serveur calcule l’écart avec ses
   const { site, teacher } = await setup(t);
   // Un plan quatre fois plus large que haut, et une position réelle au centre
   await teacher.getByLabel('Nom du nouveau cours').fill('Plan large');
-  await teacher.getByRole('button', { name: 'Créer le cours' }).click();
+  await teacher.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
   const chooser = teacher.waitForEvent('filechooser');
   await teacher.locator('#planChoose').click();
   await (await chooser).setFiles({ name: 'plan.png', mimeType: 'image/png', buffer: makePng(400, 100) });
   await teacher.locator('#plan[src^="/media/"]').waitFor();
+  // Un cours créé s'ouvre sur son modèle de fiche (MOD-07)
+  await teacher.getByRole('tab', { name: 'Fiches' }).click();
   await teacher.locator('#newFiche').click();
-  await teacher.locator('#eCommon').fill('Olivier');
+  await teacher.locator('#e-titre').fill('Olivier');
   await teacher.locator('#eSave').click();
   await teacher.locator('#dlgEdit').waitFor({ state: 'hidden' });
   await teacher.locator('.row', { hasText: 'Olivier' }).locator('[data-place-ref]').click();
@@ -1167,7 +1169,7 @@ test('CRG-09 : publier mesure le plan, et le serveur calcule l’écart avec ses
 test('un plan qui ne se charge plus bloque la publication et le dit', async (t) => {
   const { teacher } = await setup(t);
   await teacher.getByLabel('Nom du nouveau cours').fill('Plan cassé');
-  await teacher.getByRole('button', { name: 'Créer le cours' }).click();
+  await teacher.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
   const chooser = teacher.waitForEvent('filechooser');
   await teacher.locator('#planChoose').click();
   await (await chooser).setFiles({ name: 'plan.png', mimeType: 'image/png', buffer: PNG });

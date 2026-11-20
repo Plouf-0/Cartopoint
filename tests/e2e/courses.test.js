@@ -46,9 +46,17 @@ const answerDialogs = (page, ...answers) => {
   return received;
 };
 
+/**
+ * Un cours aux fiches botaniques, comme ceux d'avant la version 2.0.0 : ces tests vérifient les fiches, pas la création
+ * d'un cours (voir tests/e2e/template-editor.test.js). Créé par l'API, sans modèle : il reçoit le modèle botanique (MOD-02).
+ */
 async function createCourse(page, title = 'Sortie au parc') {
-  await page.getByLabel('Nom du nouveau cours').fill(title);
-  await page.getByRole('button', { name: 'Créer le cours' }).click();
+  const course = await page.evaluate(async (title) => {
+    const draft = { format: 'inventaire-botanique', version: 3, title, theme: {}, maps: [{ id: 'm1', name: 'Plan', image: '', fiches: [] }] };
+    const response = await fetch('/api/courses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ draft }) });
+    return response.json();
+  }, title);
+  await page.goto(`/prof/cours/${course.id}`);
   await page.locator('#planChoose').waitFor();
 }
 
@@ -61,7 +69,7 @@ async function choosePlan(page) {
 
 async function addFiche(page, name, { photo = false } = {}) {
   await page.locator('#newFiche').click();
-  await page.locator('#eCommon').fill(name);
+  await page.locator('#e-common').fill(name);
   if (photo) {
     await page.locator('#eFiles').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
     await page.locator('#eGallery img[src^="/media/"]').waitFor();
@@ -137,7 +145,7 @@ test('ENS-02 : modifier une fiche, retirer sa photo et la supprimer s’enregist
   const id = onlyCourse(site).id;
 
   await page.locator('[data-edit]').click();
-  await page.locator('#eCommon').fill('Olivier de Bohême');
+  await page.locator('#e-common').fill('Olivier de Bohême');
   await page.locator('[data-media-del]').click();
   await page.locator('#eGallery .empty-box').waitFor();
   await page.locator('#eSave').click();
@@ -238,7 +246,7 @@ test('EDI-02 : annuler une fiche ne laisse rien dans le cours', async (t) => {
   const { site, page } = await setup(t);
   await createCourse(page);
   await page.locator('#newFiche').click();
-  await page.locator('#eCommon').fill('Abandonnée');
+  await page.locator('#e-common').fill('Abandonnée');
   await page.locator('#eFiles').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
   await page.locator('#eGallery img[src^="/media/"]').waitFor();
   await page.locator('#dlgEdit [data-close]').first().click();
@@ -314,7 +322,7 @@ test('LEG-01 : une grande photo est réduite à 1280 px, le plan à 2600 px', as
   assert.deepEqual(await naturalSize('#plan'), [2600, 1625]);
 
   await page.locator('#newFiche').click();
-  await page.locator('#eCommon').fill('Olivier');
+  await page.locator('#e-common').fill('Olivier');
   await page.locator('#eFiles').setInputFiles({ name: 'photo.jpg', mimeType: 'image/jpeg', buffer });
   await page.locator('#eGallery img[src^="/media/"]').waitFor();
   assert.deepEqual(await naturalSize('#eGallery img'), [1280, 800]);
@@ -327,7 +335,7 @@ test('LEG-01 : une petite photo reste telle quelle, et une recompression qui l�
   const { site, page } = await setup(t);
   await createCourse(page);
   await page.locator('#newFiche').click();
-  await page.locator('#eCommon').fill('Olivier');
+  await page.locator('#e-common').fill('Olivier');
   await page.locator('#eFiles').setInputFiles({ name: 'petite.png', mimeType: 'image/png', buffer: PNG });
   await page.locator('#eGallery img[src^="/media/"]').waitFor();
   assert.equal(site.db.prepare('SELECT size FROM media').get().size, PNG.length, 'sous le seuil : elle n’est pas retouchée');
@@ -358,7 +366,7 @@ test('LEG-03 : une vidéo part sur le serveur telle quelle, et un fichier refus�
   await watchVideoReads(page);
   await createCourse(page);
   await page.locator('#newFiche').click();
-  await page.locator('#eCommon').fill('Olivier');
+  await page.locator('#e-common').fill('Olivier');
   await page.locator('#eFiles').setInputFiles([
     { name: 'video.mp4', mimeType: 'video/mp4', buffer: MP4 },
     { name: 'piege.png', mimeType: 'image/png', buffer: Buffer.from('<svg onload="alert(1)"/>') }
@@ -374,7 +382,7 @@ test('tant qu’un fichier est en route, la fiche ne peut pas être enregistrée
   const { page } = await setup(t);
   await createCourse(page);
   await page.locator('#newFiche').click();
-  await page.locator('#eCommon').fill('Olivier');
+  await page.locator('#e-common').fill('Olivier');
   let release;
   const held = new Promise((resolve) => (release = resolve));
   await page.route('**/api/media', async (route) => {
@@ -419,14 +427,14 @@ test('une fiche fermée pendant un envoi garde son fichier pour elle : la fiche 
   const finishUpload = await closeDuringUpload(page, 'Fiche A');
 
   await page.locator('.row', { hasText: 'Fiche B' }).locator('h3').click();
-  assert.equal(await page.locator('#eCommon').inputValue(), 'Fiche B');
+  assert.equal(await page.locator('#e-common').inputValue(), 'Fiche B');
   assert.equal(await page.locator('#eSave').isEnabled(), true, 'cette fiche n’attend aucun envoi');
   assert.equal(await page.locator('#uploadStatus').textContent(), '');
   await finishUpload();
   assert.equal(await page.locator('#eGallery figure').count(), 0, 'le fichier ne va pas à une autre fiche');
   assert.equal(await page.locator('#eSave').isEnabled(), true);
 
-  await page.locator('#eDesc').fill('Modifiée');
+  await page.locator('#e-description').fill('Modifiée');
   await page.locator('#eSave').click();
   await page.locator('#saveState', { hasText: '✓ Enregistré' }).waitFor();
   const { fiches } = draftInDb(site, onlyCourse(site).id).maps[0];
@@ -778,7 +786,7 @@ test('une session expirée sur la liste ramène à la connexion', async (t) => {
   const { site, page } = await setup(t);
   await page.getByLabel('Nom du nouveau cours').fill('Trop tard');
   site.db.exec('DELETE FROM sessions');
-  await page.getByRole('button', { name: 'Créer le cours' }).click();
+  await page.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
   await heading(page, 'Espace enseignant');
 });
 
@@ -864,6 +872,59 @@ test('COM-01 : importer un fichier .html, et un ancien projet en version 2', asy
   const draft = JSON.parse(site.db.prepare("SELECT draft FROM courses WHERE title = 'Ancien projet'").get().draft);
   assert.equal(draft.maps[0].fiches[0].common, 'Chêne');
   assert.equal(draft.maps[0].fiches[0].x, undefined);
+});
+
+test('MOD-01, CHP-05 : un cours importé garde son modèle, et le formulaire le suit, sans les questions, que seuls les élèves remplissent', async (t) => {
+  const { site, page } = await setup(t);
+  const template = {
+    name: 'Roches',
+    fields: [
+      { id: 'c-roche', type: 'text', label: 'Roche', audience: 'info', role: 'title', search: true },
+      { id: 'c-durete', type: 'scale', label: 'Dureté', audience: 'info', max: 5 },
+      { id: 'h-q', type: 'heading', label: 'Sur place' },
+      {
+        id: 'c-couleur',
+        type: 'choice',
+        label: 'Couleur',
+        audience: 'question',
+        check: 'none',
+        list: true,
+        choices: [
+          { id: 'gris', label: 'Gris' },
+          { id: 'rouge', label: 'Rouge' }
+        ]
+      },
+      { id: 'h-fin', type: 'heading', label: '' },
+      { id: 'c-savant', type: 'text', label: 'Nom savant', audience: 'correction' }
+    ]
+  };
+  const fiche = { id: 'f1', 'c-roche': 'Granite', 'c-durete': 4, 'c-savant': 'Granitoïde', refX: 10, refY: 20, media: [] };
+  await importFile(
+    page,
+    'roches.json',
+    JSON.stringify(projectFile({ title: 'Roches', template, maps: [{ id: 'm1', name: 'Carrière', image: PNG_URL, fiches: [fiche] }] }))
+  );
+  await page.locator('.course-row', { hasText: 'Roches' }).waitFor();
+  assert.deepEqual(JSON.parse(onlyCourse(site).draft).template, template);
+
+  await page.locator('.course-row').getByRole('link', { name: 'Ouvrir' }).click();
+  await page.locator('.row h3', { hasText: 'Granite' }).waitFor();
+  assert.equal(await page.locator('[data-answer]').count(), 0, 'EDI-10 : pas de case de réponse');
+  await page.locator('#adminSearch').fill('grani');
+  await page.locator('.row', { hasText: 'Granite' }).waitFor();
+  await page.locator('[data-edit]').click();
+  assert.equal(await page.locator('#e-c-roche').inputValue(), 'Granite');
+  assert.equal(await page.locator('#e-c-durete').inputValue(), '4');
+  assert.equal(await page.locator('#e-c-couleur').count(), 0);
+  assert.equal(await page.locator('#dlgEdit').getByText('Sur place').count(), 0, 'un intertitre qui ne garde que des questions disparaît');
+  assert.equal(await page.locator('label[for="e-c-savant"] .aud').textContent(), 'Révélé à la correction');
+  await page.locator('#e-c-durete').selectOption('5');
+  await page.locator('#e-c-savant').fill('Roche plutonique');
+  await page.locator('#eSave').click();
+  await saved(page);
+  const stored = JSON.parse(onlyCourse(site).draft).maps[0].fiches[0];
+  assert.equal(stored['c-durete'], 5);
+  assert.equal(stored['c-savant'], 'Roche plutonique');
 });
 
 test('PRI-07 : un fichier qui n’est pas un projet s’explique, et un fichier refusé ne fait pas tout échouer', async (t) => {
@@ -1031,12 +1092,13 @@ test('EDI-10 : ni séance, ni mesures, ni mot de passe de gestion dans l’espac
   await addFiche(page, 'Olivier');
   assert.equal(await page.locator('#modeBtn, #studentsBox, #dlgLogin').count(), 0);
   assert.equal(await page.getByText('Séance en cours').count(), 0);
-  assert.equal(await page.locator('[data-measure]').count(), 0);
+  assert.equal(await page.locator('[data-answer]').count(), 0);
   assert.equal(await page.locator('#compare, #newSession').count(), 0);
 
   await page.locator('[data-edit]').click();
-  assert.equal(await page.getByText('Mesures de terrain').count(), 0);
-  assert.equal(await page.locator('#eTemp, #eHumidity, #eLight').count(), 0);
+  await page.locator('#e-common').waitFor();
+  assert.equal(await page.locator('#dlgEdit').getByText('Vos mesures').count(), 0, 'les questions ne sont pas dans la fiche');
+  assert.equal(await page.locator('#e-temperature, #e-humidity, #e-light').count(), 0);
   await page.locator('#dlgEdit [data-close]').first().click();
 
   await tab(page, 'Réglages');
@@ -1164,15 +1226,15 @@ test('EV-34 : l’espace enseignant s’appelle Cartopoint, garde le vert par d�
   await noBotany('liste des cours');
   assert.match(await page.title(), /Cartopoint/);
 
-  // Un cours créé sans nom reçoit les valeurs par défaut
-  await page.getByRole('button', { name: 'Créer le cours' }).click();
+  // Un cours créé sans nom reçoit les valeurs par défaut, et un modèle de fiche sans matière (Q-E)
+  await page.getByRole('button', { name: 'Créer le modèle de fiche' }).click();
   await page.locator('#planChoose').waitFor();
   assert.equal(await page.locator('#pageTitle').textContent(), 'Cartopoint');
   assert.equal(await page.locator('#mapName').textContent(), 'Plan');
   assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--accent')), '#2e6e45');
   assert.equal(await page.locator('.brand-mark circle').count(), 1, 'l’icône est un repère, plus une feuille');
 
-  for (const name of ['Fiches', 'Cartes', 'Cours', 'Réglages']) {
+  for (const name of ['Fiches', 'Modèle de fiche', 'Cartes', 'Cours', 'Réglages']) {
     await tab(page, name);
     await noBotany(`onglet ${name}`);
   }
@@ -1192,14 +1254,14 @@ test('POS-03 : cliquer sur un repère du plan ouvre sa fiche pour la modifier', 
   await placeOnPlan(page, 'Olivier');
   await page.locator('.pin.ref').click();
   await page.locator('#dlgEdit').waitFor();
-  assert.equal(await page.locator('#eCommon').inputValue(), 'Olivier');
+  assert.equal(await page.locator('#e-common').inputValue(), 'Olivier');
 });
 
 test('CON-04 : la visionneuse montre les photos du serveur, et passe de l’une à l’autre', async (t) => {
   const { page } = await setup(t);
   await createCourse(page);
   await page.locator('#newFiche').click();
-  await page.locator('#eCommon').fill('Olivier');
+  await page.locator('#e-common').fill('Olivier');
   await page.locator('#eFiles').setInputFiles([
     { name: 'a.png', mimeType: 'image/png', buffer: makePng(40, 20) },
     { name: 'b.png', mimeType: 'image/png', buffer: makePng(30, 20) }

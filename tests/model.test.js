@@ -13,6 +13,7 @@ import {
   newProject,
   defaultTemplate,
   titleOf,
+  missingRequired,
   matches,
   FORMAT,
   VERSION
@@ -135,7 +136,11 @@ test('COU-02 : le contenu d’un cours ne garde ni progression, ni carte affich�
     progress: { m1: { verified: true, entries: {} } }
   });
   const draft = draftOf(project);
-  assert.deepEqual(Object.keys(draft).sort(), ['format', 'maps', 'template', 'theme', 'title', 'version'], 'MOD-01 : le modèle part avec le cours');
+  assert.deepEqual(
+    Object.keys(draft).sort(),
+    ['format', 'grading', 'maps', 'template', 'theme', 'title', 'version'],
+    'MOD-01 : le modèle et la notation partent avec le cours'
+  );
   assert.equal(draft.maps.length, 2);
   assert.doesNotThrow(() => normalizeProject(draft), 'il se relit');
 });
@@ -166,7 +171,7 @@ test('EV-34 : les fichiers existants gardent leur nom, leur thème et leur icôn
 });
 
 test('CRG-13 : l’heure d’une réponse survit à la relecture, et seul un vrai nombre compte', () => {
-  const { entries } = normalizeProgress({ entries: { a: { x: 1, y: 2, at: 1000 }, b: { x: 1, y: 2, at: 'hier' }, c: { x: 1, y: 2 } } });
+  const { entries } = normalizeProgress({ entries: { a: { x: 1, y: 2, at: 1000 }, b: { x: 1, y: 2, at: 'hier' }, c: { x: 1, y: 2 } } }, defaultTemplate());
   assert.equal(entries.a.at, 1000);
   assert.equal(entries.b.at, undefined);
   assert.equal('at' in entries.c, false);
@@ -199,7 +204,8 @@ test('HIS-03 : la précision moyenne passe en mètres selon l’échelle de la c
 const LU_EN_137 = JSON.parse(readFileSync(new URL('./fixtures/cours-format-3.lu-en-1.3.7.json', import.meta.url), 'utf8'));
 const QUERIES = ['', 'tama', 'OLEA', 'oleaceae', '12B', 'chêne', 'emplacement', 'sableux'];
 const plain = (value) => JSON.parse(JSON.stringify(value));
-const withoutVersion = ({ version, template, ...rest }) => rest;
+/** Ce que la version 2.0.0 ajoute : le modèle de fiche (MOD-01) et la notation (QST-05). */
+const withoutVersion = ({ version, template, grading, ...rest }) => rest;
 
 test('MOD-02 : un cours de format 3 se lit avec le modèle botanique, exactement comme en 1.3.7', () => {
   const project = normalizeProject(structuredClone(COURS_FORMAT_3));
@@ -209,9 +215,9 @@ test('MOD-02 : un cours de format 3 se lit avec le modèle botanique, exactement
   const views = project.maps.map((map) =>
     map.fiches.map((fiche) => ({
       id: fiche.id,
-      title: titleOf(fiche),
+      title: titleOf(fiche, project.template),
       number: numberOf(map, fiche),
-      found: QUERIES.filter((query) => matches(fiche, query)),
+      found: QUERIES.filter((query) => matches(fiche, query, project.template)),
       ev: evaluate(fiche, project.progress[map.id]?.entries[fiche.id], { ratio: map.ratio || 1, widthMeters: map.widthMeters })
     }))
   );
@@ -313,4 +319,42 @@ test('MOD-01 : un cours garde son modèle, et chaque fiche la valeur de chacun d
 test('MOD-01 : un modèle invalide rend le fichier illisible, avec la raison', () => {
   const broken = { format: FORMAT, version: 4, template: { fields: [{ id: 'visible', type: 'text', label: 'Piège', audience: 'info' }] }, maps: [] };
   assert.throws(() => normalizeProject(broken), /modèle de fiche invalide : champ 1 : identifiant invalide/);
+});
+
+test('QST-06 : on compte les réponses obligatoires qui manquent, sur les fiches visibles seulement', () => {
+  const template = {
+    fields: [
+      { id: 'a', type: 'text', label: 'A', audience: 'question', required: true },
+      {
+        id: 'b',
+        type: 'choice',
+        label: 'B',
+        audience: 'question',
+        required: true,
+        multiple: true,
+        choices: [
+          { id: 'x', label: 'X' },
+          { id: 'y', label: 'Y' }
+        ]
+      },
+      { id: 'c', type: 'text', label: 'C', audience: 'question' }
+    ]
+  };
+  const project = {
+    template,
+    maps: [
+      {
+        id: 'm1',
+        fiches: [
+          { id: 'f1', visible: true },
+          { id: 'f2', visible: true },
+          { id: 'cachee', visible: false }
+        ]
+      }
+    ]
+  };
+  assert.equal(missingRequired(project, {}), 4);
+  assert.equal(missingRequired(project, { m1: { entries: { f1: { a: 'oui', b: [] }, f2: { a: '', b: ['x'], c: '' } } } }), 2, 'un choix vide manque aussi');
+  assert.equal(missingRequired(project, { m1: { entries: { f1: { a: 'oui', b: ['y'] }, f2: { a: 'non', b: ['x'] } } } }), 0);
+  assert.equal(missingRequired(normalizeProject(structuredClone(COURS_FORMAT_3)), {}), 0, 'les mesures ne sont pas obligatoires');
 });

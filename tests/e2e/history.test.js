@@ -34,7 +34,7 @@ before(async () => {
 });
 after(() => browser.close());
 
-async function setup(t, { maps, viewport } = {}) {
+async function setup(t, { maps, viewport, template, grading } = {}) {
   const site = await startSite(t);
   addAccount(site.db, { email: TEACHER.email, hash: cheapHash(TEACHER.password) });
   const api = client(site.base);
@@ -50,9 +50,11 @@ async function setup(t, { maps, viewport } = {}) {
   const fiche = (id, common, refX, refY) => ({ id, common, visible: true, refX, refY, media: [] });
   const draft = {
     format: 'inventaire-botanique',
-    version: 3,
+    version: template ? 4 : 3,
     title: 'Sortie au parc',
     theme: {},
+    ...(template ? { template } : {}),
+    ...(grading ? { grading } : {}),
     maps: maps?.(plan, fiche) ?? [
       { id: 'm1', name: 'Parc', image: plan, widthMeters: 100, fiches: [fiche('f1', 'Noisetier', 40, 60), fiche('f2', 'Sureau', 10, 60)] }
     ]
@@ -394,7 +396,7 @@ async function studentOffline(t, site, launch, names = 'Léa Dupont') {
   await page.getByLabel(/Votre prénom et votre nom/).fill(names);
   await page.getByRole('button', { name: 'Commencer' }).click();
   await page.locator('.label').first().waitFor();
-  await page.locator('[data-measure="temperature"]').first().fill('21');
+  await page.locator('[data-answer="temperature"]').first().fill('21');
   await page.waitForTimeout(300);
   await page.route('**/api/student/answers', (route) => route.abort());
   page.once('dialog', (dialog) => dialog.accept());
@@ -490,4 +492,120 @@ test('HIS-06 : le bouton d’import ouvre bien le choix de fichier', async (t) =
   const chooser = teacher.waitForEvent('filechooser');
   await teacher.getByRole('button', { name: 'Importer un fichier de réponses' }).click();
   await chooser;
+});
+
+/* --- QST-04 : corriger les réponses --- */
+
+const QUIZ = {
+  fields: [
+    { id: 'common', type: 'text', label: 'Arbre', audience: 'info', role: 'title' },
+    { id: 'c-avis', type: 'longtext', label: 'Votre avis', audience: 'question' },
+    { id: 'c-nom', type: 'text', label: 'Quel arbre ?', audience: 'question', check: 'auto' }
+  ]
+};
+
+test('QST-04 : l’enseignant corrige les réponses, question par question ou élève par élève, et la liste recompte', async (t) => {
+  const { site, teacher, launch, openLaunch } = await setup(t, {
+    template: QUIZ,
+    maps: (plan, fiche) => [
+      {
+        id: 'm1',
+        name: 'Parc',
+        image: plan,
+        widthMeters: 100,
+        fiches: [{ ...fiche('f1', 'Noisetier', 40, 60), expected: { 'c-nom': ['Noisetier'] } }, fiche('f2', 'Sureau', 10, 60)]
+      }
+    ]
+  });
+  await handIn(site, await join(site, launch, 'Léa'), {
+    f1: { x: 40, y: 60, 'c-avis': 'Il est <b>beau</b>', 'c-nom': 'noisettier' },
+    f2: { x: null, y: null, 'c-avis': 'Petit' }
+  });
+  await handIn(site, await join(site, launch, 'Tom'), { f1: { x: 40, y: 60, 'c-nom': 'Noisetier' } });
+  await openLaunch();
+  await row(teacher, 'Léa')
+    .getByText(/questions : 0 juste\(s\), 2 fausse\(s\), 2 à corriger$/)
+    .waitFor();
+  await row(teacher, 'Tom')
+    .getByText(/questions : 1 juste\(s\), 3 fausse\(s\)$/)
+    .waitFor();
+
+  await teacher.getByRole('button', { name: 'Corriger les réponses' }).click();
+  const dialog = teacher.locator('dialog.review-dialog');
+  assert.equal(await dialog.locator('#reviewQuestion').inputValue(), 'c-avis', 'la première question corrigée');
+  const rows = dialog.locator('.review-row');
+  assert.deepEqual(await rows.locator('.review-where').allTextContents(), ['Léa · 1. Noisetier', 'Léa · 2. Sureau'], 'seulement ce qui reste à corriger');
+  assert.equal(await rows.first().locator('.review-answer').textContent(), 'Il est <b>beau</b>', 'SEC-04 : du texte, jamais du code');
+  await rows.first().getByRole('button', { name: 'À moitié juste' }).click();
+  await dialog.locator('.review-where', { hasText: 'Noisetier' }).waitFor({ state: 'detached' });
+  await row(teacher, 'Léa')
+    .getByText(/questions : 0 juste\(s\), 1 à moitié, 2 fausse\(s\), 1 à corriger$/)
+    .waitFor();
+
+  await dialog.getByRole('button', { name: 'Par élève' }).click();
+  await dialog.locator('#reviewStudent').selectOption({ label: 'Léa' });
+  await dialog.locator('#reviewTodo').uncheck();
+  assert.equal(await rows.count(), 4, '2 fiches, 2 questions corrigées');
+  const nom = rows.filter({ hasText: '1. Noisetier · Quel arbre ?' });
+  assert.equal(await nom.locator('.verdict').textContent(), 'Faux · par le serveur');
+  assert.equal(await nom.locator('.hint').textContent(), 'Bonne réponse : Noisetier');
+  assert.equal(await nom.getByRole('textbox').isDisabled(), true, 'un commentaire accompagne un verdict');
+  await nom.getByRole('button', { name: 'Juste', exact: true }).click();
+  await nom.locator('.verdict', { hasText: 'Juste · par vous' }).waitFor();
+  await nom.getByRole('textbox').fill('Une faute de frappe.');
+  await nom.getByRole('textbox').press('Tab');
+  await row(teacher, 'Léa')
+    .getByText(/questions : 1 juste\(s\), 1 à moitié, 1 fausse\(s\), 1 à corriger$/)
+    .waitFor();
+  await teacher.waitForTimeout(300);
+  assert.deepEqual(JSON.parse(participant(site, 'Léa').reviews).m1.f1, {
+    'c-avis': { verdict: 'half' },
+    'c-nom': { verdict: 'ok', comment: 'Une faute de frappe.' }
+  });
+
+  await nom.getByRole('button', { name: 'Rendre au serveur' }).click();
+  await nom.locator('.verdict', { hasText: 'Faux · par le serveur' }).waitFor();
+  assert.deepEqual(JSON.parse(participant(site, 'Léa').reviews).m1.f1, { 'c-avis': { verdict: 'half' } });
+});
+
+test('QST-05, HIS-09 : la page du lancement et le compte rendu montrent la note de chacun, provisoire tant qu’il reste à corriger, et sa notation se change après coup', async (t) => {
+  const { site, teacher, launch, openLaunch } = await setup(t, {
+    template: QUIZ,
+    grading: { mode: 'auto', max: 20, placement: true },
+    maps: (plan, fiche) => [
+      { id: 'm1', name: 'Parc', image: plan, widthMeters: 100, fiches: [{ ...fiche('f1', 'Noisetier', 40, 60), expected: { 'c-nom': ['Noisetier'] } }] }
+    ]
+  });
+  await handIn(site, await join(site, launch, 'Léa'), { f1: { x: 40, y: 60, 'c-avis': 'Beau', 'c-nom': 'Noisetier' } });
+  await openLaunch();
+  // Bien placée, nom juste, avis à corriger : 2 sur 3
+  await row(teacher, 'Léa')
+    .getByText(/note : 13,3 \/ 20 \(provisoire, 1 à corriger\)$/)
+    .waitFor();
+  await saved(teacher, () => row(teacher, 'Léa').getByRole('button', { name: 'JPG' }).click());
+  assert.ok(
+    (await teacher.evaluate(() => window.drawn.texts)).includes('Questions : 1 juste(s), 0 fausse(s), 1 à corriger · Note : 13,3 / 20 (provisoire, 1 à corriger)'),
+    'HIS-09 : le compte rendu de l’enseignant aussi'
+  );
+
+  await teacher.getByRole('button', { name: 'Notation de ce lancement' }).click();
+  const dialog = teacher.locator('dialog.grading-dialog');
+  assert.equal(await dialog.locator('#lgradingMax').inputValue(), '20');
+  await dialog.getByLabel(/Un barème/).check();
+  await dialog.getByLabel('Votre avis : points par fiche').fill('3');
+  await dialog.getByLabel('Placement : points par fiche').fill('0,5');
+  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
+  await dialog.waitFor({ state: 'detached' });
+  // Placement 0,5 + nom 1 + avis 0 (à corriger), sur 0,5 + 1 + 3
+  await row(teacher, 'Léa')
+    .getByText(/note : 1,5 \/ 4,5 \(provisoire, 1 à corriger\)$/)
+    .waitFor();
+  assert.deepEqual(JSON.parse(site.db.prepare('SELECT grading FROM launches').get().grading), { mode: 'points', points: { 'c-avis': 3 }, placement: 0.5 });
+
+  await teacher.getByRole('button', { name: 'Notation de ce lancement' }).click();
+  await dialog.getByLabel(/Sans note/).check();
+  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
+  await dialog.waitFor({ state: 'detached' });
+  await teacher.waitForTimeout(300);
+  assert.doesNotMatch(await row(teacher, 'Léa').textContent(), /note :/);
 });

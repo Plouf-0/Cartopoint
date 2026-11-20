@@ -114,7 +114,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @media (min-width: 901px) { .stage-inner { width: min(100%, calc((100dvh - 150px) * var(--ratio, 1.16))); } }
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; }
-  .panel { position: static !important; max-height: none !important; }
+  /* min-width : sans lui, une rangée d'onglets trop longue élargit toute la page au lieu de défiler en elle-même */
+  .panel { position: static !important; max-height: none !important; min-width: 0; }
 }
 
 /* 6. Carte et repères ------------------------------------------------------ */
@@ -194,6 +195,10 @@ div.photo svg { opacity: .6; }
 .card-measures input { border: 0; background: transparent; width: 100%; min-width: 0; padding: 6px 0; font-size: 14px; text-align: right; }
 .card-measures input:focus { outline: none; }
 .card-measures em { font-style: normal; font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+.card-measures.n1 { grid-template-columns: minmax(0, 1fr); }
+.card-measures.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.card-measures select { border: 0; background: transparent; width: 100%; min-width: 0; padding: 6px 0; font-size: 14px; }
+.card-measures select:focus { outline: none; }
 
 /* 8. Fiches (élèves) : étiquettes d'herbier -------------------------------- */
 .labels { display: grid; gap: 10px; }
@@ -327,6 +332,18 @@ dialog::backdrop { background: color-mix(in srgb, var(--ink) 65%, transparent); 
 .measure label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 3px; }
 .saved-note { font-size: 13px; color: var(--ok); min-height: 1.2em; margin-top: 6px; }
 @media (max-width: 560px) { .measure-grid { grid-template-columns: 1fr; } }
+.measure.wide { grid-column: 1 / -1; }
+fieldset.measure { border: 0; padding: 0; margin: 0; min-width: 0; }
+fieldset.measure legend { padding: 0; font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+.measure textarea { width: 100%; min-height: 80px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 9px; background: #fff; font: inherit; resize: vertical; }
+.measure .hint { display: block; margin-top: 3px; }
+/* Une question fermée : de gros boutons, faciles à toucher sur un téléphone */
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: #fff; cursor: pointer; font-weight: 600; }
+.choice input { margin: 0; }
+.choice:has(input:checked) { background: var(--ink); border-color: var(--ink); color: #fff; }
+.choice:has(input:disabled) { cursor: default; opacity: 0.75; }
+.choice:focus-within { outline: 3px solid var(--focus); outline-offset: 1px; }
 .prose h3 { font: 500 16px/1.2 var(--serif); margin: 14px 0 4px; }
 .prose p { margin: 0; white-space: pre-wrap; max-width: 70ch; }
 
@@ -340,6 +357,9 @@ dialog::backdrop { background: color-mix(in srgb, var(--ink) 65%, transparent); 
 .needs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
 .needs-grid .wide { grid-column: 1 / -1; }
 .needs-grid textarea { min-height: 0; resize: none; overflow: hidden; }
+/* Formulaire d'une fiche : à qui va un champ, quand ce n'est pas un renseignement pour l'élève */
+.aud { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--sand-soft); border: 1px solid var(--sand); font-size: 11px; font-weight: 600; color: var(--ink-soft); }
+.checks { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 @media (max-width: 560px) { .needs-grid { grid-template-columns: 1fr; } }
 .emoji-bar { display: flex; flex-wrap: wrap; gap: 3px; margin: 8px 0 6px; }
 .emoji-bar button { width: 34px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: #fff; font-size: 17px; line-height: 1; cursor: pointer; }
@@ -491,3 +511,52 @@ table.teachers .row-actions .btn { white-space: normal; }
 /* Figé après Terminer : on doit encore pouvoir relire ses mesures */
 .card-measures input:disabled, .measure input:disabled { color: var(--ink); -webkit-text-fill-color: var(--ink); opacity: 1; }
 .panel-foot .hint { margin: 0; }
+
+/* Onglet « Modèle de fiche » (prof/template-tab.js) */
+.tpl-summary { font-size: 13px; font-weight: 700; margin: 4px 0 10px; }
+.tpl-rows { gap: 6px; }
+.tpl-row { display: grid; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: grab; }
+.tpl-row.is-heading { background: var(--sand-soft); border-color: var(--sand); }
+.tpl-row.drop { outline: 3px solid var(--focus); outline-offset: 1px; }
+.tpl-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
+.tpl-main strong { overflow-wrap: anywhere; }
+.tpl-row .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.check-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; border: 1px solid var(--line); }
+.check-badge.auto { background: #e1f1e6; border-color: #9fcfae; color: #2e7d4f; }
+.check-badge.teacher { background: #fbefd9; border-color: #e5c27d; color: #8a5a0f; }
+.check-badge.none { background: #eef0ec; color: #55615a; }
+.field-dialog { width: min(600px, 96vw); }
+.field-dialog .form-error { flex: 1 1 100%; margin: 0; }
+.choice-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.choice-row input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+/* Aperçu : la fiche dans la largeur d'un téléphone ou d'un ordinateur */
+.preview-dialog { width: min(900px, 96vw); }
+.preview-frame { margin: 12px auto 0; border: 1px dashed var(--line); border-radius: 12px; padding: 12px; background: var(--paper); max-width: 100%; overflow-x: auto; }
+.preview-frame.phone { width: 375px; }
+.preview-frame.desktop { width: 760px; }
+.preview-frame .preview-card { margin-bottom: 14px; }
+.preview-frame .preview-fiche { position: static; max-height: none; box-shadow: none; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+/* Bonne réponse d'une question corrigée automatiquement, dans le formulaire d'une fiche (QST-01) */
+.expected-number { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.expected-number .unit-input { width: 9em; }
+.missing-expected { color: #8a5a0f; }
+/* Verdict d'une question, une fois la correction reçue (QST-03) */
+.verdict { margin: 4px 0 0; font-size: 13px; font-weight: 700; }
+.verdict.ok { color: #2e7d4f; }
+.verdict.half { color: #8a5a0f; }
+.verdict.wrong { color: #b3263e; }
+.verdict.pending { color: var(--ink-soft); font-weight: 600; }
+.answers-score { font-weight: 700; margin: 8px 0 2px; }
+/* Corriger les réponses d'un lancement (QST-04) */
+.review-choose { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 10px; }
+.review-list { display: grid; gap: 8px; }
+.review-row { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; background: var(--surface); }
+.review-row.pending { border-left-color: #e5c27d; }
+.review-row.ok { border-left-color: #9fcfae; }
+.review-row.half { border-left-color: #e5c27d; }
+.review-row.wrong { border-left-color: #e3a0ab; }
+.review-row p { margin: 0; }
+.review-where { font-size: 13px; color: var(--ink-soft); }
+.review-answer { font-weight: 700; white-space: pre-wrap; overflow-wrap: anywhere; }
+.review-row [aria-pressed="true"] { outline: 3px solid var(--focus); outline-offset: 1px; }
+.required { font-size: 11px; font-weight: 600; color: var(--ink-soft); margin-left: 4px; }

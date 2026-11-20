@@ -3,7 +3,9 @@
  * propre code (COU-06). Un élève n'a pas de compte : un jeton, gardé par son navigateur, le reconnaît.
  */
 import { AFTER_END_GRACE } from './answers.mjs';
-import { meanGap, normalizeProject, usesMeters } from '../src/js/model.js';
+import { meanGap, normalizeProject, usesMeters, visibleFiches } from '../src/js/model.js';
+import { checkOf } from '../src/js/fields.js';
+import { MAX_COMMENT, VERDICTS, answerCounts, gradingProblem, markOf, normalizeGrading } from '../src/js/verdicts.js';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { hashToken } from './auth.mjs';
 import { HttpError } from './http.mjs';
@@ -72,6 +74,8 @@ export function createLaunches(db, { makeCode = newCode, now = Date.now } = {}) 
   }
 
   const byId = (id) => db.prepare('SELECT * FROM launches WHERE id = ?').get(id);
+  /** La notation d'un lancement (QST-05) : la sienne si l'enseignant l'a changée, sinon celle de sa version. */
+  const gradingOf = (row, project) => (row.grading ? normalizeGrading(JSON.parse(row.grading), project.template) : project.grading);
 
   return {
     /** Ouvre un lancement sur la dernière version publiée. */
@@ -98,10 +102,12 @@ export function createLaunches(db, { makeCode = newCode, now = Date.now } = {}) 
     details(row) {
       const course = db.prepare('SELECT title FROM courses WHERE id = ?').get(row.course_id);
       const project = contentOf(row);
+      const grading = gradingOf(row, project);
       return {
         ...summary(row),
         title: course.title,
         gapUnit: usesMeters(project) ? 'm' : '% du plan',
+        grading,
         participants: participantsOf(row.id).map((p) => ({
           id: p.id,
           names: p.names,
@@ -115,6 +121,9 @@ export function createLaunches(db, { makeCode = newCode, now = Date.now } = {}) 
           afterCorrection: Date.parse(p.submitted_at) >= Date.parse(row.ended_at) + AFTER_END_GRACE,
           byFile: Boolean(p.by_file),
           score: p.results ? JSON.parse(p.results).score : null,
+          // Les réponses aux questions, corrections de l'enseignant comprises (QST-04), et la note qui en découle (QST-05)
+          answerCounts: p.results ? answerCounts(JSON.parse(p.results), p.reviews ? JSON.parse(p.reviews) : {}) : null,
+          mark: p.results ? markOf(project, grading, JSON.parse(p.results), p.reviews ? JSON.parse(p.reviews) : {}) : null,
           meanGap: p.results ? meanGap(project, JSON.parse(p.results)) : null
         }))
       };
@@ -132,8 +141,13 @@ export function createLaunches(db, { makeCode = newCode, now = Date.now } = {}) 
         grace: AFTER_END_GRACE,
         course: contentOf(row),
         participants: details.participants.map((p) => {
-          const { answers, results } = stored.get(p.id);
-          return { ...p, answers: answers ? JSON.parse(answers) : null, results: results ? JSON.parse(results) : null };
+          const { answers, results, reviews } = stored.get(p.id);
+          return {
+            ...p,
+            answers: answers ? JSON.parse(answers) : null,
+            results: results ? JSON.parse(results) : null,
+            reviews: reviews ? JSON.parse(reviews) : {}
+          };
         })
       };
     },
@@ -143,6 +157,41 @@ export function createLaunches(db, { makeCode = newCode, now = Date.now } = {}) 
       const participant = db.prepare('SELECT id, names, submitted_at FROM participants WHERE id = ? AND launch_id = ?').get(participantId, row.id);
       if (!participant) throw new HttpError(400, 'Ce fichier vient d’un autre lancement de ce cours, ou d’un autre cours.');
       return { ...participant, ended_at: row.ended_at, content: db.prepare('SELECT content FROM course_versions WHERE id = ?').get(row.version_id).content };
+    },
+
+    /**
+     * L'enseignant corrige une réponse d'un élève qui a rendu (QST-04) : juste, à moitié juste ou faux, avec un commentaire
+     * facultatif ; sans verdict, sa correction s'efface et celle du serveur revient. Seulement une question corrigée d'une
+     * fiche visible de la version lancée.
+     */
+    review(row, participantId, { map: mapId, fiche: ficheId, question: questionId, verdict = null, comment = '' } = {}) {
+      const participant = db.prepare('SELECT * FROM participants WHERE id = ? AND launch_id = ?').get(participantId, row.id);
+      if (!participant) throw new HttpError(404, 'Introuvable');
+      if (!participant.results) throw new HttpError(409, "Cet élève n'a pas encore rendu son travail.");
+      const project = contentOf(row);
+      const map = project.maps.find((m) => m.id === mapId);
+      const fiche = map && visibleFiches(map).find((f) => f.id === ficheId);
+      const field = project.template.fields.find((f) => f.id === questionId);
+      const graded = field && checkOf(field) && checkOf(field) !== 'none';
+      if (!fiche || !graded) throw new HttpError(400, "Cette réponse n'existe pas dans ce cours.");
+      if (verdict !== null && !VERDICTS.includes(verdict)) throw new HttpError(400, 'Verdict inconnu.');
+      if (typeof comment !== 'string' || comment.length > MAX_COMMENT) throw new HttpError(400, `Un commentaire fait ${MAX_COMMENT} caractères au plus.`);
+      const reviews = participant.reviews ? JSON.parse(participant.reviews) : {};
+      const ficheReviews = ((reviews[mapId] ??= {})[ficheId] ??= {});
+      if (verdict === null) delete ficheReviews[questionId];
+      else ficheReviews[questionId] = { verdict, ...(comment.trim() ? { comment: comment.trim() } : {}) };
+      if (!Object.keys(ficheReviews).length) delete reviews[mapId][ficheId];
+      if (!Object.keys(reviews[mapId]).length) delete reviews[mapId];
+      db.prepare('UPDATE participants SET reviews = ? WHERE id = ?').run(Object.keys(reviews).length ? JSON.stringify(reviews) : null, participant.id);
+      return { reviews, answerCounts: answerCounts(JSON.parse(participant.results), reviews) };
+    },
+
+    /** Changer la notation d'un lancement après son ouverture (QST-05) : ses notes se recalculent, celles des autres lancements ne bougent pas. */
+    setGrading(row, grading) {
+      const { template } = contentOf(row);
+      if (gradingProblem(grading, template)) throw new HttpError(400, "Cette notation n'est pas valable.");
+      db.prepare('UPDATE launches SET grading = ? WHERE id = ?').run(JSON.stringify(grading), row.id);
+      return this.details(byId(row.id));
     },
 
     /** Supprimer un lancement terminé, avec ses élèves et leurs réponses (HIS-05). Celui qui est en marche se termine d'abord. */

@@ -4,19 +4,37 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  ANSWER_LIMITS,
   AUDIENCES,
+  CHECKS,
+  CHECK_LABELS,
+  COMPATIBLE,
+  TYPE_LABELS,
+  checkOf,
+  cleanField,
   LIMITS,
   RESERVED,
   TYPES,
+  answersWord,
+  columnTitle,
+  emptyAnswers,
   ficheFields,
+  fieldGroups,
+  hasAnswers,
+  isEmpty,
+  isValidValue,
+  listFields,
+  maxLength,
   newFieldId,
   normalizeTemplate,
   normalizeValue,
   questionFields,
+  questionNames,
   searchFields,
   subtitleField,
   templateProblems,
-  titleField
+  titleField,
+  valueText
 } from '../src/js/fields.js';
 import { BOTANIQUE } from '../src/js/templates/botanique.js';
 
@@ -189,4 +207,223 @@ test('CHP-01 : un nouveau champ reçoit un identifiant préfixé, qui ne croise 
     assert.deepEqual(problemsOf(text(id)), []);
   }
   assert.match(newFieldId('h'), /^h-/);
+});
+
+test('CHP-01 : les champs se rangent sous leurs intertitres ; un intertitre sans libellé ferme le groupe', () => {
+  assert.deepEqual(
+    fieldGroups(BOTANIQUE).map(({ heading, fields }) => [heading?.label ?? null, fields.map((field) => field.id)]),
+    [
+      [null, ['common', 'species', 'family', 'date']],
+      ['Besoins', ['exposure', 'watering', 'soil', 'heat', 'care']],
+      ['Vos mesures', ['temperature', 'humidity', 'light']],
+      [null, ['description', 'notes']]
+    ]
+  );
+  const heading = { id: 'h-a', type: 'heading', label: 'Partie' };
+  assert.deepEqual(fieldGroups(withFields(heading, text('c-a'))), [{ heading, fields: [text('c-a')] }], 'pas de groupe vide avant le premier intertitre');
+  assert.deepEqual(fieldGroups(withFields({ id: 'h-a', type: 'heading', label: 'Seul' })), [], 'un intertitre sans champ ne fait pas de groupe');
+  assert.deepEqual(
+    listFields(BOTANIQUE).map((field) => field.id),
+    ['family', 'temperature', 'humidity', 'light'],
+    'le titre et le sous-titre ont leur place à part'
+  );
+});
+
+test('CHP-01 : une valeur se lit en clair, selon son type', () => {
+  const multiple = choice({ multiple: true });
+  assert.equal(valueText(choice(), 'hetre'), 'Hêtre');
+  assert.equal(valueText(multiple, ['hetre', 'chene']), 'Hêtre, Chêne');
+  assert.equal(valueText(multiple, ['inconnu']), '');
+  assert.equal(valueText({ type: 'yesno' }, 'oui'), 'Oui');
+  assert.equal(valueText({ type: 'yesno' }, 'non'), 'Non');
+  assert.equal(valueText({ type: 'scale', symbol: '☀️' }, 3), '☀️☀️☀️');
+  assert.equal(valueText({ type: 'scale', max: 4 }, 3), '3 / 4');
+  assert.equal(valueText({ type: 'scale' }, 2), '2 / 5');
+  assert.match(valueText({ type: 'date' }, '2026-09-28'), /28\/09\/2026/);
+  assert.equal(valueText({ type: 'date' }, 'au printemps'), 'au printemps');
+  assert.equal(valueText({ type: 'number', unit: '°C' }, '21'), '21');
+  assert.equal(valueText({ type: 'number', unit: '°C' }, '21', { unit: true }), '21 °C');
+  assert.equal(valueText({ type: 'number' }, '21', { unit: true }), '21');
+  assert.equal(valueText(text('c-a'), 'Un mot'), 'Un mot');
+  for (const empty of ['', null, undefined, []]) {
+    assert.ok(isEmpty(empty));
+    assert.equal(valueText(text('c-a'), empty), '');
+  }
+  assert.ok(!isEmpty(0) && !isEmpty('non') && !isEmpty(['a']));
+  assert.equal(columnTitle({ label: 'Température', unit: '°C' }), 'Température (°C)');
+  assert.equal(columnTitle({ label: 'Nom' }), 'Nom');
+});
+
+test('CHP-01 : les réponses d’une fiche partent vides, chacune selon sa question', () => {
+  assert.deepEqual(emptyAnswers(BOTANIQUE), { temperature: '', humidity: '', light: '' }, 'comme avant la version 2.0.0');
+  const quiz = withFields(text('c-info'), choice({ multiple: true }), { id: 'c-ok', type: 'yesno', label: 'Ouvert ?', audience: 'question' });
+  assert.deepEqual(emptyAnswers(quiz), { 'c-arbre': [], 'c-ok': '' });
+  assert.ok(!hasAnswers(emptyAnswers(quiz), quiz));
+  assert.ok(!hasAnswers(null, quiz));
+  assert.ok(!hasAnswers({ 'c-info': 'une valeur de la fiche, pas une réponse' }, quiz));
+  assert.ok(hasAnswers({ 'c-arbre': ['chene'] }, quiz));
+  assert.ok(hasAnswers({ 'c-ok': 'non' }, quiz));
+});
+
+test('CHP-01 : ce que notent les élèves se nomme d’après les questions', () => {
+  assert.equal(answersWord(BOTANIQUE), 'mesures');
+  assert.equal(questionNames(BOTANIQUE), 'température, hygrométrie, éclairement');
+  const quiz = withFields(choice(), { id: 'c-adn', type: 'text', label: 'ADN observé', audience: 'question' });
+  assert.equal(answersWord(quiz), 'réponses');
+  assert.equal(questionNames(quiz), 'quel est cet arbre ?, ADN observé', 'un sigle garde ses majuscules');
+  assert.equal(answersWord(withFields(text('c-a'))), 'réponses', 'sans question, ce ne sont pas des mesures');
+});
+
+test('CHP-07 : un texte a sa longueur permise, plus courte pour la réponse d’un élève, et un texte trop long est coupé à la lecture', () => {
+  assert.equal(maxLength(text('c-a')), 300);
+  assert.equal(maxLength({ type: 'longtext' }), 10000);
+  assert.equal(maxLength({ type: 'number' }), 300);
+  assert.equal(maxLength({ type: 'date' }), 300);
+  assert.deepEqual(
+    ['text', 'longtext', 'number'].map((type) => maxLength({ type }, { answer: true })),
+    [300, 2000, 50]
+  );
+  assert.equal(ANSWER_LIMITS.number, 50, 'comme les mesures avant la version 2.0.0');
+  assert.equal(normalizeValue({ type: 'longtext' }, 'x'.repeat(10001)).length, 10000);
+  assert.equal(normalizeValue({ type: 'number' }, 'x'.repeat(60), { answer: true }).length, 50);
+  assert.equal(normalizeValue({ type: 'number' }, 'x'.repeat(60)).length, 60);
+});
+
+test('CHP-07 : une valeur valable est déjà dans sa forme normale ; le reste est refusé tel quel, sans être réparé', () => {
+  const multiple = choice({ multiple: true });
+  const valid = [
+    [text('c-a'), ''],
+    [text('c-a'), 'x'.repeat(300)],
+    [{ type: 'longtext' }, 'x'.repeat(10000)],
+    [choice(), ''],
+    [choice(), 'chene'],
+    [multiple, []],
+    [multiple, ['hetre', 'chene']],
+    [{ type: 'yesno' }, 'non'],
+    [{ type: 'scale', max: 3 }, 3],
+    [{ type: 'scale' }, '']
+  ];
+  for (const [field, value] of valid) {
+    assert.ok(isValidValue(field, value), JSON.stringify(value).slice(0, 30));
+    assert.deepEqual(normalizeValue(field, value), value, 'déjà normale');
+  }
+  const invalid = [
+    [text('c-a'), 'x'.repeat(301)],
+    [text('c-a'), 12],
+    [text('c-a'), null],
+    [{ type: 'longtext' }, 'x'.repeat(10001)],
+    [choice(), 'erable'],
+    [choice(), ['chene']],
+    [multiple, 'chene'],
+    [multiple, ['chene', 'chene']],
+    [multiple, ['erable']],
+    [{ type: 'yesno' }, true],
+    [{ type: 'scale', max: 3 }, 4],
+    [{ type: 'scale' }, '2'],
+    [{ type: 'scale' }, 1.5]
+  ];
+  for (const [field, value] of invalid) assert.ok(!isValidValue(field, value), JSON.stringify(value).slice(0, 30));
+  assert.ok(isValidValue({ type: 'number' }, 'x'.repeat(50), { answer: true }));
+  assert.ok(!isValidValue({ type: 'number' }, 'x'.repeat(51), { answer: true }));
+  assert.ok(!isValidValue({ type: 'longtext' }, 'x'.repeat(2001), { answer: true }));
+});
+
+test('CHP-08 : une question dit comment elle est corrigée ; sans réglage, son type en décide, et les mesures restent non corrigées', () => {
+  assert.deepEqual(questionFields(BOTANIQUE).map(checkOf), ['none', 'none', 'none'], 'le modèle botanique, figé, sans réglage');
+  assert.deepEqual(
+    ['text', 'longtext', 'number', 'choice', 'yesno', 'scale'].map((type) => checkOf({ type, audience: 'question' })),
+    ['teacher', 'teacher', 'none', 'auto', 'auto', 'auto']
+  );
+  assert.equal(checkOf({ type: 'number', audience: 'question', check: 'auto' }), 'auto');
+  assert.equal(checkOf(text('c-a')), undefined, 'un renseignement ne se corrige pas');
+  assert.deepEqual(Object.keys(CHECK_LABELS), ['auto', 'teacher', 'none']);
+  for (const [type, checks] of Object.entries(CHECKS)) {
+    for (const check of ['auto', 'teacher', 'none']) {
+      const field = { id: 'c-q', type, label: 'Q', audience: 'question', check, ...(type === 'choice' ? { choices: choice().choices } : {}) };
+      assert.equal(problemsOf(field).length === 0, checks.includes(check), `${type} ${check}`);
+    }
+  }
+  assert.match(problemsOf(text('c-a', { check: 'teacher' })).join(), /correction impossible/, 'seule une question se corrige');
+  assert.match(
+    problemsOf({ id: 'c-a', type: 'longtext', label: 'L', audience: 'question', check: 'auto' }).join(),
+    /correction impossible/,
+    'un texte long ne se corrige pas tout seul'
+  );
+});
+
+test('MOD-03 : l’éditeur enregistre un champ réduit à ce qui a un sens pour son type et son public', () => {
+  const draft = {
+    id: 'c-a',
+    type: 'text',
+    label: '  Monument  ',
+    audience: 'question',
+    role: 'title',
+    search: true,
+    list: false,
+    icon: '',
+    help: ' Regardez la plaque. ',
+    required: true,
+    check: 'teacher',
+    choices: [{ id: 'x', label: 'X' }],
+    unit: 'm',
+    max: 4
+  };
+  assert.deepEqual(cleanField(draft), {
+    id: 'c-a',
+    type: 'text',
+    label: 'Monument',
+    help: 'Regardez la plaque.',
+    audience: 'question',
+    required: true,
+    check: 'teacher'
+  });
+  assert.deepEqual(cleanField({ ...draft, audience: 'info' }), {
+    id: 'c-a',
+    type: 'text',
+    label: 'Monument',
+    help: 'Regardez la plaque.',
+    audience: 'info',
+    role: 'title',
+    search: true
+  });
+  assert.deepEqual(
+    cleanField({ id: 'h-a', type: 'heading', label: '  ', audience: 'info', help: '' }),
+    { id: 'h-a', type: 'heading', label: '' },
+    'un intertitre vide ferme un groupe'
+  );
+  assert.deepEqual(
+    cleanField({
+      ...choice(),
+      choices: [
+        { id: 'a', label: ' A ', extra: 1 },
+        { id: 'b', label: 'B' }
+      ],
+      multiple: false
+    }).choices,
+    [
+      { id: 'a', label: 'A' },
+      { id: 'b', label: 'B' }
+    ]
+  );
+  for (const type of Object.keys(TYPE_LABELS)) {
+    const field = cleanField({
+      ...draft,
+      type,
+      ...(type === 'choice' ? { choices: choice().choices } : {}),
+      audience: type === 'date' || type === 'heading' ? 'info' : 'question'
+    });
+    if (type === 'heading') delete field.help;
+    assert.deepEqual(problemsOf(field), [], type);
+  }
+});
+
+test('MOD-03 : un champ déjà rempli ne change de type que vers un type qui garde ses valeurs', () => {
+  for (const [type, targets] of Object.entries(COMPATIBLE)) {
+    assert.equal(targets[0], type, 'son propre type d’abord');
+    for (const target of targets) {
+      const field = { type, choices: choice().choices, max: 5 };
+      const value = { text: 'Un mot', longtext: 'Un mot', number: '12', date: '2026-10-02', choice: 'chene', yesno: 'oui', scale: 3, heading: '' }[type];
+      assert.deepEqual(normalizeValue({ ...field, type: target }, normalizeValue(field, value)), value, `${type} → ${target}`);
+    }
+  }
 });

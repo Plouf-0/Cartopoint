@@ -1,11 +1,13 @@
 /**
  * Le fichier de secours d'un cours (EXP-01) : un seul fichier .html, qui marche sans serveur ni réseau, si le site est en panne un jour de sortie. Il part de
  * /secours.html, construit avec le site, et y écrit le cours : photos comprises, sans les fiches masquées. Il contient les positions réelles : sans serveur, c'est la
- * page qui corrige (EXP-02). Son mot de passe de gestion est choisi ici, pour ne plus laisser celui par défaut (E-03).
+ * page qui corrige (EXP-02), comme ce qui est révélé à la correction ; pas la note de l'enseignant (CHP-04). Son mot de passe de gestion est choisi ici, pour ne
+ * plus laisser celui par défaut (E-03).
  */
 import { hashPassword } from '../auth.js';
 import { el, errorLine } from '../compte/ui.js';
 import { exportCourse } from './course-io.js';
+import { withoutTeacherNotes } from '../model.js';
 
 const MIN_PASSWORD = 4;
 
@@ -14,7 +16,11 @@ export async function fallbackPage(project, password) {
   const response = await fetch('/secours.html', { cache: 'no-cache' });
   if (!response.ok) throw new Error(`fichier de secours indisponible sur ce serveur (${response.status})`);
   const template = await response.text();
-  const course = await exportCourse({ ...project, maps: project.maps.map((map) => ({ ...map, fiches: map.fiches.filter((fiche) => fiche.visible) })) });
+  const maps = project.maps.map((map) => ({
+    ...map,
+    fiches: map.fiches.filter((fiche) => fiche.visible).map((fiche) => withoutTeacherNotes(fiche, project.template))
+  }));
+  const course = await exportCourse({ ...project, maps });
   // « < » est échappé : un titre contenant </script> ne doit pas fermer la balise
   const json = JSON.stringify({ ...course, passwordHash: await hashPassword(password) }).replace(/</g, '\\u003c');
   return template.replace(/(<script id="embedded-project" type="application\/json">)[\s\S]*?(<\/script>)/, (_, open, close) => open + json + close);

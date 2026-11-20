@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { studentCourse } from '../server/student-view.mjs';
 import { normalizeProject } from '../src/js/model.js';
+import { BOTANIQUE } from '../src/js/templates/botanique.js';
 
 const POSITIONS = [12.3456, 65.4321, 33.3333, 77.7777];
 
@@ -138,4 +139,89 @@ test('un contenu réduit au minimum passe sans erreur', () => {
   assert.deepEqual(view.theme, {});
   assert.deepEqual(view.maps[0].fiches, []);
   assert.deepEqual(view.maps[1].fiches[0], { id: 'f1', visible: true, media: [] });
+});
+
+/** Un cours d'une autre matière : tout ce qui n'est pas un renseignement, et la note de l'enseignant tout entière, sont des SECRET. */
+const quizCourse = () => ({
+  ...course(),
+  version: 4,
+  template: {
+    name: 'SECRET-nom-du-modèle',
+    source: { courseId: 'SECRET-origine', title: 'SECRET-origine' },
+    fields: [
+      { id: 'c-nom', type: 'text', label: 'Monument', audience: 'info', role: 'title', aliases: ['SECRET-variante'], placeholder: 'SECRET-exemple' },
+      { id: 'c-siecle', type: 'number', label: 'Siècle', audience: 'info', list: true },
+      { id: 'h-q', type: 'heading', label: 'Questions', help: 'Répondez sur place.' },
+      { id: 'c-age', type: 'text', label: 'Âge', audience: 'question', placeholder: 'en années', aliases: ['SECRET-variante'] },
+      { id: 'c-architecte', type: 'text', label: 'Architecte', audience: 'correction' },
+      { id: 'c-note', type: 'longtext', label: 'SECRET-libellé', help: 'SECRET-aide', audience: 'teacher' }
+    ]
+  },
+  maps: [
+    {
+      id: 'm1',
+      name: 'Centre',
+      image: '/media/plan.png',
+      fiches: [
+        {
+          id: 'f1',
+          'c-nom': 'Beffroi',
+          'c-siecle': '14',
+          'c-age': 'SECRET-une-réponse-dans-la-fiche',
+          'c-architecte': 'SECRET-révélé-à-la-fin',
+          'c-note': 'SECRET-note',
+          expected: { 'c-age': ['SECRET-bonne-réponse'] },
+          common: 'SECRET-champ-botanique',
+          visible: true,
+          refX: POSITIONS[0],
+          refY: POSITIONS[1],
+          media: []
+        }
+      ]
+    }
+  ]
+});
+
+test('CRG-01, CHP-04, QST-01 : d’une fiche ne partent que les renseignements ; ni ce qui est révélé à la correction, ni la note de l’enseignant, ni une bonne réponse', () => {
+  const view = studentCourse(quizCourse());
+  assert.doesNotMatch(JSON.stringify(view), /SECRET/);
+  for (const position of POSITIONS.slice(0, 2)) assert.ok(!JSON.stringify(view).includes(String(position)));
+  assert.deepEqual(view.maps[0].fiches[0], { id: 'f1', 'c-nom': 'Beffroi', 'c-siecle': '14', visible: true, media: [] });
+  assert.match(JSON.stringify(quizCourse()), /SECRET-note/, 'contrôle : les marques sont bien dans le cours');
+});
+
+test('CHP-04 : le modèle part sans la note de l’enseignant, sans variantes de tableur, avec l’exemple des seules questions', () => {
+  const { template } = studentCourse(quizCourse());
+  assert.deepEqual(
+    template.fields.map((field) => field.id),
+    ['c-nom', 'c-siecle', 'h-q', 'c-age', 'c-architecte'],
+    'ce qui est révélé à la correction garde sa place, sans sa valeur'
+  );
+  assert.deepEqual(template.fields[3], { id: 'c-age', type: 'text', label: 'Âge', audience: 'question', placeholder: 'en années' });
+  assert.deepEqual(template.fields[2], { id: 'h-q', type: 'heading', label: 'Questions', help: 'Répondez sur place.' });
+  const project = normalizeProject(studentCourse(quizCourse()));
+  assert.equal(project.template.fields.length, 5, 'un modèle que le navigateur de l’élève accepte');
+  assert.equal(project.maps[0].fiches[0]['c-nom'], 'Beffroi');
+});
+
+test('MOD-02, CHP-04 : un cours sans modèle part avec le modèle botanique, sans ce qui ne sert qu’à l’enseignant', () => {
+  const { template } = studentCourse(course());
+  assert.deepEqual(
+    template.fields.map((field) => field.id),
+    BOTANIQUE.fields.map((field) => field.id)
+  );
+  assert.doesNotMatch(JSON.stringify(template), /aliases|Olivier|Oleaceae/, 'ni variantes, ni exemples de l’enseignant');
+  assert.deepEqual(
+    template.fields.find((field) => field.id === 'temperature'),
+    {
+      id: 'temperature',
+      type: 'number',
+      label: 'Température',
+      icon: '🌡',
+      audience: 'question',
+      list: true,
+      unit: '°C',
+      keyboard: 'decimal'
+    }
+  );
 });

@@ -6,6 +6,8 @@
  *   POST /launches/:id/end            terminer le cours
  *   DELETE /launches/:id              supprimer un lancement terminé
  *   GET  /launches/:id/sheets         le cours et toutes les réponses, pour les comptes rendus et le fichier Excel
+ *   PUT  /launches/:id/participants/:participant/reviews   corriger une réponse d'un élève (QST-04)
+ *   PUT  /launches/:id/grading        changer la notation de ce lancement (QST-05)
  *   POST /launches/:id/answers-file   le fichier de réponses d'un élève
  */
 import { MAX_ANSWERS_BYTES, cleanAnswers, computeResults, countAfterEnd, onServerClock } from '../answers.mjs';
@@ -42,6 +44,25 @@ export function launchRoutes(router, { auth, courses, launches }) {
       })
     )
     .add('GET', '/api/launches/:id/sheets', (req, res, { params }) => sendJson(req, res, launches.sheets(launchOf(req, params)), PRIVATE))
+    .add(
+      'PUT',
+      '/api/launches/:id/grading',
+      sameOriginOnly(async (req, res, { params }) => {
+        launchOf(req, params);
+        const { grading } = await readJson(req);
+        return sendJson(req, res, launches.setGrading(launchOf(req, params), grading), PRIVATE);
+      })
+    )
+    .add(
+      'PUT',
+      '/api/launches/:id/participants/:participant/reviews',
+      sameOriginOnly(async (req, res, { params }) => {
+        launchOf(req, params);
+        const body = await readJson(req);
+        // Relu après l'envoi : le lancement a pu être supprimé entre-temps
+        return sendJson(req, res, launches.review(launchOf(req, params), params.participant, body), PRIVATE);
+      })
+    )
     .add(
       'POST',
       '/api/launches/:id/answers-file',

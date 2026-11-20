@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_ANSWERS_BYTES, MAX_MEASURE, cleanAnswers, computeResults } from '../server/answers.mjs';
+import { MAX_ANSWERS_BYTES, MAX_MEASURE, cleanAnswers, computeResults, correctionOf } from '../server/answers.mjs';
 import { createLaunches } from '../server/launches.mjs';
 import { evaluate, normalizeProject } from '../src/js/model.js';
 import { addAccount, cheapHash, client, request, startApp } from './helpers.js';
@@ -88,11 +88,136 @@ for (const [name, answers] of Object.entries({
   });
 }
 
-test('une mesure de 50 caractères passe', () => {
+test('une mesure de 50 caractères passe, et les réponses d’un élève tiennent en 512 Ko', () => {
   const clean = cleanAnswers({ m1: { f1: entry(1, 1, { temperature: 'x'.repeat(MAX_MEASURE) }) } }, project());
   assert.equal(clean.m1.f1.temperature.length, 50);
   assert.equal(MAX_MEASURE, 50);
-  assert.equal(MAX_ANSWERS_BYTES, 256 * 1024);
+  assert.equal(MAX_ANSWERS_BYTES, 512 * 1024);
+});
+
+/* --- Les questions d'un autre modèle (CHP-07) --- */
+
+const choices = (...ids) => ids.map((id) => ({ id, label: id[0].toUpperCase() + id.slice(1) }));
+const QUIZ = {
+  fields: [
+    { id: 'c-nom', type: 'text', label: 'Monument', audience: 'info', role: 'title' },
+    { id: 'c-age', type: 'text', label: 'Âge', audience: 'question', check: 'auto' },
+    { id: 'c-avis', type: 'longtext', label: 'Avis', audience: 'question' },
+    { id: 'c-hauteur', type: 'number', label: 'Hauteur', unit: 'm', audience: 'question', check: 'auto' },
+    { id: 'c-style', type: 'choice', label: 'Style', audience: 'question', choices: choices('roman', 'gothique') },
+    { id: 'c-mat', type: 'choice', label: 'Matériaux', audience: 'question', multiple: true, choices: choices('pierre', 'bois') },
+    { id: 'c-ouvert', type: 'yesno', label: 'Ouvert ?', audience: 'question' },
+    { id: 'c-etat', type: 'scale', label: 'État', audience: 'question', max: 4 },
+    { id: 'c-architecte', type: 'text', label: 'Architecte', audience: 'correction' }
+  ]
+};
+const quiz = (fiches = content().maps[0].fiches) => normalizeProject(content({ version: 4, template: QUIZ, maps: [{ ...content().maps[0], fiches }] }));
+const answer = (fields) => ({ m1: { f1: { x: 1, y: 2, ...fields } } });
+
+test('CHP-07 : avec un autre modèle, chaque réponse est vérifiée selon sa question, et une question sans réponse arrive vide', () => {
+  const clean = cleanAnswers(
+    answer({
+      'c-age': '800 ans',
+      'c-style': 'gothique',
+      'c-mat': ['bois', 'pierre'],
+      'c-ouvert': 'non',
+      'c-etat': 3,
+      temperature: '21',
+      'c-architecte': 'triche'
+    }),
+    quiz()
+  );
+  assert.deepEqual(
+    clean.m1.f1,
+    {
+      x: 1,
+      y: 2,
+      'c-age': '800 ans',
+      'c-avis': '',
+      'c-hauteur': '',
+      'c-style': 'gothique',
+      'c-mat': ['bois', 'pierre'],
+      'c-ouvert': 'non',
+      'c-etat': 3
+    },
+    'ni mesure botanique, ni champ qui n’est pas une question'
+  );
+  const longest = answer({ 'c-age': 'x'.repeat(300), 'c-avis': 'x'.repeat(2000), 'c-hauteur': 'x'.repeat(50), 'c-mat': [] });
+  assert.equal(cleanAnswers(longest, quiz()).m1.f1['c-avis'].length, 2000);
+});
+
+for (const [name, fields] of Object.entries({
+  'une proposition inconnue': { 'c-style': 'baroque' },
+  'un choix unique en liste': { 'c-style': ['roman'] },
+  'un choix multiple en texte': { 'c-mat': 'pierre' },
+  'un choix multiple en double': { 'c-mat': ['pierre', 'pierre'] },
+  'un choix multiple inconnu': { 'c-mat': ['marbre'] },
+  'un oui / non inventé': { 'c-ouvert': 'peut-être' },
+  'un oui / non en booléen': { 'c-ouvert': true },
+  'une échelle à zéro': { 'c-etat': 0 },
+  'une échelle trop haute': { 'c-etat': 5 },
+  'une échelle en texte': { 'c-etat': '3' },
+  'une échelle à virgule': { 'c-etat': 2.5 },
+  'un texte court trop long': { 'c-age': 'x'.repeat(301) },
+  'un texte long trop long': { 'c-avis': 'x'.repeat(2001) },
+  'une mesure trop longue': { 'c-hauteur': 'x'.repeat(51) },
+  'un texte qui n’en est pas un': { 'c-age': 12 }
+})) {
+  test(`CHP-07 : réponse refusée : ${name}`, () => {
+    assert.throws(() => cleanAnswers(answer(fields), quiz()), { status: 400 });
+  });
+}
+
+test('CHP-04 : la correction révèle les champs « révélé à la correction » de chaque fiche, et eux seuls', () => {
+  const [f1, f2] = content().maps[0].fiches;
+  const ville = quiz([
+    { ...f1, 'c-nom': 'Beffroi', 'c-architecte': 'Jean' },
+    { ...f2, 'c-nom': 'Halle' }
+  ]);
+  const corrected = correctionOf(ville, computeResults(ville, {}));
+  assert.deepEqual(corrected.maps.m1.fiches.f1.revealed, { 'c-architecte': 'Jean' });
+  assert.equal('revealed' in corrected.maps.m1.fiches.f2, false, 'rien à révéler, rien d’envoyé');
+  assert.doesNotMatch(JSON.stringify(corrected), /Beffroi|Halle/, 'les renseignements, l’élève les a déjà');
+  const botanical = correctionOf(project(), computeResults(project(), {}));
+  assert.doesNotMatch(JSON.stringify(botanical), /revealed/);
+});
+
+test('QST-02 : le serveur corrige chaque question fermée à la réception, et compte les réponses justes, fausses et à corriger', () => {
+  const [f1, f2] = content().maps[0].fiches;
+  const ville = quiz([
+    { ...f1, expected: { 'c-style': 'gothique', 'c-mat': ['pierre'], 'c-hauteur': { value: 40, tolerance: 5 } } },
+    { ...f2, expected: { 'c-age': ['800 ans', 'huit cents ans'] } }
+  ]);
+  const results = computeResults(ville, {
+    m1: {
+      f1: { x: 1, y: 2, 'c-style': 'gothique', 'c-mat': ['pierre', 'bois'], 'c-hauteur': '43', 'c-avis': 'Haut' },
+      f2: { x: null, y: null, 'c-age': 'Huit cents ans' }
+    }
+  });
+  assert.deepEqual(results.maps.m1.fiches.f1.questions, {
+    'c-age': 'wrong',
+    'c-avis': 'pending',
+    'c-hauteur': 'ok',
+    'c-style': 'ok',
+    'c-mat': 'wrong',
+    'c-ouvert': 'wrong',
+    'c-etat': 'wrong'
+  });
+  assert.equal(results.maps.m1.fiches.f2.questions['c-age'], 'ok', 'accents et majuscules ne comptent pas');
+  assert.equal(results.maps.m1.fiches.f2.questions['c-style'], 'wrong', 'sans réponse, c’est faux');
+  assert.equal(results.maps.m1.fiches.f2.state, 'unplaced', 'le placement garde son résultat');
+  assert.deepEqual(results.answers, { ok: 3, half: 0, wrong: 10, pending: 1 }, '2 fiches, 7 questions corrigées chacune');
+  assert.equal('answers' in computeResults(project(), {}), false, 'un cours botanique n’a que des mesures : rien à compter');
+  assert.equal('questions' in computeResults(project(), {}).maps.m1.fiches.f1, false);
+});
+
+test('QST-03, CRG-01 : la bonne réponse ne part qu’avec la correction, avec le verdict et le décompte', () => {
+  const [f1] = content().maps[0].fiches;
+  const ville = quiz([{ ...f1, expected: { 'c-style': 'gothique' } }]);
+  const corrected = correctionOf(ville, computeResults(ville, { m1: { f1: { x: 1, y: 2, 'c-style': 'roman' } } }));
+  assert.deepEqual(corrected.maps.m1.fiches.f1.expected, { 'c-style': 'gothique' });
+  assert.equal(corrected.maps.m1.fiches.f1.questions['c-style'], 'wrong');
+  assert.equal(corrected.answers.wrong, 7, 'une seule fiche, ses 7 questions sans bonne réponse');
 });
 
 /* --- Corriger --- */

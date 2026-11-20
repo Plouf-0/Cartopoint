@@ -123,6 +123,57 @@ C'est le contenu d'un cours exporté en `.json`, et du bloc `<script id="embedde
 - **Seul ce que connaît le modèle reste.** Un champ inconnu disparaît de la fiche, une propriété inconnue rend le modèle
   invalide : rien d'imprévu ne part chez un élève.
 
+**L'affichage se déduit du modèle.** Aucune vue ne connaît de nom de champ : elles passent toutes par le modèle du cours
+(`courseTemplate()` dans `store.js`, `project.template` ailleurs).
+
+| Ce qu'on affiche | Où |
+| ---------------- | -- |
+| La fiche ouverte par l'élève, ses cases de réponse, la carte d'une fiche dans la liste, le formulaire de l'enseignant | `views/fields-html.js` |
+| Titre, sous-titre, recherche, nouvelle fiche | `titleOf()`, `subtitleOf()`, `matches()`, `newFiche()` dans `model.js` |
+| Une valeur en clair (libellé d'un choix, « Oui », date), les groupes sous les intertitres, les réponses vides | `valueText()`, `fieldGroups()`, `emptyAnswers()` dans `fields.js` |
+| Colonnes du tableur | `columnsOf()` dans `spreadsheet.js` |
+| Compte rendu JPG, Excel d'un lancement, détail d'un élève | `report.js`, `prof/results-workbook.js`, `prof/launch-results.js` |
+
+**L'éditeur du modèle** (`prof/template-tab.js`, onglet « Modèle de fiche » de l'espace enseignant seulement) modifie
+`S.project.template` champ par champ. Une fenêtre règle un champ sur une copie ; à l'enregistrement, `cleanField()` ne garde
+que ce qui a un sens pour son type et son public, `templateProblems()` refuse un modèle impossible, et `applyTemplate()`
+relit chaque fiche avec le nouveau modèle (`normalizeFiche()`), si bien qu'une valeur suit son champ et qu'un champ supprimé
+emporte ses valeurs. Avant de rien changer, l'éditeur compte les fiches dont la valeur changerait et le demande. Un champ
+déjà rempli ne change de type que vers un type de `COMPATIBLE`. La correction d'une question (`check`) a une valeur par
+défaut selon son type (`checkOf()`) : le modèle botanique, figé, n'a pas à la porter.
+
+**La correction des questions** (`verdicts.js`, sans DOM, partagé par le serveur et le navigateur) :
+
+- une question « corrigée automatiquement » porte, sur chaque fiche, sa bonne réponse dans `fiche.expected[question]`,
+  gardée par `normalizeFiche()` et vérifiée par `checkDraft()` (`expectedProblem()`). Comme une position réelle, elle ne part
+  chez l'élève qu'avec la correction ;
+- `computeResults()` donne à chaque fiche le verdict de ses questions (`questions`, par `questionVerdicts()`) et à
+  l'ensemble leur décompte (`answers`) ; une question ouverte, ou fermée sans bonne réponse, attend l'enseignant
+  (`pending`) ;
+- l'enseignant corrige (`PUT /api/launches/:id/participants/:participant/reviews`) : ses verdicts sont dans
+  `participants.reviews` (migration 008) et l'emportent sur ceux du serveur (`finalVerdicts()`) ;
+- la note n'est jamais stockée : `markOf()` la calcule à la lecture, avec la notation du lancement (`launches.grading`) ou,
+  à défaut, celle de la version (`grading` dans le contenu du cours). Changer de barème ne réécrit donc rien.
+
+**Le serveur suit le même modèle.**
+
+- `checkDraft()` (`server/courses.mjs`) refuse un modèle mal formé (`templateProblems()`) et toute valeur qui ne convient
+  pas à son champ (`isValidValue()`), sans rien réparer.
+- `studentCourse()` (`server/student-view.mjs`) ne garde d'une fiche que les renseignements, et envoie le modèle sans la
+  note de l'enseignant, sans variantes ni exemples de renseignement.
+- `cleanAnswers()` (`server/answers.mjs`) vérifie chaque réponse d'après les questions du modèle de la version lancée ;
+  `correctionOf()` y ajoute, sous `revealed`, ce que révèle la correction.
+- Un contenu sans modèle passe partout par `templateOf()` (`model.js`), donc par le modèle botanique.
+
+Les limites sont dans `fields.js` : `LIMITS` pour l'enseignant, `ANSWER_LIMITS` pour les réponses, `maxLength()` pour
+les deux. `normalizeValue()` coupe un texte trop long à la lecture, et les cases portent `maxlength` : le serveur ne
+reçoit donc jamais d'un navigateur un texte qu'il refuserait.
+
+La mise en page vient de la place d'un champ dans le modèle : hors intertitre, un texte court se lit en tête de fiche et un
+texte long en paragraphe ; sous un intertitre, en tableau, et les questions dans un cadre. Le modèle botanique retrouve
+ainsi l'écran d'avant la version 2.0.0, sans rien de particulier dans le code. Un libellé, une aide ou un choix vient de
+l'enseignant : il passe par `esc()`, comme toute valeur.
+
 ## Fichier de secours : le choix du projet au démarrage
 
 L'application d'origine, avec son backend `local`, est devenue la page du fichier de secours (`src/secours.html`, `js/main.js`). Elle ne connaît aucun serveur.
@@ -151,9 +202,11 @@ sont fixes, pour garder le même sens d'un thème à l'autre.
 
 ## Ajouter un champ à une fiche
 
-Un champ s'ajoute au modèle d'un cours, jamais au modèle botanique, figé (voir « Modèle de fiche »). Pendant la version 2.0.0,
-les vues lisent encore les champs botaniques (`NEEDS`, `MEASURES`, déduits du modèle botanique dans `model.js`, et `FIELDS`
-dans `views/editor.js`), puis le modèle du cours.
+Un champ s'ajoute au modèle d'un cours, jamais au modèle botanique, figé (voir « Modèle de fiche »). Rien à changer dans les
+vues ni dans le serveur : ils suivent le modèle.
+
+Un nouveau **type** de champ, lui, se déclare dans `fields.js` (`TYPES`, propriétés gardées, `normalizeValue()`,
+`valueText()`), s'affiche dans `views/fields-html.js` et se lit au tableur dans `cellValue()` (`spreadsheet.js`).
 
 ## Serveur
 

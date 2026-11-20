@@ -252,13 +252,13 @@ test('HOR-02, HOR-03 : sans réseau, l’élève place une fiche, ferme la page 
   await page.locator('.label').first().waitFor();
 
   await placeFirstFiche(page);
-  await page.locator('[data-measure="temperature"]').first().fill('21');
+  await page.locator('[data-answer="temperature"]').first().fill('21');
   await page.waitForTimeout(400);
   await page.goto('about:blank');
   await page.goto(`${site.base}/c/${code}`);
 
   await page.locator('.pin').first().waitFor();
-  assert.equal(await page.locator('[data-measure="temperature"]').first().inputValue(), '21');
+  assert.equal(await page.locator('[data-answer="temperature"]').first().inputValue(), '21');
 });
 
 test('HOR-04 : terminer sans réseau, fermer la page, rouvrir sans réseau : tout est figé, et les réponses partent au retour du réseau', async (t) => {

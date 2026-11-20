@@ -29,14 +29,14 @@ after(async () => {
   await rm(dist, { recursive: true, force: true });
 });
 
-async function setup(t, { root = dist, title = 'Sortie au parc' } = {}) {
+async function setup(t, { root = dist, title = 'Sortie au parc', template, notes = {} } = {}) {
   const site = await startSite(t, { root });
   addAccount(site.db, { email: TEACHER.email, hash: cheapHash(TEACHER.password) });
   const teacher = await openPage(t, browser, { base: site.base });
   await logIn(teacher, TEACHER, '/prof');
   await heading(teacher, 'Mes cours');
   const course = await teacher.evaluate(
-    async ({ plan, photo, title, ref, secret }) => {
+    async ({ plan, photo, title, ref, secret, template, notes }) => {
       const upload = async (base64) => {
         const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
         return (await (await fetch('/api/media', { method: 'POST', headers: { 'Content-Type': 'image/png' }, body: bytes })).json()).url;
@@ -45,16 +45,17 @@ async function setup(t, { root = dist, title = 'Sortie au parc' } = {}) {
       const fiche = (id, common, extra) => ({ id, common, visible: true, refX: ref.x, refY: ref.y, media: [], ...extra });
       const draft = {
         format: 'inventaire-botanique',
-        version: 3,
+        version: template ? 4 : 3,
         title,
         theme: {},
+        ...(template ? { template } : {}),
         maps: [
           {
             id: 'm1',
             name: 'Parc',
             image: planUrl,
             fiches: [
-              fiche('f1', 'Noisetier', { media: [{ id: 'p1', type: 'image', name: 'p.png', data: photoUrl }] }),
+              fiche('f1', 'Noisetier', { media: [{ id: 'p1', type: 'image', name: 'p.png', data: photoUrl }], ...notes }),
               fiche('f2', 'Sureau', { refX: 5, refY: 5 }),
               fiche('cachee', secret, { visible: false })
             ]
@@ -64,7 +65,7 @@ async function setup(t, { root = dist, title = 'Sortie au parc' } = {}) {
       const response = await fetch('/api/courses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ draft }) });
       return response.json();
     },
-    { plan: makePng(100, 100).toString('base64'), photo: makePng(30, 30).toString('base64'), title, ref: REF, secret: SECRET }
+    { plan: makePng(100, 100).toString('base64'), photo: makePng(30, 30).toString('base64'), title, ref: REF, secret: SECRET, template, notes }
   );
   await teacher.goto(`/prof/cours/${course.id}`);
   await teacher.getByRole('tab', { name: 'Cours' }).click();
@@ -88,6 +89,20 @@ test('EXP-04 : la fenêtre du mot de passe demande de ne pas réutiliser celui d
   const { teacher } = await setup(t);
   await teacher.locator('#exportFallback').click();
   await teacher.locator('dialog[open]').getByText("N'utilisez pas celui de votre compte").waitFor();
+});
+
+test('CHP-04, EXP-02 : le fichier de secours n’emporte pas la note de l’enseignant, mais garde ce que la vérification révélera', async (t) => {
+  const template = {
+    fields: [
+      { id: 'common', type: 'text', label: 'Nom', audience: 'info', role: 'title' },
+      { id: 'c-note', type: 'text', label: 'Pour moi', audience: 'teacher' },
+      { id: 'c-revele', type: 'text', label: 'Réponse', audience: 'correction' }
+    ]
+  };
+  const { teacher } = await setup(t, { template, notes: { 'c-note': 'NOTE-DU-PROF-MARQUEUR', 'c-revele': 'RÉVÉLÉ-MARQUEUR' } });
+  const { text } = await downloadFile(t, teacher);
+  assert.doesNotMatch(text, /NOTE-DU-PROF-MARQUEUR/);
+  assert.match(text, /RÉVÉLÉ-MARQUEUR/, 'comme les positions réelles');
 });
 
 /** Comme chez quelqu'un qui a reçu le fichier : pas de réseau, et rien n'a le droit de sortir. */

@@ -6,7 +6,7 @@
  * de la taille de l'écran.
  */
 import { $, toast } from '../util.js';
-import { S, listed, byId, verified, locked, posOf, entryOf, stamped, changedMap, changedProgress } from '../store.js';
+import { S, listed, byId, verified, locked, posOf, entryOf, stamped, changedMap, changedProgress, courseTemplate } from '../store.js';
 import { hasRef, numberOf, titleOf } from '../model.js';
 import { render } from '../render.js';
 import { openFiche } from './fiche.js';
@@ -42,7 +42,7 @@ export function renderMap() {
   if (S.ui.placing) {
     const f = byId(S.ui.placing.id);
     $('#placeHintText').textContent = f
-      ? `Cliquez sur le plan pour placer ${S.ui.placing.kind === 'ref' ? 'la position réelle de ' : ''}« ${titleOf(f)} »`
+      ? `Cliquez sur le plan pour placer ${S.ui.placing.kind === 'ref' ? 'la position réelle de ' : ''}« ${titleOf(f, courseTemplate())} »`
       : '';
   }
 }
@@ -58,7 +58,7 @@ function makePin(f, n, kind, draggable) {
   b.textContent = n;
   b.dataset.id = f.id;
   b.dataset.kind = kind;
-  b.title = (kind === 'ref' ? 'Position réelle — ' : '') + `${n}. ${titleOf(f)}`;
+  b.title = (kind === 'ref' ? 'Position réelle — ' : '') + `${n}. ${titleOf(f, courseTemplate())}`;
   b.setAttribute('aria-label', b.title);
 
   let start = null;
@@ -117,12 +117,12 @@ export function setPosition(f, kind, p) {
     f.refX = x;
     f.refY = y;
     changedMap();
-    toast(`✓ Position réelle de « ${titleOf(f)} » enregistrée`);
+    toast(`✓ Position réelle de « ${titleOf(f, courseTemplate())} » enregistrée`);
   } else {
     if (locked()) return;
     stamped(Object.assign(entryOf(f, true), { x, y }));
     changedProgress();
-    toast(`✓ « ${titleOf(f)} » placée`);
+    toast(`✓ « ${titleOf(f, courseTemplate())} » placée`);
   }
   S.ui.placing = null;
   render();

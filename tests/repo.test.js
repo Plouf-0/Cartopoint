@@ -61,14 +61,14 @@ test('le guide ne cite que des images qui existent, et chacune de celles qui exi
  * réécrit : chaque étape leur donne leur test et les retire d'ici. La liste ne fait que raccourcir (QUA-05).
  */
 const INHERITED = [
-  ...['LIS-01', 'LIS-02', 'LIS-03', 'LIS-04', 'LIS-05'],
-  ...['CON-01', 'CON-02', 'CON-03', 'CON-05', 'CON-06'],
-  ...['MES-01', 'MES-02', 'MES-03', 'MES-04', 'MES-05'],
+  ...['LIS-03', 'LIS-04', 'LIS-05'],
+  ...['CON-03', 'CON-05', 'CON-06'],
+  ...['MES-05'],
   ...['PLA-02', 'PLA-03', 'PLA-04', 'PLA-05', 'PLA-06', 'PLA-07'],
   ...['FIC-01', 'FIC-02', 'FIC-03', 'FIC-06', 'FIC-07', 'FIC-08'],
-  ...['EDI-01', 'EDI-03', 'EDI-04', 'EDI-05', 'EDI-06', 'EDI-07', 'EDI-08', 'EDI-09', 'EDI-11'],
+  ...['EDI-04', 'EDI-07', 'EDI-08', 'EDI-09', 'EDI-11'],
   ...['POS-01', 'POS-02', 'POS-04'],
-  ...['TAB-02', 'TAB-04', 'TAB-07', 'TAB-08', 'TAB-09'],
+  ...['TAB-02', 'TAB-04', 'TAB-07', 'TAB-08'],
   ...['CAR-03', 'CAR-06'],
   ...['APP-01', 'APP-02', 'APP-04'],
   ...['DEP-02', 'DEP-03'],

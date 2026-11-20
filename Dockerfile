@@ -19,7 +19,7 @@ ENV NODE_ENV=production PORT=8080 ROOT=/app/dist DATA_DIR=/data
 COPY --from=build /app/dist ./dist
 COPY server ./server
 # Le serveur calcule les résultats avec le même code que le navigateur : model.js et tout ce qu'il importe
-COPY src/js/model.js src/js/util.js src/js/fields.js ./src/js/
+COPY src/js/model.js src/js/util.js src/js/fields.js src/js/verdicts.js ./src/js/
 COPY src/js/templates ./src/js/templates
 RUN mkdir -p /data && chown -R node:node /data
 USER node

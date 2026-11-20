@@ -4,48 +4,31 @@
  * On travaille sur une copie (« brouillon ») : rien n'est modifié tant qu'on n'a pas
  * cliqué sur Enregistrer. Les photos ajoutées sont stockées tout de suite (pour pouvoir
  * les afficher) et supprimées si l'on annule.
+ *
+ * Le formulaire suit le modèle du cours (views/fields-html.js). Dans l'application d'origine, il porte aussi les questions :
+ * l'enseignant peut y noter des mesures, rangées dans la progression et non dans la fiche.
  */
-import { $, $$, esc, toast, normKey, today, errorText } from '../util.js';
-import { S, fiches, byId, entryOf, mediaURL, storeFile, forgetFile, deleteFiches, changedMap, changedProgress } from '../store.js';
-import { normalizeFiche, normalizeMedia, numberOf, titleOf, thumbOf } from '../model.js';
+import { $, $$, esc, toast, normKey, errorText } from '../util.js';
+import { S, fiches, byId, entryOf, mediaURL, storeFile, forgetFile, deleteFiches, changedMap, changedProgress, courseTemplate } from '../store.js';
+import { newFiche, normalizeFiche, normalizeMedia, numberOf, titleOf, thumbOf } from '../model.js';
+import { isEmpty, questionFields, subtitleField, titleField } from '../fields.js';
 import { render } from '../render.js';
 import { openPhoto } from './viewer.js';
 import { useEditor } from './fiche.js';
-
-/** Champ du formulaire → propriété de la fiche. */
-const FIELDS = {
-  eRef: 'ref',
-  eCommon: 'common',
-  eSpecies: 'species',
-  eFamily: 'family',
-  eDate: 'date',
-  eExposure: 'exposure',
-  eWatering: 'watering',
-  eSoil: 'soil',
-  eHeat: 'heat',
-  eCare: 'care',
-  eDesc: 'description',
-  eNotes: 'notes'
-};
-/** Champ du formulaire → mesure (stockée dans la progression, pas dans la fiche). */
-const MEASURE_FIELDS = { eTemp: 'temperature', eHumidity: 'humidity', eLight: 'light' };
-const measureFields = () => (S.teacherSpace ? {} : MEASURE_FIELDS);
-
-const EMOJIS = ['☀️', '🌤️', '⛅', '☁️', '💧', '💦', '🚿', '🌱', '🪨', '🍂', '🌡️', '🔥', '❄️', '🌬️', '✂️', '🌸', '🌿', '🌳', '🐝', '⭐', '✅', '⚠️', '🚫', '❗'];
+import { ficheFormHTML, firstControl, readForm } from './fields-html.js';
 
 /** Brouillon en cours : { id, isNew, draft, added: [clés], removed: [clés], saved } */
 let edit = null;
 
 export function openEditor(id) {
   if (!S.admin) return;
-  const source = id ? byId(id) : normalizeFiche({ date: today() });
+  const template = courseTemplate();
+  const source = id ? byId(id) : newFiche({}, template);
   if (!source) return;
   edit = { id, isNew: !id, draft: structuredClone(source), added: [], removed: [], saved: false };
   const d = edit.draft;
-  $('#editTitle').textContent = id ? `${numberOf(S.map, source)} · ${titleOf(source)}` : 'Nouvelle fiche';
-  for (const [field, key] of Object.entries(FIELDS)) $('#' + field).value = d[key] || '';
-  const e = (id && entryOf(source)) || {};
-  for (const [field, key] of Object.entries(measureFields())) $('#' + field).value = e[key] || '';
+  $('#editTitle').textContent = id ? `${numberOf(S.map, source)} · ${titleOf(source, template)}` : 'Nouvelle fiche';
+  $('#eFields').innerHTML = ficheFormHTML(template, d, S.teacherSpace ? null : (id && entryOf(source)) || {});
   $('#eVisible').checked = d.visible;
   $('#eDelete').hidden = edit.isNew;
   // Un envoi encore en route appartient à la fiche précédente : il ne bloque pas celle-ci
@@ -54,7 +37,7 @@ export function openEditor(id) {
   renderGallery();
   $('#dlgEdit').showModal();
   $$('#dlgEdit textarea').forEach(autosize);
-  $('#eCommon').focus();
+  firstControl(template, $('#eFields'))?.focus();
 }
 
 /** Les zones de texte s'agrandissent avec leur contenu. */
@@ -115,12 +98,16 @@ async function renderGallery() {
 }
 
 async function save() {
+  const template = courseTemplate();
   const d = edit.draft;
-  for (const [field, key] of Object.entries(FIELDS)) d[key] = $('#' + field).value.trim();
+  const { values, answers } = readForm(template, $('#eFields'));
+  Object.assign(d, values);
   d.visible = $('#eVisible').checked;
-  if (!d.common && !d.species) {
-    toast('Indiquez au moins un nom');
-    $('#eCommon').focus();
+  // Une fiche se reconnaît à son titre ou à son sous-titre, quand le modèle en a : il en faut au moins un
+  const names = [titleField(template), subtitleField(template)].filter(Boolean);
+  if (names.length && names.every((field) => isEmpty(d[field.id]))) {
+    toast(`Indiquez au moins ${names.map((field) => `« ${field.label} »`).join(' ou ')}`);
+    $(`#e-${names[0].id}`).focus();
     return;
   }
   if (
@@ -130,14 +117,13 @@ async function save() {
   )
     return;
 
-  const fiche = normalizeFiche(d);
+  const fiche = normalizeFiche(d, template);
   if (edit.isNew) fiches().push(fiche);
   else fiches()[fiches().findIndex((f) => f.id === edit.id)] = fiche;
   for (const key of edit.removed) await forgetFile(key);
 
-  const measures = Object.entries(measureFields()).map(([field, key]) => [key, $('#' + field).value.trim()]);
-  if (measures.some(([, v]) => v) || entryOf(fiche)) {
-    Object.assign(entryOf(fiche, true), Object.fromEntries(measures));
+  if (questionFields(template).some((field) => !isEmpty(answers[field.id])) || (entryOf(fiche) && Object.keys(answers).length)) {
+    Object.assign(entryOf(fiche, true), answers);
     changedProgress();
   }
   edit.saved = true;
@@ -149,7 +135,7 @@ async function save() {
 
 async function remove() {
   const f = byId(edit.id);
-  if (!confirm(`Supprimer définitivement « ${titleOf(f)} » et ses photos ?`)) return;
+  if (!confirm(`Supprimer définitivement « ${titleOf(f, courseTemplate())} » et ses photos ?`)) return;
   for (const key of edit.added) await forgetFile(key);
   await deleteFiches([f]);
   edit.saved = true;
@@ -158,19 +144,23 @@ async function remove() {
   toast('Fiche supprimée');
 }
 
-/** Barre d'émojis : insère l'émoji dans le dernier champ texte utilisé. */
+/**
+ * Barre d'émojis : insère l'émoji dans le dernier champ texte utilisé, sinon dans le premier du groupe de la barre. Le
+ * formulaire est refait à chaque fiche : tout passe par la fenêtre, qui, elle, reste.
+ */
 function bindEmojiBar() {
-  const bar = $('#emojiBar');
+  const dlg = $('#dlgEdit');
   let target = null;
-  bar.innerHTML = EMOJIS.map((e) => `<button type="button" data-emoji="${e}" title="Ajouter ${e}">${e}</button>`).join('');
-  $('#dlgEdit').addEventListener('focusin', (e) => {
-    if (e.target.matches('textarea, input:not([type]), input[type="text"]')) target = e.target;
+  dlg.addEventListener('focusin', (e) => {
+    if (e.target.matches('[data-f]:is(textarea, input:not([type]), input[type="text"])')) target = e.target;
   });
-  bar.addEventListener('mousedown', (e) => e.preventDefault()); // garde le curseur dans le champ
-  bar.addEventListener('click', (e) => {
+  dlg.addEventListener('mousedown', (e) => e.target.closest('[data-emoji]') && e.preventDefault()); // garde le curseur dans le champ
+  dlg.addEventListener('click', (e) => {
     const b = e.target.closest('[data-emoji]');
     if (!b) return;
-    const t = target?.isConnected ? target : $('#eExposure');
+    const group = b.closest('.needs-edit') ?? $('#eFields');
+    const t = target?.isConnected ? target : group.querySelector('[data-f]:is(textarea, input:not([type]))');
+    if (!t) return;
     const start = t.selectionStart ?? t.value.length;
     const end = t.selectionEnd ?? t.value.length;
     t.value = t.value.slice(0, start) + b.dataset.emoji + t.value.slice(end);

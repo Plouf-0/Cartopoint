@@ -8,7 +8,8 @@
 import { Meta, Maps, Files, Progress } from './db.js';
 import { localBackend } from './backends/local.js';
 import { debounce, uid, blobToDataURL, dataURLToBlob, toast, errorText } from './util.js';
-import { normalizeProject, normalizeProgress, emptyProgress, placedPos, evaluate, gradeOf, VERSION, FORMAT } from './model.js';
+import { normalizeProject, normalizeProgress, emptyProgress, placedPos, evaluate, gradeOf, withoutTeacherNotes, VERSION, FORMAT } from './model.js';
+import { emptyAnswers, hasAnswers, questionFields } from './fields.js';
 
 export const S = {
   /** Projet affiché (métadonnées + cartes + fiches). */
@@ -42,6 +43,8 @@ export const S = {
 /* ------------------------------------------------------------------ */
 
 export const fiches = () => S.map?.fiches ?? [];
+/** Le modèle de fiche du cours affiché. */
+export const courseTemplate = () => S.project.template;
 /** Fiches montrées dans la liste : toutes en gestion, seulement les visibles côté élèves. */
 export const listed = () => (S.admin ? fiches() : fiches().filter((f) => f.visible));
 export const byId = (id) => fiches().find((f) => f.id === id);
@@ -52,7 +55,7 @@ export const locked = () => !S.admin && (verified() || S.finished);
 /** Entrée de progression d'une fiche (créée à la demande si `create`). */
 export function entryOf(fiche, create = false) {
   const p = progress();
-  if (!p.entries[fiche.id] && create) p.entries[fiche.id] = { x: null, y: null, temperature: '', humidity: '', light: '' };
+  if (!p.entries[fiche.id] && create) p.entries[fiche.id] = { x: null, y: null, ...emptyAnswers(courseTemplate()) };
   return p.entries[fiche.id] || null;
 }
 export const posOf = (fiche) => placedPos(entryOf(fiche));
@@ -227,7 +230,7 @@ export async function loadLocal() {
   const prog = {};
   for (const m of project.maps) {
     const p = await Progress.get(`${project.id}/${m.id}`);
-    if (p) prog[m.id] = normalizeProgress(p);
+    if (p) prog[m.id] = normalizeProgress(p, project.template);
   }
   return { project, progress: prog, local: { dirty: false, baseRevision: null, lastExport: null, ...local } };
 }
@@ -260,7 +263,7 @@ export async function installProject(project, { progress = 'seed', dirty = false
   const existing = {};
   for (const m of project.maps) {
     const p = await Progress.get(`${project.id}/${m.id}`);
-    if (p) existing[m.id] = normalizeProgress(p);
+    if (p) existing[m.id] = normalizeProgress(p, project.template);
   }
   await Maps.clear();
   await Files.clear();
@@ -293,7 +296,7 @@ export async function installProject(project, { progress = 'seed', dirty = false
  * Projet exportable (JSON) : photos converties en URL data:.
  * @param o.studentsOnly   ne garder que les fiches visibles et retirer les réglages enseignant
  * @param o.withProgress   inclure le travail des élèves
- * @param o.keepPositions / o.keepMeasures   filtre de la progression incluse
+ * @param o.keepPositions / o.keepMeasures   filtre de la progression incluse : placements, réponses aux questions
  */
 /** @param onMissing reçoit le nombre de photos retirées faute d'avoir encore leur fichier dans ce navigateur : l'appelant doit le dire */
 export async function exportProject({ studentsOnly = false, withProgress = true, keepPositions = true, keepMeasures = true, onMissing = () => {} } = {}) {
@@ -303,7 +306,7 @@ export async function exportProject({ studentsOnly = false, withProgress = true,
   let missing = 0;
   for (const m of S.project.maps) {
     const copy = structuredClone(m);
-    if (studentsOnly) copy.fiches = copy.fiches.filter((f) => f.visible);
+    if (studentsOnly) copy.fiches = copy.fiches.filter((f) => f.visible).map((f) => withoutTeacherNotes(f, S.project.template));
     for (const f of copy.fiches) {
       for (const md of f.media) {
         if (md.key) {
@@ -320,6 +323,7 @@ export async function exportProject({ studentsOnly = false, withProgress = true,
   }
   if (missing) onMissing(missing);
   const progressOut = {};
+  const questions = questionFields(S.project.template);
   if (withProgress) {
     for (const m of maps) {
       const src = S.progress[m.id];
@@ -331,11 +335,9 @@ export async function exportProject({ studentsOnly = false, withProgress = true,
         const out = {
           x: keepPositions ? e.x : null,
           y: keepPositions ? e.y : null,
-          temperature: keepMeasures ? e.temperature : '',
-          humidity: keepMeasures ? e.humidity : '',
-          light: keepMeasures ? e.light : ''
+          ...(keepMeasures ? Object.fromEntries(questions.map((field) => [field.id, e[field.id]])) : emptyAnswers(S.project.template))
         };
-        if (out.x !== null || out.temperature || out.humidity || out.light) p.entries[f.id] = out;
+        if (out.x !== null || hasAnswers(out, S.project.template)) p.entries[f.id] = out;
       }
       progressOut[m.id] = p;
     }
@@ -348,6 +350,7 @@ export async function exportProject({ studentsOnly = false, withProgress = true,
     savedAt: new Date().toISOString(),
     title: S.project.title,
     theme: S.project.theme,
+    template: S.project.template,
     passwordHash: S.project.passwordHash,
     currentMapId: S.map.id,
     maps,

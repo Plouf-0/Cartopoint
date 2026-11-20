@@ -1,10 +1,11 @@
 /**
  * Exports image : plan avec repères, et compte rendu complet des élèves en JPG
- * (noms, plan, résultats, mesures), facile à rendre sur l'ENT ou à imprimer.
+ * (noms, plan, résultats, réponses), facile à rendre sur l'ENT ou à imprimer.
  */
 import { toast, dateAndTime, download, safeFileName, loadImage, errorText } from './util.js';
 import { S, verified, progress, evaluationOf } from './store.js';
-import { visibleFiches, numberOf, titleOf, hasRef, placedPos, MEASURES } from './model.js';
+import { visibleFiches, numberOf, titleOf, subtitleOf, hasRef, placedPos } from './model.js';
+import { answersWord, questionFields, valueText } from './fields.js';
 import { paletteOf } from './themes.js';
 
 /** roundRect manque avant Firefox 112 et Safari 16 : le compte rendu y garde des angles droits plutôt que de ne pas se faire (E-15). */
@@ -127,12 +128,16 @@ async function fontsReady() {
  * Compte rendu complet sur une seule image :
  *   titre, élèves, carte, date, score · plan avec repères · tableau des fiches et mesures.
  */
-/** @param date le lancement du cours, si le compte rendu en vient d'un. Sinon, le moment où on le télécharge (application d'origine) */
-async function drawReport(names, { date } = {}) {
+/**
+ * @param date le lancement du cours, si le compte rendu en vient d'un. Sinon, le moment où on le télécharge (application d'origine)
+ * @param results une ligne de plus sous les noms : les réponses aux questions et la note, dans le compte rendu de l'enseignant (QST-04, QST-05)
+ */
+async function drawReport(names, { date, results = '' } = {}) {
   await fontsReady();
   const pal = paletteOf(S.project.theme);
   const rows = resultRows();
   const showEv = S.admin || verified();
+  const template = S.project.template;
   const { ok, near, scored } = scoreOf(rows);
   // Le compte rendu d'un élève garde ses placements et ses résultats, jamais les positions réelles (CRG-10)
   const plan = await drawPlan(S.admin);
@@ -142,7 +147,7 @@ async function drawReport(names, { date } = {}) {
   const CW = W - 2 * P;
   const planH = Math.round((plan.height / plan.width) * CW);
   const ROW = 76;
-  const headerH = 230;
+  const headerH = results ? 270 : 230;
   const H = headerH + planH + 70 + 90 + ROW * (rows.length + 1) + 90;
 
   const c = document.createElement('canvas');
@@ -165,6 +170,11 @@ async function drawReport(names, { date } = {}) {
   ctx.fillStyle = pal.inkSoft;
   ctx.fillText(fit(ctx, `Élève(s) : ${names || '—'}`, CW - 380), P, y + 74);
   ctx.fillText(fit(ctx, `${S.map.name} · ${dateAndTime(date ?? Date.now())}`, CW - 380), P, y + 112);
+  if (results) {
+    ctx.fillStyle = pal.ink;
+    ctx.fillText(fit(ctx, results, CW - 380), P, y + 150);
+    ctx.fillStyle = pal.inkSoft;
+  }
   if (showEv && scored) {
     ctx.textAlign = 'right';
     ctx.fillStyle = pal.ink;
@@ -223,11 +233,20 @@ async function drawReport(names, { date } = {}) {
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = pal.ink;
   ctx.font = `600 34px ${SERIF}`;
-  ctx.fillText('Fiches et mesures', P, y + 10);
+  ctx.fillText(`Fiches et ${answersWord(template)}`, P, y + 10);
   y += 40;
-  const cols = showEv
-    ? [['N°', 80], ['Fiche', 520], ...MEASURES.map(([, , unit, label]) => [label, 200]), ['Placement', 272]]
-    : [['N°', 80], ['Fiche', 792], ...MEASURES.map(([, , unit, label]) => [label, 200])];
+  // Les réponses marquées « dans la liste », comme sur les cartes des fiches : six au plus, pour que le nom reste lisible
+  const questions = questionFields(template)
+    .filter((field) => field.list)
+    .slice(0, 6);
+  const evW = showEv ? 272 : 0;
+  const qW = questions.length ? Math.min(200, Math.floor((CW - 80 - 400 - evW) / questions.length)) : 0;
+  const cols = [
+    ['N°', 80],
+    ['Fiche', CW - 80 - evW - qW * questions.length],
+    ...questions.map((field) => [field.label, qW]),
+    ...(showEv ? [['Placement', evW]] : [])
+  ];
   ctx.fillStyle = pal.sandSoft;
   ctx.fillRect(P, y, CW, ROW * 0.7);
   ctx.font = `bold 20px ${SANS}`;
@@ -235,7 +254,7 @@ async function drawReport(names, { date } = {}) {
   ctx.textBaseline = 'middle';
   x = P;
   for (const [label, w] of cols) {
-    ctx.fillText(label, x + 14, y + ROW * 0.35);
+    ctx.fillText(fit(ctx, label, w - 20), x + 14, y + ROW * 0.35);
     x += w;
   }
   y += ROW * 0.7;
@@ -265,10 +284,10 @@ async function drawReport(names, { date } = {}) {
     x += cols[0][1];
     ctx.textAlign = 'left';
     const nameW = cols[1][1] - 24;
-    const sci = r.fiche.species && r.fiche.species !== titleOf(r.fiche) ? r.fiche.species : '';
+    const sci = subtitleOf(r.fiche, template);
     ctx.fillStyle = pal.ink;
     ctx.font = `bold 23px ${SANS}`;
-    ctx.fillText(fit(ctx, titleOf(r.fiche), nameW), x + 14, sci ? mid - 12 : mid);
+    ctx.fillText(fit(ctx, titleOf(r.fiche, template), nameW), x + 14, sci ? mid - 12 : mid);
     if (sci) {
       ctx.fillStyle = pal.inkSoft;
       ctx.font = `italic 20px ${SERIF}`;
@@ -276,12 +295,12 @@ async function drawReport(names, { date } = {}) {
     }
     x += cols[1][1];
     ctx.font = `23px ${SANS}`;
-    MEASURES.forEach(([k, , unit], j) => {
-      const v = r.entry[k];
+    for (const field of questions) {
+      const v = valueText(field, r.entry[field.id], { unit: true });
       ctx.fillStyle = v ? pal.ink : pal.line;
-      ctx.fillText(v ? `${v} ${unit}` : '—', x + 14, mid);
-      x += cols[2 + j][1];
-    });
+      ctx.fillText(v ? fit(ctx, v, qW - 20) : '—', x + 14, mid);
+      x += qW;
+    }
     if (showEv) {
       pill(ctx, x + 14, r.ev.dist ? mid - 12 : mid, r.ev.label, GRADE[r.ev.cls] || GRADE.none, 18);
       if (r.ev.dist) {

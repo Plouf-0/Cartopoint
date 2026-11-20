@@ -8,7 +8,7 @@ import { tempDir } from './helpers.js';
 
 const TABLES = ['accounts', 'course_versions', 'courses', 'incidents', 'launches', 'links', 'media', 'participants', 'sessions'];
 
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 const version = (db) => db.prepare('PRAGMA user_version').get().user_version;
 const count = (db, table) => db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
 const tables = (db) =>
@@ -44,6 +44,18 @@ test('une base neuve reçoit le schéma complet', async (t) => {
   const db = await open(t);
   assert.deepEqual(tables(db), TABLES);
   assert.equal(version(db), SCHEMA_VERSION);
+});
+
+test('QST-04 : la migration 008 donne aux élèves leurs corrections et aux lancements leur notation, sans rien toucher d’autre', async (t) => {
+  const db = await open(t);
+  const columns = (table) =>
+    db
+      .prepare(`PRAGMA table_info(${table})`)
+      .all()
+      .map((column) => column.name);
+  assert.ok(columns('participants').includes('reviews'));
+  assert.ok(columns('launches').includes('grading'));
+  assert.equal(columns('participants').includes('note'), false, 'la note de la migration 007 reste retirée');
 });
 
 test('rejouer les migrations ne change rien : ni le schéma, ni les données', async (t) => {

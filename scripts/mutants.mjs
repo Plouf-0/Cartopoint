@@ -590,12 +590,12 @@ const MUTANTS = [
   ['cours : pas d’avertissement en quittant', 'src/js/prof/course.js', 'if (hasPendingChanges()) event.preventDefault();', ''],
   ['cours : plan absent non signalé', 'src/js/prof/course.js', "$('#planEmpty').hidden = !!S.map.image;", "$('#planEmpty').hidden = true;"],
   ['cours : pas de renvoi vers la connexion', 'src/js/prof/course.js', "if (e.status === 401) return location.replace('/prof');", ''],
-  ['cours : contenu hors de son format', 'src/js/model.js', 'return { format, version, title, theme, template, maps };', 'return project;'],
+  ['cours : contenu hors de son format', 'src/js/model.js', 'return { format, version, title, theme, template, grading, maps };', 'return project;'],
   [
     'MOD-01 : le modèle ne part pas avec le cours',
     'src/js/model.js',
-    'return { format, version, title, theme, template, maps };',
-    'return { format, version, title, theme, maps };'
+    'return { format, version, title, theme, template, grading, maps };',
+    'return { format, version, title, theme, grading, maps };'
   ],
   [
     'MOD-02 : un contenu sans modèle perd ses champs',
@@ -618,6 +618,43 @@ const MUTANTS = [
   ['CHP-01 : un champ peut écraser une propriété de la fiche', 'src/js/fields.js', ' || RESERVED.has(field.id)', ''],
   ['CHP-01 : une propriété inconnue passe', 'src/js/fields.js', 'if (!KEPT[field.type].includes(key))', 'if (false)'],
   ['CHP-01 : un modèle invalide se lit quand même', 'src/js/fields.js', 'if (problems.length) throw new Error', 'if (false) throw new Error'],
+  [
+    'CHP-04 : révélé à la correction avant la fin',
+    'src/js/views/fields-html.js',
+    "(field.audience === 'correction' && (revealed || teacher))",
+    "field.audience === 'correction'"
+  ],
+  ['CHP-04 : note de l’enseignant chez l’élève', 'src/js/views/fields-html.js', "(field.audience === 'teacher' && teacher)", "field.audience === 'teacher'"],
+  ['CHP-04 : note de l’enseignant dans la version élèves', 'src/js/store.js', '.map((f) => withoutTeacherNotes(f, S.project.template))', ''],
+  [
+    'CHP-04 : note de l’enseignant dans le fichier de secours',
+    'src/js/prof/fallback-file.js',
+    '.map((fiche) => withoutTeacherNotes(fiche, project.template))',
+    ''
+  ],
+  ['CHP-02 : un champ vide affiché', 'src/js/views/fields-html.js', ' && !isEmpty(fiche[field.id]));', ');'],
+  [
+    'CHP-02 : tous les champs sous le titre dans la liste',
+    'src/js/fields.js',
+    'field.list && !field.role && !isHeading(field)',
+    '!field.role && !isHeading(field)'
+  ],
+  ['CHP-03 : choix multiple réduit à un seul', 'src/js/views/fields-html.js', "field.multiple ? checked : (checked[0] ?? '')", "checked[0] ?? ''"],
+  ['CHP-05 : réponse notée rangée dans la fiche', 'src/js/views/fields-html.js', '(isQuestion(field) ? answers : values)[field.id]', 'values[field.id]'],
+  [
+    'CHP-05 : questions dans le formulaire de l’espace enseignant',
+    'src/js/views/editor.js',
+    'S.teacherSpace ? null : (id && entryOf(source)) || {}',
+    '(id && entryOf(source)) || {}'
+  ],
+  ['MOD-01 : modèle perdu dans le fichier enregistré', 'src/js/store.js', '    template: S.project.template,\n', ''],
+  ['CHP-06 : moyenne d’une question qui n’est pas un nombre', 'src/js/prof/results-workbook.js', ".filter((field) => field.type === 'number');", ';'],
+  [
+    'TAB-06 : une proposition ne se reconnaît pas à son libellé',
+    'src/js/spreadsheet.js',
+    'choice.id === text || normKey(choice.label) === normKey(text)',
+    'choice.id === text'
+  ],
   [
     'publication : pas d’avertissement',
     'src/js/prof/course-tab.js',
@@ -656,8 +693,8 @@ const MUTANTS = [
   ['rendu : position négative', 'server/answers.mjs', 'value >= 0 && value <= 100', 'value <= 100'],
   ['rendu : position en texte', 'server/answers.mjs', "typeof value === 'number' && ", ''],
   ['rendu : placement à moitié', 'server/answers.mjs', '(raw.x ?? raw.y ?? null) !== null', 'false'],
-  ['rendu : mesure trop longue', 'server/answers.mjs', 'value.length > MAX_MEASURE', 'false'],
-  ['rendu : mesure qui n’est pas du texte', 'server/answers.mjs', "typeof value !== 'string' || ", ''],
+  ['rendu : mesure trop longue', 'src/js/fields.js', 'longtext: 2000, number: 50 }', 'longtext: 2000, number: 5000 }'],
+  ['rendu : mesure qui n’est pas du texte', 'src/js/fields.js', "return typeof value === 'string' && value.length <=", 'return String(value).length <='],
   ['rendu : champ en trop gardé', 'server/answers.mjs', 'const entry = { x: placed ?', 'const entry = { ...raw, x: placed ?'],
   [
     'rendu : fiche masquée acceptée',
@@ -669,17 +706,18 @@ const MUTANTS = [
   ['rendu : proportions du plan ignorées', 'server/answers.mjs', 'ratio: map.ratio || 1', 'ratio: 1'],
   ['rendu : échelle ignorée', 'server/answers.mjs', 'widthMeters: map.widthMeters', 'widthMeters: null'],
   ['rendu : fiches masquées notées', 'server/answers.mjs', 'const fiches = visibleFiches(map).map((fiche) => {', 'const fiches = map.fiches.map((fiche) => {'],
-  ['rendu : écart inventé', 'server/answers.mjs', 'd === undefined ? { state } : { state, d, dist }', '{ state, d, dist }'],
+  ['rendu : écart inventé', 'server/answers.mjs', '...(d === undefined ? {} : { d, dist })', '...{ d, dist }'],
   ['rendu : score par carte seulement', 'server/answers.mjs', 'total[state]++;', ''],
   ['rendu : résultat renvoyé à l’élève', 'server/routes/student.mjs', '{ received: true, submittedAt }', '{ received: true, submittedAt, score: 1 }'],
   ['rendu : second envoi vérifié à son tour', 'server/routes/student.mjs', 'if (!submittedAt) {', 'if (true) {'],
   ['rendu : réception jamais confirmée', 'server/routes/student.mjs', 'received: Boolean(submittedAt)', 'received: false'],
   ['rendu : limite de 64 Ko', 'server/routes/student.mjs', 'readJson(req, MAX_ANSWERS_BYTES)', 'readJson(req)'],
-  ['rendu : pas de limite utile', 'server/answers.mjs', 'MAX_ANSWERS_BYTES = 256 * 1024', 'MAX_ANSWERS_BYTES = 2560 * 1024'],
+  ['rendu : pas de limite utile', 'server/answers.mjs', 'MAX_ANSWERS_BYTES = 512 * 1024', 'MAX_ANSWERS_BYTES = 5120 * 1024'],
   ['rendu : le second envoi remplace le premier', 'server/launches.mjs', 'WHERE id = ? AND submitted_at IS NULL', 'WHERE id = ?'],
   ['rendu : retard non signalé', 'server/launches.mjs', 'participant.ended_at && !closedByEnd ? 1 : 0', '0'],
   ['rendu : terminer sans confirmation', 'src/js/eleve/main.js', 'if (!confirm(`${warning}Terminer ?', 'if (false && !confirm(`${warning}Terminer ?'],
-  ['rendu : fiches non placées non annoncées', 'src/js/eleve/main.js', 'const warning = missing ?', 'const warning = false ?'],
+  ['rendu : fiches non placées non annoncées', 'src/js/eleve/main.js', '(missing ? `${missing} fiche(s)', '(false ? `${missing} fiche(s)'],
+  ['QST-06 : réponses obligatoires non annoncées', 'src/js/eleve/main.js', '(required ? `${required} réponse(s)', '(false ? `${required} réponse(s)'],
   ['rendu : une seule carte comptée', 'src/js/eleve/main.js', 'S.project.maps.reduce(', '[S.map].reduce('],
   [
     'rendu : rien de figé',
@@ -707,8 +745,20 @@ const MUTANTS = [
   ],
   ['figé : placement encore possible', 'src/js/views/student-list.js', 'else if (locked()) foot += `<span class="state">Non placée</span>`;', ''],
   ['figé : fiche encore à glisser', 'src/js/views/student-list.js', 'draggable="${!locked() && !placed}"', 'draggable="${!placed}"'],
-  ['figé : mesures encore modifiables', 'src/js/views/cards.js', "${S.finished ? 'disabled' : ''}", ''],
-  ['figé : mesures de la fiche encore modifiables', 'src/js/views/reader.js', "${S.finished ? 'disabled' : ''}", ''],
+  ['figé : mesures encore modifiables', 'src/js/views/cards.js', '{ disabled: S.finished, title', '{ disabled: false, title'],
+  ['figé : mesures de la fiche encore modifiables', 'src/js/views/reader.js', '{ disabled: S.finished, revealed', '{ disabled: false, revealed'],
+  [
+    'CHP-03 : case de la liste figée sans effet',
+    'src/js/views/fields-html.js',
+    "const off = disabled ? ' disabled' : '';\n  const cells",
+    "const off = '';\n  const cells"
+  ],
+  [
+    'CHP-03 : choix de la fiche figés sans effet',
+    'src/js/views/fields-html.js',
+    "const off = disabled ? ' disabled' : '';\n  if (isChoice",
+    "const off = '';\n  if (isChoice"
+  ],
   ['figé : placer depuis la fiche', 'src/js/views/reader.js', 'const canPlace = !posOf(f) && !locked();', 'const canPlace = !posOf(f) && !verified();'],
   ['plan : proportions non mesurées', 'src/js/prof/course-tab.js', '      map.ratio = ratio;\n', ''],
   ['plan : mesure fausse', 'src/js/prof/course-tab.js', 'plan.naturalWidth / plan.naturalHeight', 'plan.naturalHeight / plan.naturalWidth'],
@@ -726,7 +776,139 @@ const MUTANTS = [
   ['CRG-01 : fiches masquées envoyées', 'server/student-view.mjs', '.filter(isVisible)', ''],
   ['CRG-01 : ancienne fiche masquée envoyée', 'server/student-view.mjs', 'fiche.visible ?? fiche.studentEnabled !== false', 'fiche.visible !== false'],
   ['CRG-01 : carte copiée telle quelle', 'server/student-view.mjs', '...pick(map, MAP_FIELDS)', '...map'],
-  ['CRG-01 : fiche copiée telle quelle', 'server/student-view.mjs', '...pick(fiche, FICHE_FIELDS)', '...fiche'],
+  ['CRG-01 : fiche copiée telle quelle', 'server/student-view.mjs', '...pick(fiche, [...FICHE_FIELDS, ...values])', '...fiche'],
+  [
+    'CHP-04 : révélé et note de l’enseignant envoyés avant la fin',
+    'server/student-view.mjs',
+    "filter((field) => field.audience === 'info')",
+    "filter((field) => field.audience !== 'question')"
+  ],
+  [
+    'CHP-04 : définition de la note de l’enseignant envoyée',
+    'server/student-view.mjs',
+    ".filter((field) => field.audience !== 'teacher')",
+    '.filter(() => true)'
+  ],
+  ['CHP-04 : modèle envoyé tel quel', 'server/student-view.mjs', '.map((field) => pick(field, ', '.map((field) => field || pick(field, '],
+  ['CHP-04 : la correction ne révèle rien', 'server/answers.mjs', '                ...revealedOf(project, fiche),\n', ''],
+  ['QST-04 : la correction de l’enseignant ignorée', 'src/js/verdicts.js', '[id, reviewed[id]?.verdict ?? verdict]', '[id, verdict]'],
+  ['QST-04 : un élève d’un autre lancement corrigé', 'server/launches.mjs', "      if (!participant) throw new HttpError(404, 'Introuvable');\n", ''],
+  ['QST-04 : corrigé avant d’avoir rendu', 'server/launches.mjs', 'if (!participant.results) throw new HttpError(409,', 'if (false) throw new HttpError(409,'],
+  [
+    'QST-04 : une mesure se corrige',
+    'server/launches.mjs',
+    "const graded = field && checkOf(field) && checkOf(field) !== 'none';",
+    'const graded = Boolean(field);'
+  ],
+  ['QST-04 : verdict inventé accepté', 'server/launches.mjs', 'if (verdict !== null && !VERDICTS.includes(verdict))', 'if (false)'],
+  ['QST-04 : la liste ne recompte pas', 'src/js/prof/review-dialog.js', '      onChange();\n', ''],
+  [
+    'QST-05 : la notation du lancement ignorée',
+    'server/launches.mjs',
+    '(row.grading ? normalizeGrading(JSON.parse(row.grading), project.template) : project.grading)',
+    'project.grading'
+  ],
+  ['QST-05 : une notation invalide acceptée', 'server/launches.mjs', 'if (gradingProblem(grading, template)) throw', 'if (false) throw'],
+  ['QST-05 : un cours mal noté accepté', 'server/courses.mjs', 'if (gradingProblem(draft.grading, template)) throw', 'if (false) throw'],
+  [
+    'QST-05 : une réponse à corriger rapporte des points',
+    'src/js/verdicts.js',
+    'const EARNED = { ok: 1, half: 0.5, wrong: 0, pending: 0 };',
+    'const EARNED = { ok: 1, half: 0.5, wrong: 0, pending: 1 };'
+  ],
+  ['QST-05 : la note jamais provisoire', 'src/js/verdicts.js', "    if (verdict === 'pending') pending++;\n", ''],
+  [
+    'QST-05 : le placement compte toujours',
+    'src/js/verdicts.js',
+    'if (withPlacement && PLACEMENT_VERDICTS[result.state])',
+    'if (PLACEMENT_VERDICTS[result.state])'
+  ],
+  ['QST-05 : un barème oublié', 'src/js/verdicts.js', "grading.mode === 'points' ? (grading.points[questionId] ?? 1) : 1", '1'],
+  ['QST-05 : un barème cite une question supprimée', 'src/js/prof/template-tab.js', '  S.project.grading = normalizeGrading(S.project.grading, next);\n', ''],
+  [
+    'QST-05 : pas de note dans le compte rendu',
+    'src/js/prof/student-reports.js',
+    'if (participant.mark) parts.push(`Note : ${markText(participant.mark)}`);',
+    ''
+  ],
+  [
+    'QST-01 : bonne réponse envoyée avant la fin',
+    'server/student-view.mjs',
+    "const FICHE_FIELDS = ['id', 'ref', 'thumbnailId', 'name'];",
+    "const FICHE_FIELDS = ['id', 'ref', 'thumbnailId', 'name', 'expected'];"
+  ],
+  [
+    'QST-01 : réponse attendue d’une question qui ne se corrige pas',
+    'src/js/verdicts.js',
+    'for (const field of autoQuestions(template)) {',
+    'for (const field of questionFields(template)) {'
+  ],
+  [
+    'QST-01 : réponses attendues non vérifiées par le serveur',
+    'server/courses.mjs',
+    '      if (problem) throw new HttpError(400, `Une fiche a une ${problem}.`);\n',
+    ''
+  ],
+  ['QST-02 : texte comparé avec ses accents', 'src/js/verdicts.js', 'comparable(accepted) === comparable(answer)', 'accepted === answer'],
+  ['QST-02 : tolérance ignorée', 'src/js/verdicts.js', '<= expected.tolerance + 1e-9', '<= 1e-9'],
+  ['QST-02 : choix multiple partiel accepté', 'src/js/verdicts.js', 'given.size === expected.length && ', ''],
+  ['QST-02 : une question sans réponse attend l’enseignant', 'src/js/verdicts.js', "isEmpty(answer) ? 'wrong' : 'pending'", "'pending'"],
+  ['QST-02 : une mesure reçoit un verdict', 'src/js/verdicts.js', "    if (check === 'none') continue;\n", ''],
+  ['QST-03 : bonne réponse absente de la correction', 'server/answers.mjs', '...(fiche.expected ? { expected: fiche.expected } : {})', ''],
+  [
+    'CHP-04 : la correction révèle aussi les renseignements',
+    'server/answers.mjs',
+    "field.audience === 'correction' && !isEmpty(fiche[field.id])",
+    '!isEmpty(fiche[field.id])'
+  ],
+  ['CHP-04 : révélé reçu mais pas montré', 'src/js/eleve/correction.js', 'if (result?.revealed) Object.assign(fiche, revealedValues(result.revealed));', ''],
+  ['CHP-07 : réponses lues sans le modèle du lancement', 'server/answers.mjs', 'const questions = questionFields(project.template);', 'const questions = [];'],
+  ['CHP-07 : choix unique non vérifié', 'src/js/fields.js', "return value === '' || ids.has(value);", 'return true;'],
+  ['CHP-07 : modèle non vérifié par le serveur', 'server/courses.mjs', 'if (problem) throw new HttpError(400,', 'if (false) throw new HttpError(400,'],
+  ['CHP-07 : valeurs d’une fiche non vérifiées', 'server/courses.mjs', 'fiche[field.id] !== undefined && !isValidValue(field, fiche[field.id])', 'false'],
+  ['CHP-07 : texte trop long gardé', 'src/js/fields.js', 'return str(raw).slice(0, maxLength(field, { answer }));', 'return str(raw);'],
+  ['EDI-05 : la date du jour en temps universel', 'src/js/util.js', 'now.getDate()]', 'now.getUTCDate()]'],
+  [
+    'MOD-07 : nouveau cours sans modèle de départ',
+    'src/js/prof/main.js',
+    'run(error, () => createWith(starterTemplate()));',
+    'run(error, () => createWith(undefined));'
+  ],
+  ['MOD-07 : reprise sans confirmation', 'src/js/prof/template-tab.js', '  if (!confirm(message)) return false;\n', ''],
+  ['MOD-07 : un cours se propose lui-même', 'src/js/prof/template-tab.js', '.filter((course) => course.id !== openCourseId())', '.filter(() => true)'],
+  ['MOD-08 : la copie garde le nom de l’original', 'src/js/prof/main.js', 'title: `Copie de ${course.title}`.slice(0, 200)', 'title: course.title'],
+  ['MOD-04 : badge de correction absent', 'src/js/prof/template-tab.js', '${check ? `<span class="check-badge', '${false ? `<span class="check-badge'],
+  ['MOD-04 : résumé qui ne compte pas', 'src/js/prof/template-tab.js', 'counts[checkOf(field)]++;', 'counts.none++;'],
+  ['CHP-08 : un nombre corrigé par défaut', 'src/js/fields.js', "number: 'none', choice: 'auto'", "number: 'auto', choice: 'auto'"],
+  [
+    'MOD-03 : modèle impossible enregistré',
+    'src/js/prof/template-tab.js',
+    '    if (problem) {\n      error.textContent',
+    '    if (false) {\n      error.textContent'
+  ],
+  [
+    'MOD-03 : les fiches gardent la valeur d’un champ supprimé',
+    'src/js/prof/template-tab.js',
+    '    map.fiches = map.fiches.map((fiche) => normalizeFiche(fiche, next));\n',
+    ''
+  ],
+  ['MOD-03 : glisser sans effet', 'src/js/prof/template-tab.js', '      applyTemplate(withFields(moved(fields, from, from < to ? to - 1 : to)));', ''],
+  ['MOD-05 : type d’un champ rempli libre', 'src/js/prof/template-tab.js', 'disabled: (t) => locked && ', 'disabled: (t) => false && '],
+  ['MOD-05 : perte sans confirmation', 'src/js/prof/template-tab.js', 'if (lost && !confirm(', 'if (false && !confirm('],
+  ['MOD-05 : suppression sans dire ce qui sera perdu', 'src/js/prof/template-tab.js', '(lost.length ? `', '(false ? `'],
+  ['MOD-06 : aperçu sans ce qui est révélé', 'src/js/prof/template-tab.js', '{ revealed: state.revealed }', '{ revealed: false }'],
+  [
+    'MOD-06 : aperçu toujours sur un téléphone',
+    'src/js/prof/template-tab.js',
+    'frame.className = `preview-frame ${state.width}`;',
+    "frame.className = 'preview-frame phone';"
+  ],
+  [
+    'CHP-07 : case sans longueur permise',
+    'src/js/views/fields-html.js',
+    'const max = (field, answer) => ` maxlength=',
+    "const max = (field, answer) => '' && ` maxlength="
+  ],
   ['CRG-01 : média copié tel quel', 'server/student-view.mjs', 'pick(media, MEDIA_FIELDS)', 'media'],
   ['CRG-01 : thème copié tel quel', 'server/student-view.mjs', 'pick(content.theme ?? {}, THEME_FIELDS)', 'content.theme ?? {}'],
   [
@@ -883,7 +1065,7 @@ const MUTANTS = [
   ],
   ['élève : travail perdu si la page se ferme', 'src/js/eleve/main.js', "window.addEventListener('pagehide', () => flush());", ''],
   ['élève : travail perdu en passant à une autre application', 'src/js/eleve/main.js', "document.visibilityState === 'hidden' && flush()", 'false'],
-  ['élève : travail non relu', 'src/js/eleve/main.js', 'if (saved) work[map.id] = normalizeProgress(saved);', ''],
+  ['élève : travail non relu', 'src/js/eleve/main.js', 'if (saved) work[map.id] = normalizeProgress(saved, project.template);', ''],
   ['élève : travail non écrit', 'src/js/backends/student.js', 'for (const [key, value] of progress) await Progress.put(key, value);', ''],
   [
     'élève : éditeur chargé avec la page',
@@ -916,8 +1098,14 @@ const MUTANTS = [
   ],
   ['SEC-06 : API sans règle', 'server/http.mjs', "res.setHeader('Content-Security-Policy', contentPolicy());", ''],
   ['EV-34 : couleur verte perdue', 'src/js/themes.js', "accent: '#2e6e45'", "accent: '#1f5f8b'"],
-  ['EV-34 : botanique dans une fiche ouverte', 'src/js/views/reader.js', '<h3 class="mini-h">Besoins</h3>', '<h3 class="mini-h">Besoins de la plante</h3>'],
-  ['EV-34 : botanique dans la page d’un cours', 'src/prof-cours.html', '<h3>Besoins</h3>', '<h3>Besoins de la plante</h3>'],
+  ['EV-34 : botanique dans une fiche ouverte', 'src/js/views/reader.js', '<h3>Autres photos et vidéos</h3>', '<h3>Autres photos de la plante</h3>'],
+  [
+    'EV-34 : botanique dans le formulaire d’une fiche',
+    'src/js/views/fields-html.js',
+    "puis sur un émoji pour l'ajouter",
+    'puis sur un émoji pour décrire la plante'
+  ],
+  ['EV-34 : botanique dans la page d’un cours', 'src/prof-cours.html', '<h3>Photos et vidéos</h3>', '<h3>Photos de la plante</h3>'],
   ['EV-34 : ancien nom du modèle de tableur', 'src/js/views/admin/fiches.js', "'Modèle de fiches.csv'", "'Modèle fiches botaniques.csv'"],
   ['EDI-10 : mesures dans la liste', 'src/js/views/admin/fiches.js', "${S.teacherSpace ? '' : measuresHTML(f)}", '${measuresHTML(f)}'],
   ['EDI-10 : séance dans l’espace enseignant', 'src/js/views/admin/fiches.js', "${S.teacherSpace ? '' : sessionHTML()}", '${sessionHTML()}'],
@@ -927,12 +1115,7 @@ const MUTANTS = [
     "${S.teacherSpace ? '' : passwordHTML()}",
     '${passwordHTML()}'
   ],
-  [
-    'EDI-10 : colonnes de mesures au tableur',
-    'src/js/spreadsheet.js',
-    '(S.teacherSpace ? COLUMNS.filter(([k]) => !MEASURE_KEYS.includes(k)) : COLUMNS)',
-    'COLUMNS'
-  ],
+  ['EDI-10 : colonnes de mesures au tableur', 'src/js/spreadsheet.js', 'const withAnswers = () => !S.teacherSpace;', 'const withAnswers = () => true;'],
   ['fiche : enregistrable pendant un envoi', 'src/js/views/editor.js', "$('#eSave').disabled = true;", ''],
   ['fiche : enregistrement resté bloqué', 'src/js/views/editor.js', "$('#eSave').disabled = false;", ''],
   [
@@ -1382,7 +1565,8 @@ const MUTANTS = [
   ['CRG-13 : aucune heure notée', 'src/js/store.js', 'if (S.stampAnswers) entry.at = Date.now();', ''],
   ['CRG-13 : heure oubliée au rechargement', 'src/js/model.js', 'if (Number.isFinite(e.at)) entry.at = e.at;', ''],
   ['CRG-13 : placement sans heure', 'src/js/views/map.js', 'stamped(Object.assign(entryOf(f, true), { x, y }));', 'Object.assign(entryOf(f, true), { x, y });'],
-  ['CRG-13 : mesure sans heure', 'src/js/views/cards.js', 'stamped(entryOf(f, true))[input.dataset.measure]', 'entryOf(f, true)[input.dataset.measure]'],
+  ['CRG-13 : mesure sans heure', 'src/js/views/cards.js', 'stamped(entryOf(f, true))[field.id]', 'entryOf(f, true)[field.id]'],
+  ['CRG-13 : réponse de la fiche ouverte sans heure', 'src/js/views/reader.js', 'stamped(entryOf(f, true))[field.id]', 'entryOf(f, true)[field.id]'],
   ['CRG-13 : page sans heures', 'src/js/eleve/main.js', '  S.stampAnswers = true;\n', ''],
   ['CRG-13 : pas d’heure à l’envoi', 'src/js/eleve/main.js', ', sentAt: Date.now()', ''],
   ['CRG-13 : heure de fin non transmise', 'src/js/eleve/main.js', 'finishedAt: Date.parse(finishedAt), ', ''],
@@ -1465,8 +1649,8 @@ const MUTANTS = [
   [
     'HIS-09 : boutons pour tous sans aucun rendu',
     'src/js/prof/launch-results.js',
-    'saveAll.hidden = saveExcel.hidden = !handedIn;',
-    'saveAll.hidden = saveExcel.hidden = false;'
+    'saveAll.hidden = saveExcel.hidden = review.hidden = !handedIn;',
+    'saveAll.hidden = saveExcel.hidden = review.hidden = false;'
   ],
   ['HIS-09 : archive sans filtre', 'src/js/prof/launch-results.js', 'participants.filter((participant) => participant.results),\n', 'participants,\n'],
   ['HIS-09 : plusieurs fichiers d’un coup', 'src/js/prof/launch-results.js', 'if (reports.length === 1) download', 'if (true) download'],
@@ -1524,7 +1708,7 @@ const MUTANTS = [
   [
     'HIS-08 : pas de synthèse',
     'src/js/prof/results-workbook.js',
-    'return [summarySheet(project, participants, { title, openedAt, endedAt }), ...handedIn',
+    'return [summarySheet(project, participants, { title, openedAt, endedAt, grading }), ...handedIn',
     'return [...handedIn'
   ],
   [
@@ -1579,8 +1763,8 @@ const MUTANTS = [
   [
     'HIS-09 : un compte rendu sans le jour du cours',
     'src/js/prof/student-reports.js',
-    'return reportBlob(participant.names, { date });',
-    'return reportBlob(participant.names, {});'
+    'return reportBlob(participant.names, { date, results: resultsLine(participant) });',
+    'return reportBlob(participant.names, { results: resultsLine(participant) });'
   ],
   [
     'HIS-09 : l’archive sans le jour du cours',
@@ -1869,6 +2053,8 @@ const TESTS_FOR = {
   'src/js/views/report-actions.js': ['e2e/legacy'],
   'src/js/version.js': ['e2e/offline'],
   'src/js/prof/launch-results.js': ['e2e/history'],
+  'src/js/prof/review-dialog.js': ['e2e/history'],
+  'src/js/prof/grading-dialog.js': ['e2e/history'],
   'src/js/prof/student-reports.js': ['e2e/history'],
   'src/js/prof/results-workbook.js': ['results-workbook', 'e2e/history'],
   'src/js/xlsx-write.js': ['results-workbook'],
@@ -1879,7 +2065,7 @@ const TESTS_FOR = {
   'src/sw.js': ['e2e/offline'],
   'src/secours.html': ['offline-site', 'e2e/offline'],
   'scripts/build.mjs': ['offline-site', 'build', 'e2e/fallback'],
-  'src/js/views/cards.js': ['e2e/launches', 'e2e/correction'],
+  'src/js/views/cards.js': ['e2e/launches', 'e2e/correction', 'e2e/template'],
   'src/js/views/student-list.js': ['e2e/launches', 'e2e/correction'],
   'src/js/views/map.js': ['e2e/launches', 'e2e/correction'],
   'src/js/backends/student.js': ['e2e/launches'],
@@ -1892,16 +2078,19 @@ const TESTS_FOR = {
   'server/index.mjs': ['server-start'],
   'server/app.mjs': ['server-start', 'courses', 'incidents', 'history', 'correction'],
   'src/js/model.js': ['model', 'e2e/courses', 'e2e/legacy', 'e2e/correction', 'history', 'results-workbook'],
-  'src/js/fields.js': ['fields', 'model'],
+  'src/js/fields.js': ['fields', 'model', 'spreadsheet', 'answers', 'courses', 'e2e/template'],
+  'src/js/verdicts.js': ['verdicts', 'answers', 'courses', 'student-view'],
+  'src/js/views/fields-html.js': ['wording', 'e2e/template', 'e2e/courses', 'e2e/correction'],
+  'src/js/prof/template-tab.js': ['template-tab', 'e2e/template-editor'],
   'src/js/themes.js': ['model', 'e2e/courses'],
-  'src/js/views/reader.js': ['wording', 'e2e/offline', 'e2e/launches'],
+  'src/js/views/reader.js': ['wording', 'e2e/offline', 'e2e/launches', 'e2e/template'],
   'src/prof-cours.html': ['wording', 'e2e/courses'],
   'src/js/spreadsheet.js': ['spreadsheet', 'e2e/courses'],
   'src/js/util.js': ['util', 'results-workbook', 'e2e/legacy', 'e2e/courses', 'e2e/incidents'],
   'src/js/db.js': ['e2e/legacy'],
-  'src/js/store.js': ['e2e/legacy', 'e2e/courses', 'e2e/launches', 'e2e/correction'],
+  'src/js/store.js': ['e2e/legacy', 'e2e/courses', 'e2e/launches', 'e2e/correction', 'e2e/template'],
   'src/js/project-io.js': ['e2e/legacy', 'e2e/fallback'],
-  'src/js/views/editor.js': ['e2e/courses'],
+  'src/js/views/editor.js': ['e2e/courses', 'e2e/template'],
   'src/js/views/admin/fiches.js': ['e2e/courses'],
   'src/js/views/admin/settings.js': ['e2e/courses', 'e2e/legacy'],
   'src/js/views/admin/maps.js': ['e2e/courses', 'e2e/legacy'],
@@ -1909,7 +2098,7 @@ const TESTS_FOR = {
   'src/js/prof/course-backend.js': ['e2e/courses'],
   'src/js/prof/course-io.js': ['e2e/courses'],
   'src/js/prof/course-tab.js': ['e2e/courses', 'e2e/launches', 'e2e/incidents', 'e2e/fallback', 'e2e/history'],
-  'src/js/prof/main.js': ['e2e/courses', 'e2e/launches'],
+  'src/js/prof/main.js': ['e2e/template-editor', 'e2e/courses', 'e2e/launches'],
   'src/js/api.js': ['e2e/courses', 'e2e/incidents'],
   'src/js/admin/main.js': ['e2e/accounts', 'e2e/courses', 'e2e/launches', 'e2e/incidents'],
   'src/js/compte/main.js': ['e2e/accounts'],

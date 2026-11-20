@@ -7,6 +7,7 @@
  */
 import { Progress, openDb } from '../db.js';
 import { THRESHOLDS, emptyProgress, scoredCount, titleOf } from '../model.js';
+import { normalizeValue } from '../fields.js';
 import { downloadReport, resultRows } from '../report.js';
 import { S, posOf } from '../store.js';
 import { $, dateAndTime, esc, prefs } from '../util.js';
@@ -36,14 +37,26 @@ export function saveSession(id, session) {
   }
 }
 
+/** Ce que révèle la correction, lu comme le reste du cours : seuls les champs que le modèle révèle, chacun selon son type. */
+const revealedValues = (revealed) =>
+  Object.fromEntries(
+    S.project.template.fields
+      .filter((field) => field.audience === 'correction' && field.id in revealed)
+      .map((field) => [field.id, normalizeValue(field, revealed[field.id])])
+  );
+
 export const markForErasure = (id) => Progress.put(eraseKey(id), true).catch(() => {});
 
-/** Les positions réelles passent dans le cours en mémoire, et les vues montrent alors pins, écarts et résultats comme d'habitude. */
+/**
+ * Les positions réelles et ce que révèle la correction passent dans le cours en mémoire, et les vues montrent alors pins,
+ * écarts, résultats et champs révélés comme d'habitude (CHP-04).
+ */
 export function applyCorrection(correction) {
   for (const map of S.project.maps) {
     for (const fiche of map.fiches) {
       const result = correction.maps[map.id]?.fiches[fiche.id];
       if (result?.refX !== undefined) Object.assign(fiche, { refX: result.refX, refY: result.refY });
+      if (result?.revealed) Object.assign(fiche, revealedValues(result.revealed));
     }
     (S.progress[map.id] ??= emptyProgress()).verified = true;
   }
@@ -60,11 +73,31 @@ function scoreDetail({ score }) {
   return parts.join(' · ');
 }
 
+/**
+ * Les questions corrigées, en une phrase (QST-03) : combien de justes et de fausses. Celles que l'enseignant corrigera plus
+ * tard sont annoncées à part (Q-O) : sa correction ne viendra pas sur ce téléphone, qui n'en garde rien (CRG-08).
+ */
+export function answersText({ answers }) {
+  if (!answers) return { line: '', pending: '' };
+  const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
+  const parts = [
+    plural(answers.ok, 'juste', 'justes'),
+    ...(answers.half ? [plural(answers.half, 'à moitié juste', 'à moitié justes')] : []),
+    plural(answers.wrong, 'fausse', 'fausses')
+  ];
+  const done = answers.ok + answers.half + answers.wrong;
+  return {
+    line: done ? `Questions : ${parts.join(', ')}.` : '',
+    pending: answers.pending ? `${plural(answers.pending, 'réponse sera corrigée', 'réponses seront corrigées')} plus tard par votre enseignant.` : ''
+  };
+}
+
 /** Le score de tout le cours, en une phrase. */
 export const scoreText = (correction) => `${scoreFigure(correction)} ${scoreDetail(correction)}`;
 
 export function showCorrection(names) {
   const rows = resultRows();
+  const answers = answersText(S.correction);
   $('#correctionBox').innerHTML = `
     <div class="dlg-head">
       <div style="flex:1"><h2>Votre correction</h2><p class="state">${esc(names)} · ${esc(S.map.name)} · cours du ${esc(dateAndTime(S.correction.openedAt))}</p></div>
@@ -72,13 +105,15 @@ export function showCorrection(names) {
     </div>
     <div class="dlg-body">
       <div class="score"><strong>${esc(scoreFigure(S.correction))}</strong><span>${esc(scoreDetail(S.correction))}</span></div>
+      ${answers.line ? `<p class="answers-score">${esc(answers.line)}</p>` : ''}
+      ${answers.pending ? `<p class="state pending-note">${esc(answers.pending)}</p>` : ''}
       <div class="table-wrap"><table class="results">
         <thead><tr><th>N°</th><th>Fiche</th><th>Résultat</th><th>Écart</th></tr></thead>
         <tbody>${rows
           .map(
             (row) => `<tr>
               <td class="n"><span class="num ${posOf(row.fiche) ? 'on' : ''}">${row.n}</span></td>
-              <td>${esc(titleOf(row.fiche))}</td>
+              <td>${esc(titleOf(row.fiche, S.project.template))}</td>
               <td><span class="grade ${row.ev.cls}">${esc(row.ev.label)}</span></td>
               <td>${esc(row.ev.dist || '—')}</td>
             </tr>`

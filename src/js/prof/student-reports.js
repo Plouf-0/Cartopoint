@@ -7,6 +7,19 @@ import { planImageBlob, reportBlob } from '../report.js';
 import { S } from '../store.js';
 import { safeFileName } from '../util.js';
 import { uniqueNames, zipFiles } from '../zip.js';
+import { markText } from '../verdicts.js';
+
+/** Ce que le compte rendu de l'enseignant ajoute sous les noms : les réponses aux questions et la note (QST-04, QST-05). */
+export function resultsLine(participant) {
+  const counts = participant.answerCounts;
+  const parts = [];
+  if (counts)
+    parts.push(
+      `Questions : ${counts.ok} juste(s)${counts.half ? `, ${counts.half} à moitié` : ''}, ${counts.wrong} fausse(s)${counts.pending ? `, ${counts.pending} à corriger` : ''}`
+    );
+  if (participant.mark) parts.push(`Note : ${markText(participant.mark)}`);
+  return parts.join(' · ');
+}
 
 export function readSheets(sheets) {
   return { ...sheets, project: normalizeProject(sheets.course) };
@@ -39,7 +52,7 @@ export async function studentReports(project, participant, date) {
     const label = several ? `${participant.names} - ${map.name}` : participant.names;
     const blob = await inTurn(() => {
       useStudent(project, participant, map);
-      return reportBlob(participant.names, { date });
+      return reportBlob(participant.names, { date, results: resultsLine(participant) });
     });
     reports.push({ name: `Compte rendu - ${safeFileName(label)}.jpg`, blob });
   }

@@ -284,7 +284,7 @@ test('INC-01 : le journal lui-même en panne ne gêne rien, et ne se signale pas
 
 async function addFiche(page, name, { photo = false } = {}) {
   await page.locator('#newFiche').click();
-  await page.locator('#eCommon').fill(name);
+  await page.locator('#e-common').fill(name);
   if (photo) {
     await page.locator('#eFiles').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
     await page.locator('#eGallery img[src^="/media/"]').waitFor();
@@ -478,7 +478,7 @@ test('INC-03 : le parcours d’un élève qui a tous les ennuis : ni son nom, ni
       };
     }
   });
-  await page.locator('[data-measure="temperature"]').first().fill('21');
+  await page.locator('[data-answer="temperature"]').first().fill('21');
   await page.route('**/api/student/answers', (route) => route.fulfill({ status: 400, body: 'Réponses illisibles.' }));
   await finish(page);
   const saved = await waitForRow(site, /Enregistrement impossible/);

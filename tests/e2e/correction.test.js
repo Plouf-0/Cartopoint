@@ -36,7 +36,7 @@ const upload = (teacher, buffer) =>
 const fiche = (id, common, refX, refY, media = []) => ({ id, common, visible: true, refX, refY, media });
 
 /** Le centre du plan est le bon endroit pour la première fiche : la placer au milieu donne « bien placée ». */
-async function launchedCourse(teacher, { title = 'Sortie au parc', secondMap = false } = {}) {
+async function launchedCourse(teacher, { title = 'Sortie au parc', secondMap = false, template, extra = {} } = {}) {
   const plan = await upload(teacher, PLAN);
   const photo = await upload(teacher, PHOTO);
   const maps = [
@@ -45,7 +45,7 @@ async function launchedCourse(teacher, { title = 'Sortie au parc', secondMap = f
       name: 'Parc',
       image: plan,
       fiches: [
-        fiche('f1', 'Noisetier', 50, 50, [{ id: 'p1', type: 'image', name: 'p.png', data: photo }]),
+        { ...fiche('f1', 'Noisetier', 50, 50, [{ id: 'p1', type: 'image', name: 'p.png', data: photo }]), ...extra },
         fiche('f2', 'Sureau', 5, 5),
         fiche('f3', 'Sans position', null, null)
       ]
@@ -62,7 +62,7 @@ async function launchedCourse(teacher, { title = 'Sortie au parc', secondMap = f
       const created = await send('/api/courses', { draft });
       return send(`/api/courses/${created.id}/publish`, { revision: created.revision });
     },
-    { draft: { format: 'inventaire-botanique', version: 3, title, theme: {}, maps } }
+    { draft: { format: 'inventaire-botanique', version: template ? 4 : 3, title, theme: {}, ...(template ? { template } : {}), maps } }
   );
   await teacher.goto(`/prof/cours/${course.id}`);
   await teacher.getByRole('tab', { name: 'Cours' }).click();
@@ -660,7 +660,7 @@ test('CRG-13 : chaque réponse garde son heure, placement comme mesure, et elle 
   const page = await newStudent(t, site, code);
   const before = Date.now();
   await placeFirstFiche(page);
-  await page.locator('[data-measure="temperature"]').nth(1).fill('21');
+  await page.locator('[data-answer="temperature"]').nth(1).fill('21');
   await page.waitForTimeout(400);
   await page.reload();
   await page.locator('.pin').first().waitFor();
@@ -760,4 +760,140 @@ test('CRG-13 : terminer sans réseau après la fin : l’enseignant le voit auss
   await correctionArrived(page);
   await teacher.reload();
   await teacherRow(teacher).getByText("A fini après la fin du cours · reçu après l'envoi des corrections · 1 réponse(s) après la fin").waitFor();
+});
+
+/* --- CHP-03, CHP-04, CHP-07 : un cours à modèle maison, par le serveur --- */
+
+const VILLE = {
+  fields: [
+    { id: 'common', type: 'text', label: 'Monument', audience: 'info', role: 'title', search: true },
+    { id: 'c-siecle', type: 'number', label: 'Siècle', unit: 'e', audience: 'info', list: true },
+    { id: 'h-q', type: 'heading', label: 'Vos réponses', help: 'Répondez sur place.' },
+    {
+      id: 'c-style',
+      type: 'choice',
+      label: 'Style',
+      audience: 'question',
+      list: true,
+      choices: [
+        { id: 'roman', label: 'Roman' },
+        { id: 'gothique', label: 'Gothique' }
+      ]
+    },
+    { id: 'c-avis', type: 'longtext', label: 'Votre avis', audience: 'question' },
+    { id: 'h-fin', type: 'heading', label: '' },
+    { id: 'c-architecte', type: 'text', label: 'Architecte', audience: 'correction' },
+    { id: 'c-note', type: 'text', label: 'Pour moi', audience: 'teacher' }
+  ]
+};
+const REVEALED = 'Jean-RÉVÉLÉ';
+const NOTE = 'NOTE-DU-PROF';
+
+test('CHP-03, CHP-04, CHP-07 : un cours à modèle maison, sur un téléphone : l’élève lit et répond, et la correction révèle ce qu’elle doit', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launchedCourse(teacher, { template: VILLE, extra: { 'c-siecle': '13', 'c-architecte': REVEALED, 'c-note': NOTE } });
+  const student = await openPage(t, browser, { base: site.base, viewport: { width: 390, height: 844 }, touch: true });
+  const received = student.waitForResponse((response) => response.url().endsWith('/api/student/course'));
+  await enter(student, code);
+  assert.doesNotMatch(await (await received).text(), new RegExp(`${REVEALED}|${NOTE}|Pour moi`), 'rien de tout cela n’arrive sur le téléphone');
+  const card = student.locator('.label', { hasText: 'Noisetier' });
+  assert.equal(await card.locator('.fam').textContent(), '13 e');
+  assert.equal(await card.locator('[data-answer="c-style"] option').count(), 3, 'un choix unique, en liste déroulante sur la carte');
+
+  await card.locator('h3').click();
+  const dialog = student.locator('#dlgRead');
+  await dialog.locator('.measures h3', { hasText: 'Vos réponses' }).waitFor();
+  assert.equal(await dialog.getByText('Architecte').count(), 0);
+  await dialog.locator('[data-k="c-style"] .choice', { hasText: 'Gothique' }).click();
+  await dialog.locator('#m-c-avis').fill('Très haut.');
+  assert.equal(await dialog.locator('#m-c-avis').getAttribute('maxlength'), '2000', 'une réponse trop longue ferait refuser tout le rendu');
+  await dialog.locator('.saved-note', { hasText: '✓ Enregistré' }).waitFor();
+  await dialog.locator('[data-close]').first().click();
+  assert.equal(await card.locator('[data-answer="c-style"]').inputValue(), 'gothique');
+  await placeFirstFiche(student);
+  await finish(student);
+  assert.equal(await card.locator('[data-answer="c-style"]').isDisabled(), true, 'figée sur la carte de la liste');
+
+  const answers = JSON.parse(participant(site).answers);
+  assert.equal(answers.m1.f1['c-style'], 'gothique');
+  assert.equal(answers.m1.f1['c-avis'], 'Très haut.');
+  assert.equal('temperature' in answers.m1.f1, false, 'les questions du cours, pas les mesures botaniques');
+
+  await endCourse(teacher);
+  await wakeUp(student);
+  await correctionArrived(student);
+  await card.locator('h3').click();
+  assert.deepEqual(await dialog.locator('.facts > div', { hasText: 'Architecte' }).evaluateAll((nodes) => nodes.map((node) => node.textContent)), [
+    'Architecte' + REVEALED
+  ]);
+  assert.equal(await dialog.locator('[data-k="c-style"] input[value="gothique"]').isChecked(), true);
+  assert.equal(await dialog.locator('[data-k="c-style"] input[value="gothique"]').isDisabled(), true, 'figé');
+  assert.doesNotMatch(await student.content(), new RegExp(NOTE));
+});
+
+/* --- QST-02, QST-03 : les questions fermées, corrigées par le serveur --- */
+
+const QUIZ = {
+  fields: [
+    { id: 'common', type: 'text', label: 'Arbre', audience: 'info', role: 'title' },
+    {
+      id: 'c-style',
+      type: 'choice',
+      label: 'Feuilles',
+      audience: 'question',
+      choices: [
+        { id: 'lobees', label: 'Lobées' },
+        { id: 'dentees', label: 'Dentées' }
+      ]
+    },
+    { id: 'c-haut', type: 'number', label: 'Hauteur', unit: 'm', audience: 'question', check: 'auto' },
+    { id: 'c-avis', type: 'longtext', label: 'Votre avis', audience: 'question', required: true }
+  ]
+};
+
+test('QST-02, QST-03 : le serveur corrige les questions fermées ; à la fin, l’élève voit chaque verdict, la bonne réponse et ce que l’enseignant corrigera', async (t) => {
+  const { site, teacher } = await setup(t);
+  const code = await launchedCourse(teacher, { template: QUIZ, extra: { expected: { 'c-style': 'dentees', 'c-haut': { value: 40, tolerance: 2 } } } });
+  const student = await openPage(t, browser, { base: site.base });
+  const received = student.waitForResponse((response) => response.url().endsWith('/api/student/course'));
+  await enter(student, code);
+  assert.doesNotMatch(await (await received).text(), /expected|"value":40/, 'QST-01 : pas de bonne réponse avant la fin');
+  const card = student.locator('.label', { hasText: 'Noisetier' });
+  await card.locator('h3').click();
+  const dialog = student.locator('#dlgRead');
+  await dialog.locator('[data-k="c-style"] .choice', { hasText: 'Lobées' }).click();
+  await dialog.locator('#m-c-haut').fill('41');
+  await dialog.locator('#m-c-avis').fill('Très grand.');
+  await dialog.locator('.saved-note', { hasText: '✓ Enregistré' }).waitFor();
+  assert.equal(await dialog.locator('.verdict').count(), 0, 'aucun verdict avant la correction');
+  assert.equal(await dialog.locator('label[for="m-c-avis"] .required').textContent(), 'obligatoire');
+  await dialog.locator('[data-close]').first().click();
+  await placeFirstFiche(student);
+  const asked = new Promise((resolve) => student.once('dialog', (confirm) => (resolve(confirm.message()), confirm.accept())));
+  await student.getByRole('button', { name: 'Terminer', exact: true }).click();
+  assert.match(
+    await asked,
+    /^2 fiche\(s\) ne sont pas placée\(s\)\.\n\n2 réponse\(s\) obligatoire\(s\) manquent encore\.\n\nTerminer \? Vos placements et vos réponses/,
+    'QST-06 : prévenu, sans être bloqué'
+  );
+  await student.locator('.panel-foot').getByText('Vos réponses sont bien arrivées').waitFor();
+
+  assert.deepEqual(JSON.parse(participant(site).results).maps.m1.fiches.f1.questions, { 'c-style': 'wrong', 'c-haut': 'ok', 'c-avis': 'pending' });
+  await endCourse(teacher);
+  await wakeUp(student);
+  await correctionArrived(student);
+  await card.locator('h3').click();
+  const verdicts = (id) => dialog.locator(`[data-k="${id}"]`).locator('xpath=ancestor-or-self::*[contains(@class,"measure")][1]').locator('.verdict');
+  assert.equal(await verdicts('c-style').textContent(), 'Faux · bonne réponse : Dentées');
+  assert.equal(await verdicts('c-haut').textContent(), 'Juste');
+  assert.equal(await verdicts('c-avis').textContent(), 'Corrigée plus tard par l’enseignant');
+  await dialog.locator('[data-close]').first().click();
+  await student.locator('#seeCorrection').click();
+  const summary = student.locator('#dlgCorrection[open]');
+  assert.equal(
+    await summary.locator('.answers-score').textContent(),
+    'Questions : 1 juste, 7 fausses.',
+    '3 fiches, 3 questions corrigées chacune ; sans réponse, c’est faux'
+  );
+  assert.equal(await summary.locator('.pending-note').textContent(), '1 réponse sera corrigée plus tard par votre enseignant.');
 });

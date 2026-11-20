@@ -3,6 +3,9 @@
  * publication (COU-11). Le contenu est le JSON du projet, sans les photos, qui sont des fichiers à part.
  */
 import { randomUUID } from 'node:crypto';
+import { ficheFields, isValidValue, templateProblems } from '../src/js/fields.js';
+import { BOTANIQUE } from '../src/js/templates/botanique.js';
+import { expectedProblem, gradingProblem } from '../src/js/verdicts.js';
 import { FORMAT } from '../src/js/model.js';
 import { HttpError, isObject } from './http.mjs';
 import { MEDIA_NAME } from './media.mjs';
@@ -22,10 +25,33 @@ const isMedia = (media) => isObject(media) && [media.data, media.dataUrl, media.
 const isFiche = (fiche) => isObject(fiche) && isListOf(fiche.media, isMedia);
 const isMap = (map) => isObject(map) && isFileOrNothing(map.image) && isListOf(map.fiches, isFiche) && isListOf(map.locations, isFiche);
 
+/**
+ * Le modèle de fiche et ce que chaque fiche y range (CHP-07) : un modèle mal formé, ou une valeur qui ne correspond pas à son
+ * champ, est refusé avec la raison. Un contenu sans modèle se lit avec le modèle botanique (MOD-02), et se vérifie avec lui.
+ */
+function checkFiches(draft) {
+  if (draft.template !== undefined) {
+    const [problem] = templateProblems(draft.template);
+    if (problem) throw new HttpError(400, `Le modèle de fiche n'est pas valable : ${problem}.`);
+  }
+  const template = draft.template ?? BOTANIQUE;
+  if (gradingProblem(draft.grading, template)) throw new HttpError(400, "La notation de ce cours n'est pas valable.");
+  const fields = ficheFields(template);
+  for (const map of draft.maps) {
+    for (const fiche of [...(map.fiches ?? []), ...(map.locations ?? [])]) {
+      const wrong = fields.find((field) => fiche[field.id] !== undefined && !isValidValue(field, fiche[field.id]));
+      if (wrong) throw new HttpError(400, `Une fiche a une valeur qui ne convient pas au champ « ${wrong.label} ».`);
+      const problem = expectedProblem(fiche.expected, template);
+      if (problem) throw new HttpError(400, `Une fiche a une ${problem}.`);
+    }
+  }
+}
+
 function checkDraft(draft) {
   if (!draft || typeof draft !== 'object' || draft.format !== FORMAT || !Array.isArray(draft.maps) || !draft.maps.length || !draft.maps.every(isMap)) {
     throw new HttpError(400, "Ce contenu n'est pas un cours valable.");
   }
+  checkFiches(draft);
   return JSON.stringify(draft);
 }
 

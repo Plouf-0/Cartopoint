@@ -96,7 +96,7 @@ export function bind(panel) {
     } catch (e) {
       return toast('⚠ Image impossible à enregistrer : ' + errorText(e));
     }
-    const m = normalizeMap({ name, image });
+    const m = normalizeMap({ name, image }, '', S.project.template);
     S.project.maps.push(m);
     S.progress[m.id] = emptyProgress();
     changedMap(m);

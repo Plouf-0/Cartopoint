@@ -4,11 +4,15 @@
  */
 import { api } from '../api.js';
 import { button, el, errorLine, showError } from '../compte/ui.js';
-import { MEASURES, gradeOf, numberOf, scoredCount, titleOf, visibleFiches } from '../model.js';
+import { gradeOf, numberOf, scoredCount, titleOf, visibleFiches } from '../model.js';
+import { columnTitle, questionFields, valueText } from '../fields.js';
 import { download, errorText, fileStamp, safeFileName } from '../util.js';
 import { workbookBlob } from '../xlsx-write.js';
 import { resultsWorkbook, stateText } from './results-workbook.js';
 import { allReportsZip, readSheets, studentPlan, studentReports } from './student-reports.js';
+import { openReviews } from './review-dialog.js';
+import { openGrading } from './grading-dialog.js';
+import { markText } from '../verdicts.js';
 
 const frNumber = (value) => (value === null || value === undefined ? '—' : value.toLocaleString('fr-FR', { maximumFractionDigits: 1 }));
 
@@ -33,6 +37,7 @@ function detailDialog(project, participant) {
   );
   dialog.addEventListener('close', () => dialog.remove());
 
+  const questions = questionFields(project.template);
   for (const map of project.maps) {
     const rows = visibleFiches(map).map((fiche) => {
       const entry = participant.answers?.[map.id]?.[fiche.id] ?? {};
@@ -42,10 +47,10 @@ function detailDialog(project, participant) {
         'tr',
         {},
         el('td', { className: 'n' }, String(numberOf(map, fiche))),
-        el('td', {}, titleOf(fiche)),
+        el('td', {}, titleOf(fiche, project.template)),
         el('td', {}, el('span', { className: `grade ${cls}` }, label)),
         el('td', {}, result.dist ?? '—'),
-        ...MEASURES.map(([key]) => el('td', {}, entry[key] || '—'))
+        ...questions.map((field) => el('td', {}, valueText(field, entry[field.id]) || '—'))
       );
     });
     const image = el('img', { className: 'detail-plan', alt: `Plan « ${map.name} » de ${participant.names}` });
@@ -58,15 +63,7 @@ function detailDialog(project, participant) {
         el(
           'table',
           { className: 'results' },
-          el(
-            'thead',
-            {},
-            el(
-              'tr',
-              {},
-              ...['N°', 'Fiche', 'Résultat', 'Écart', ...MEASURES.map(([, , unit, label]) => `${label} (${unit})`)].map((title) => el('th', {}, title))
-            )
-          ),
+          el('thead', {}, el('tr', {}, ...['N°', 'Fiche', 'Résultat', 'Écart', ...questions.map(columnTitle)].map((title) => el('th', {}, title)))),
           el('tbody', {}, ...rows)
         )
       )
@@ -126,6 +123,9 @@ export function resultsSection(launchId, onChange) {
     })
   );
 
+  const review = button('Corriger les réponses', 'btn soft', () => task(review, async () => openReviews(launchId, await loadSheets(), onChange)));
+  const grading = button('Notation de ce lancement', 'btn ghost', () => task(grading, async () => openGrading(launchId, await loadSheets(), onChange)));
+
   const fileInput = el('input', { type: 'file', accept: '.json,application/json', hidden: true, id: 'answersFile' });
   fileInput.addEventListener('change', async () => {
     const [file] = fileInput.files;
@@ -158,7 +158,7 @@ export function resultsSection(launchId, onChange) {
     });
   });
 
-  const bulk = el('div', { className: 'row-actions results-actions' }, saveAll, saveExcel, importFile, fileInput);
+  const bulk = el('div', { className: 'row-actions results-actions' }, review, grading, saveAll, saveExcel, importFile, fileInput);
   const section = el('div', { className: 'results-section' }, status, error, bulk, remove);
 
   return {
@@ -190,15 +190,20 @@ export function resultsSection(launchId, onChange) {
     },
     scoreLine(participant, gapUnit) {
       if (!participant.score) return null;
+      const counts = participant.answerCounts;
+      // Les questions, corrections de l'enseignant comprises (QST-04) : ce qui reste à corriger se voit d'un coup d'œil
+      const questions = counts
+        ? ` · questions : ${counts.ok} juste(s)${counts.half ? `, ${counts.half} à moitié` : ''}, ${counts.wrong} fausse(s)${counts.pending ? `, ${counts.pending} à corriger` : ''}`
+        : '';
       return el(
         'span',
         { className: 'participant-score' },
-        `${participant.score.ok} / ${scoredCount(participant.score)} bien placée(s) · écart moyen ${frNumber(participant.meanGap)} ${gapUnit}`
+        `${participant.score.ok} / ${scoredCount(participant.score)} bien placée(s) · écart moyen ${frNumber(participant.meanGap)} ${gapUnit}${questions}${participant.mark ? ` · note : ${markText(participant.mark)}` : ''}`
       );
     },
     update(launch, backHref) {
       handedIn = launch.participants.some((participant) => participant.submittedAt);
-      saveAll.hidden = saveExcel.hidden = !handedIn;
+      saveAll.hidden = saveExcel.hidden = review.hidden = !handedIn;
       remove.hidden = !launch.endedAt;
       remove.dataset.back = backHref;
     }

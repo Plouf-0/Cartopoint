@@ -52,7 +52,11 @@ export const formatSize = (bytes) =>
   bytes < 1e6 ? `${Math.max(1, Math.round(bytes / 1e3))} Ko` : `${(bytes / 1e6).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo`;
 
 /** Date du jour au format AAAA-MM-JJ. */
-export const today = () => new Date().toISOString().slice(0, 10);
+/** La date du jour à l'heure de l'appareil, en AAAA-MM-JJ. En temps universel, une fiche créée juste après minuit prendrait la veille (EDI-05). */
+export function today() {
+  const now = new Date();
+  return [now.getFullYear(), now.getMonth() + 1, now.getDate()].map((part, i) => String(part).padStart(i ? 2 : 4, '0')).join('-');
+}
 
 /** Un moment à la française, avec l'heure : 12 mars 2026 à 11:00. */
 export const dateAndTime = (when) => new Date(when).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });

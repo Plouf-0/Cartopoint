@@ -18,6 +18,9 @@ export function setCourse(value) {
   course = value;
 }
 
+/** L'identifiant du cours ouvert, pour ne pas le proposer à lui-même. */
+export const openCourseId = () => course?.id;
+
 export function publishStateText() {
   if (!course.published) return "Ce cours n'a pas encore été publié : les élèves n'y ont pas accès.";
   const version = `Version ${course.published.number}, publiée le ${dateAndTime(course.published.publishedAt)}.`;

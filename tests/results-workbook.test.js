@@ -295,3 +295,115 @@ test('zip : le contrôle de chaque fichier est le bon : une archive fausse serai
 test('uniqueNames : deux élèves de même nom ne s’écrasent pas', () => {
   assert.deepEqual(uniqueNames(['Tom', 'Léa', 'Tom', 'tom']), ['Tom', 'Léa', 'Tom (2)', 'tom (3)']);
 });
+
+/** Un cours d'une autre matière : deux questions chiffrées, un choix, un oui / non, et pas de sous-titre. */
+const quizCourse = () =>
+  normalizeProject({
+    format: 'inventaire-botanique',
+    version: 4,
+    title: 'Ville',
+    theme: {},
+    template: {
+      fields: [
+        { id: 'c-nom', type: 'text', label: 'Monument', audience: 'info', role: 'title' },
+        { id: 'c-hauteur', type: 'number', label: 'Hauteur', unit: 'm', audience: 'question' },
+        {
+          id: 'c-style',
+          type: 'choice',
+          label: 'Style',
+          audience: 'question',
+          choices: [
+            { id: 'roman', label: 'Roman' },
+            { id: 'gothique', label: 'Gothique' }
+          ]
+        },
+        { id: 'c-ouvert', type: 'yesno', label: 'Ouvert ?', audience: 'question' },
+        { id: 'c-marches', type: 'number', label: 'Marches', audience: 'question' }
+      ]
+    },
+    maps: [{ id: 'm1', name: 'Centre', image: '', widthMeters: 100, fiches: [{ id: 'f1', 'c-nom': 'Beffroi', visible: true, refX: 40, refY: 60, media: [] }] }]
+  });
+
+test('HIS-08, CHP-06 : avec un autre modèle, une colonne par question, lue en clair, et la moyenne des seules questions chiffrées', () => {
+  const course = quizCourse();
+  const answers = { f1: { x: 40, y: 60, 'c-hauteur': '70', 'c-style': 'gothique', 'c-ouvert': 'oui', 'c-marches': '366' } };
+  const [summary, lea] = workbook([student(course, 'Léa', answers), student(course, 'Tom', { f1: { x: 40, y: 60, 'c-hauteur': '50' } })], course);
+  const header = summary.rows.find((row) => row[0]?.value === 'Élève').map((cell) => cell.value);
+  assert.deepEqual(header.slice(7, 9), ['Hauteur (m), moyenne', 'Marches, moyenne']);
+  assert.deepEqual(summaryRow(summary, 'Léa').slice(7, 9), [70, 366]);
+  assert.deepEqual(
+    summary.rows.find((row) => row[1] === 'Beffroi'),
+    [1, 'Beffroi', 2, 2, 0, 60, 366]
+  );
+  const columns = lea.rows[5].map((cell) => cell.value);
+  assert.deepEqual(columns.slice(0, 3), ['N°', 'Réf. photo', 'Monument'], 'le titre nomme la fiche, sans colonne de sous-titre');
+  assert.deepEqual(
+    columns.slice(-7),
+    ['Hauteur (m)', 'Style', 'Verdict', 'Ouvert ?', 'Verdict', 'Marches', 'Réponse après la fin ?'],
+    'QST-04 : un verdict après chaque question corrigée'
+  );
+  assert.deepEqual(
+    lea.rows[6].slice(-7),
+    [70, 'Gothique', 'À corriger', 'Oui', 'À corriger', 366, null],
+    'sans bonne réponse sur la fiche, l’enseignant corrige'
+  );
+  assert.equal(lea.widths.length, columns.length, 'une largeur par colonne');
+});
+
+test('HIS-08, QST-04, QST-05 : l’Excel donne, par élève, le décompte de ses réponses et sa note, et sous chaque question le verdict et le commentaire', () => {
+  const course = quizCourse();
+  course.maps[0].fiches[0].expected = { 'c-style': 'roman', 'c-ouvert': 'oui' };
+  const lea = student(
+    course,
+    'Léa',
+    { f1: { x: 40, y: 60, 'c-style': 'gothique', 'c-ouvert': 'oui' } },
+    {
+      answerCounts: { ok: 1, half: 0, wrong: 0, pending: 0 },
+      mark: { mark: 13.333333, outOf: 20, provisional: false, pending: 0 },
+      reviews: { m1: { f1: { 'c-style': { verdict: 'half', comment: 'Les deux styles s’y mêlent.' } } } }
+    }
+  );
+  const tom = student(
+    course,
+    'Tom',
+    { f1: { x: 40, y: 60 } },
+    { answerCounts: { ok: 0, half: 0, wrong: 2, pending: 0 }, mark: { mark: 6.666667, outOf: 20, provisional: true, pending: 1 } }
+  );
+  const [summary, sheet] = resultsWorkbook({
+    title: 'Ville',
+    openedAt: '2026-11-04T09:30:00.000Z',
+    endedAt: '2026-11-04T11:00:00.000Z',
+    grace: 30000,
+    project: course,
+    participants: [lea, tom, absent('Noé')],
+    grading: { mode: 'auto', max: 20, placement: true }
+  });
+  const header = summary.rows.find((row) => row[0]?.value === 'Élève').map((cell) => cell.value);
+  assert.deepEqual(header.slice(-7), ['Réponses justes', 'À moitié justes', 'Fausses', 'À corriger', 'Note', 'Sur', 'Provisoire ?']);
+  assert.deepEqual(summaryRow(summary, 'Léa').slice(-7), [1, 0, 0, 0, 13.33, 20, null]);
+  assert.deepEqual(summaryRow(summary, 'Tom').slice(-7), [0, 0, 2, 0, 6.67, 20, 'oui']);
+  assert.deepEqual(summaryRow(summary, 'Noé').slice(-7), [null, null, null, null, null, null, null]);
+  assert.deepEqual(
+    summaryRow(summary, 'Classe')
+      .slice(-7)
+      .map((cell) => cell?.value ?? cell),
+    [0.5, 0, 1, 0, 10, null, null],
+    'la moyenne de ceux qui ont rendu'
+  );
+  assert.deepEqual(
+    sheet.rows[6].slice(-6, -1),
+    ['Gothique', 'À moitié juste · Les deux styles s’y mêlent.', 'Oui', 'Juste', null],
+    'le verdict de l’enseignant l’emporte, avec son commentaire ; « Marches » sans réponse'
+  );
+
+  const [plain] = resultsWorkbook({
+    title: 'Ville',
+    openedAt: '2026-11-04T09:30:00.000Z',
+    endedAt: null,
+    grace: 0,
+    project: course,
+    participants: [lea],
+    grading: { mode: 'none' }
+  });
+  assert.ok(!JSON.stringify(plain.rows).includes('Provisoire'), 'sans note, pas de colonne de note');
+});

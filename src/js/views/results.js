@@ -2,8 +2,8 @@
  * Vérification de l'exercice et fenêtre des résultats.
  */
 import { $, esc } from '../util.js';
-import { S, listed, posOf, progress, changedProgress } from '../store.js';
-import { titleOf, THRESHOLDS } from '../model.js';
+import { S, listed, posOf, progress, changedProgress, courseTemplate } from '../store.js';
+import { titleOf, subtitleOf, THRESHOLDS } from '../model.js';
 import { render } from '../render.js';
 import { resultRows, scoreOf } from '../report.js';
 import { savePlanImage, saveReport, saveTeacherCsv } from './report-actions.js';
@@ -25,6 +25,7 @@ export function showResults() {
   const rows = resultRows();
   const { ok, near, scored } = scoreOf(rows);
   const names = studentNames();
+  const template = courseTemplate();
   $('#resultsBox').innerHTML = `
     <div class="dlg-head">
       <div style="flex:1"><h2>${S.admin ? 'Écarts entre placements et positions réelles' : 'Vos résultats'}</h2>${names && !S.admin ? `<p class="state" style="margin:4px 0 0">${esc(names)}</p>` : ''}</div>
@@ -38,7 +39,7 @@ export function showResults() {
           .map(
             (r) => `<tr>
               <td class="n"><span class="num ${posOf(r.fiche) ? 'on' : ''}">${r.n}</span></td>
-              <td>${esc(titleOf(r.fiche))}${r.fiche.species && r.fiche.species !== titleOf(r.fiche) ? `<div class="sci" style="font-size:13px">${esc(r.fiche.species)}</div>` : ''}</td>
+              <td>${esc(titleOf(r.fiche, template))}${subtitleOf(r.fiche, template) ? `<div class="sci" style="font-size:13px">${esc(subtitleOf(r.fiche, template))}</div>` : ''}</td>
               <td><span class="grade ${r.ev.cls}">${esc(r.ev.label)}</span></td>
               <td>${esc(r.ev.dist || '—')}</td>
             </tr>`

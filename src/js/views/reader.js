@@ -1,11 +1,12 @@
 /**
- * Consultation d'une fiche (élèves) : photo, besoins, mesures à saisir, description.
- * La fenêtre s'adapte à la forme de la photo (classes .portrait / .landscape).
+ * Consultation d'une fiche (élèves) : photo, ce que l'enseignant a écrit, questions auxquelles répondre, champ par champ
+ * d'après le modèle du cours (views/fields-html.js). La fenêtre s'adapte à la forme de la photo (classes .portrait / .landscape).
  */
-import { $, esc, frDate } from '../util.js';
-import { S, byId, verified, locked, entryOf, stamped, posOf, evaluationOf, mediaURL, changedProgress } from '../store.js';
-import { NEEDS, MEASURES, numberOf, titleOf, thumbOf } from '../model.js';
+import { $, esc } from '../util.js';
+import { S, byId, verified, locked, entryOf, stamped, posOf, evaluationOf, mediaURL, changedProgress, courseTemplate } from '../store.js';
+import { numberOf, titleOf, subtitleOf, thumbOf } from '../model.js';
 import { render } from '../render.js';
+import { answerOf, ficheBodyHTML } from './fields-html.js';
 import { openPhoto } from './viewer.js';
 import { startPlacing } from './map.js';
 
@@ -14,20 +15,17 @@ export async function openReader(id) {
   if (!f) return;
   const dlg = $('#dlgRead');
   const box = $('#readBox');
+  const template = courseTemplate();
   const e = entryOf(f) || {};
-  const fact = (k, v) => (v ? `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>` : '');
-  const facts = fact('Famille', f.family) + fact("Date d'observation", frDate(f.date));
-  const needs = NEEDS.filter(([k]) => f[k])
-    .map(([k, icon, label]) => `<div class="need"><dt><span aria-hidden="true">${icon}</span>${label}</dt><dd>${esc(f[k])}</dd></div>`)
-    .join('');
+  const sub = subtitleOf(f, template);
   const ev = verified() ? evaluationOf(f) : null;
   const canPlace = !posOf(f) && !locked();
 
   box.innerHTML = `
     <div class="dlg-head">
       <div style="flex:1;min-width:0">
-        <h2><span class="num ${posOf(f) ? 'on' : ''}">${numberOf(S.map, f)}</span>${esc(titleOf(f))}</h2>
-        ${f.species && f.species !== titleOf(f) ? `<p class="sci">${esc(f.species)}</p>` : ''}
+        <h2><span class="num ${posOf(f) ? 'on' : ''}">${numberOf(S.map, f)}</span>${esc(titleOf(f, template))}</h2>
+        ${sub ? `<p class="sci">${esc(sub)}</p>` : ''}
       </div>
       <button class="x" type="button" data-close aria-label="Fermer">×</button>
     </div>
@@ -35,23 +33,7 @@ export async function openReader(id) {
       <button type="button" class="hero-btn" id="readHeroBtn" hidden aria-label="Agrandir la photo"><img class="hero" id="readHero" alt=""></button>
       <div class="read-text">
         ${ev ? `<p><span class="grade ${ev.cls}">${esc(ev.label)}</span>${ev.dist ? ` <span class="state">écart : ${esc(ev.dist)}</span>` : ''}</p>` : ''}
-        ${facts ? `<dl class="facts">${facts}</dl>` : ''}
-        ${needs ? `<h3 class="mini-h">Besoins</h3><dl class="needs">${needs}</dl>` : ''}
-        <div class="measures">
-          <h3>Vos mesures</h3>
-          ${S.finished ? '' : "<p>Notez ce que vous mesurez sur place. C'est enregistré automatiquement.</p>"}
-          <div class="measure-grid">
-            ${MEASURES.map(
-              ([k, , unit, label, mode]) =>
-                `<div class="measure"><label for="m-${k}">${label}</label><div class="unit-input"><input id="m-${k}" data-k="${k}" inputmode="${mode}" value="${esc(e[k])}" ${S.finished ? 'disabled' : ''}><span>${unit}</span></div></div>`
-            ).join('')}
-          </div>
-          <div class="saved-note" id="mSaved"></div>
-        </div>
-        <div class="prose">
-          ${f.description ? `<h3>Description</h3><p>${esc(f.description)}</p>` : ''}
-          ${f.notes ? `<h3>Observations</h3><p>${esc(f.notes)}</p>` : ''}
-        </div>
+        ${ficheBodyHTML(template, f, e, { disabled: S.finished, revealed: verified() || Boolean(S.correction), teacher: S.admin, correction: S.correction ? ev : null })}
         <div id="readGallery"></div>
       </div>
     </div>
@@ -66,12 +48,14 @@ export async function openReader(id) {
     startPlacing(f.id, 'student');
   });
   let t;
-  box.querySelectorAll('.measure-grid input').forEach((input) =>
-    input.addEventListener('input', () => {
-      stamped(entryOf(f, true))[input.dataset.k] = input.value.trim();
+  box.querySelectorAll('.measure-grid [data-k]').forEach((control) =>
+    control.addEventListener(control.matches('fieldset') ? 'change' : 'input', () => {
+      const field = template.fields.find((x) => x.id === control.dataset.k);
+      stamped(entryOf(f, true))[field.id] = answerOf(field, control);
       changedProgress();
       clearTimeout(t);
-      t = setTimeout(() => ($('#mSaved').textContent = '✓ Enregistré'), 300);
+      const note = control.closest('.measures').querySelector('.saved-note');
+      t = setTimeout(() => (note.textContent = '✓ Enregistré'), 300);
     })
   );
 
@@ -115,7 +99,7 @@ export async function openReader(id) {
   }
 }
 
-/** Les mesures saisies dans la fiche apparaissent aussi sur la carte de la liste. */
+/** Les réponses écrites dans la fiche apparaissent aussi sur la carte de la liste. */
 export function bindReader() {
   $('#dlgRead').addEventListener('close', () => render());
 }

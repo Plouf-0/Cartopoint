@@ -56,7 +56,7 @@ async function enterManagement(page) {
 
 async function addFiche(page, name) {
   await page.locator('#newFiche').click();
-  await page.locator('#eCommon').fill(name);
+  await page.locator('#e-common').fill(name);
   await page.locator('#eSave').click();
   await page.locator('#dlgEdit').waitFor({ state: 'hidden' });
 }
@@ -77,7 +77,7 @@ test('une fiche et sa photo restent dans ce navigateur après un rechargement', 
   const { page } = await openApp(t);
   await enterManagement(page);
   await page.locator('#newFiche').click();
-  await page.locator('#eCommon').fill('Olivier');
+  await page.locator('#e-common').fill('Olivier');
   await page.locator('#eFiles').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
   await page.locator('#eGallery img[src^="blob:"]').waitFor();
   await page.locator('#eSave').click();
@@ -94,7 +94,7 @@ test('le fichier enregistré contient la fiche et sa photo, et se rouvre', async
   const { page } = await openApp(t);
   await enterManagement(page);
   await page.locator('#newFiche').click();
-  await page.locator('#eCommon').fill('Olivier');
+  await page.locator('#e-common').fill('Olivier');
   await page.locator('#eFiles').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
   await page.locator('#eGallery img').waitFor();
   await page.locator('#eSave').click();
@@ -419,7 +419,7 @@ test('une photo dont le fichier manque dans le navigateur : l’enregistrement l
   const { page } = await openApp(t);
   await enterManagement(page);
   await page.locator('#newFiche').click();
-  await page.locator('#eCommon').fill('Noisetier');
+  await page.locator('#e-common').fill('Noisetier');
   await page.locator('#eFiles').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
   await page.locator('#eGallery img').waitFor();
   await page.locator('#eSave').click();

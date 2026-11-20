@@ -351,3 +351,120 @@ test('CRG-13 : corriger l’heure ne change rien d’autre, et laisse une répon
   assert.deepEqual(answers.m1.f2, { x: 3, y: 4 });
   assert.equal(onServerClock(input, 'hier', 900).offset, 0);
 });
+
+/* --- QST-04 : l'enseignant corrige les réponses --- */
+
+const QUIZ = {
+  ...content,
+  version: 4,
+  template: {
+    fields: [
+      { id: 'common', type: 'text', label: 'Arbre', audience: 'info', role: 'title' },
+      { id: 'c-avis', type: 'longtext', label: 'Avis', audience: 'question' },
+      { id: 'c-nom', type: 'text', label: 'Nom', audience: 'question', check: 'auto' },
+      { id: 'temperature', type: 'number', label: 'Température', audience: 'question' }
+    ]
+  },
+  maps: [{ ...content.maps[0], fiches: [fiche('f1', 'Noisetier', { expected: { 'c-nom': ['Noisetier'] } })] }]
+};
+const review = (browser, launch, participant, body) => browser.raw('PUT', `/api/launches/${launch.id}/participants/${participant}/reviews`, body);
+
+test('QST-04 : l’enseignant corrige une réponse, son verdict l’emporte sur celui du serveur, et s’efface quand il le retire', async (t) => {
+  const { base, browser } = await site(t);
+  const launch = await launched(browser, QUIZ);
+  const me = await join(base, launch.code);
+  assert.equal(
+    (await send(base, me.token, { answers: { m1: { f1: entry(REF.x, REF.y, { 'c-avis': 'Beau', 'c-nom': 'noisettier', temperature: '21' }) } } })).status,
+    200
+  );
+  const before = await seenBy(browser, launch);
+  assert.deepEqual(before.answerCounts, { ok: 0, half: 0, wrong: 1, pending: 1 }, 'une faute d’orthographe, et un avis à lire');
+
+  const accepted = await review(browser, launch, before.id, { map: 'm1', fiche: 'f1', question: 'c-nom', verdict: 'ok', comment: ' Une faute de frappe. ' });
+  assert.equal(accepted.status, 200, accepted.text);
+  assert.deepEqual(accepted.json().answerCounts, { ok: 1, half: 0, wrong: 0, pending: 1 });
+  await review(browser, launch, before.id, { map: 'm1', fiche: 'f1', question: 'c-avis', verdict: 'half' });
+  assert.deepEqual((await seenBy(browser, launch)).answerCounts, { ok: 1, half: 1, wrong: 0, pending: 0 });
+  const sheets = (await browser.get(`/api/launches/${launch.id}/sheets`)).json();
+  assert.deepEqual(sheets.participants[0].reviews, {
+    m1: { f1: { 'c-nom': { verdict: 'ok', comment: 'Une faute de frappe.' }, 'c-avis': { verdict: 'half' } } }
+  });
+
+  await review(browser, launch, before.id, { map: 'm1', fiche: 'f1', question: 'c-nom', verdict: null });
+  await review(browser, launch, before.id, { map: 'm1', fiche: 'f1', question: 'c-avis', verdict: null });
+  assert.deepEqual((await seenBy(browser, launch)).answerCounts, before.answerCounts, 'sans correction, le verdict du serveur revient');
+  assert.deepEqual((await browser.get(`/api/launches/${launch.id}/sheets`)).json().participants[0].reviews, {});
+});
+
+test('QST-04, ANO-06 : seul l’enseignant du cours corrige, seulement une question corrigée d’un élève qui a rendu', async (t) => {
+  const { base, db, browser } = await site(t);
+  const launch = await launched(browser, QUIZ);
+  const me = await join(base, launch.code);
+  const other = await join(base, launch.code, 'Tom');
+  await send(base, me.token, { answers: { m1: { f1: entry(REF.x, REF.y, { 'c-avis': 'Beau' }) } } });
+  const lea = await seenBy(browser, launch);
+  const good = { map: 'm1', fiche: 'f1', question: 'c-avis', verdict: 'ok' };
+  for (const [body, status] of [
+    [{ ...good, verdict: 'bof' }, 400],
+    [{ ...good, question: 'temperature' }, 400],
+    [{ ...good, question: 'common' }, 400],
+    [{ ...good, question: 'inconnue' }, 400],
+    [{ ...good, fiche: 'inconnue' }, 400],
+    [{ ...good, map: 'inconnue' }, 400],
+    [{ ...good, comment: 'x'.repeat(501) }, 400],
+    [{ ...good, comment: 12 }, 400]
+  ]) {
+    assert.equal((await review(browser, launch, lea.id, body)).status, status, JSON.stringify(body).slice(0, 80));
+  }
+  assert.equal((await review(browser, launch, other.id, good)).status, 409, 'Tom n’a pas rendu');
+  assert.equal((await review(browser, launch, 'inconnu', good)).status, 404);
+
+  addAccount(db, { email: 'autre@example.org', hash: cheapHash(PASSWORD) });
+  const stranger = client(base);
+  await stranger.post('/api/auth/login', { email: 'autre@example.org', password: PASSWORD });
+  assert.equal((await review(stranger, launch, lea.id, good)).status, 404, 'un autre enseignant ne sait même pas que ce lancement existe');
+  const second = await launched(browser, QUIZ);
+  assert.equal((await review(browser, second, lea.id, good)).status, 404, 'Léa n’est pas un élève de ce lancement-là');
+  assert.equal((await review(browser, launch, lea.id, good)).status, 200);
+});
+
+/* --- QST-05 : la notation --- */
+
+test('QST-05 : la note se calcule à la lecture, monte quand l’enseignant corrige, et suit la notation propre au lancement', async (t) => {
+  const { base, db, browser } = await site(t);
+  const graded = { ...QUIZ, grading: { mode: 'auto', max: 20, placement: true } };
+  const launch = await launched(browser, graded);
+  const me = await join(base, launch.code);
+  await send(base, me.token, { answers: { m1: { f1: entry(REF.x, REF.y, { 'c-avis': 'Beau', 'c-nom': 'noisettier' }) } } });
+  const lea = await seenBy(browser, launch);
+  // Bien placée (juste), un avis à corriger (zéro, provisoire), un nom faux : 1 sur 3
+  assert.deepEqual(lea.mark, { mark: (1 / 3) * 20, outOf: 20, provisional: true, pending: 1 });
+  assert.deepEqual((await browser.get(`/api/launches/${launch.id}`)).json().grading, graded.grading);
+  await review(browser, launch, lea.id, { map: 'm1', fiche: 'f1', question: 'c-avis', verdict: 'ok' });
+  assert.deepEqual((await seenBy(browser, launch)).mark, { mark: (2 / 3) * 20, outOf: 20, provisional: false, pending: 0 });
+
+  const points = { mode: 'points', points: { 'c-nom': 2 }, placement: 1 };
+  const changed = await browser.raw('PUT', `/api/launches/${launch.id}/grading`, { grading: points });
+  assert.equal(changed.status, 200, changed.text);
+  assert.deepEqual(changed.json().grading, points);
+  assert.deepEqual(changed.json().participants[0].mark, { mark: 2, outOf: 4, provisional: false, pending: 0 }, 'placement 1 + avis 1, sur 1 + 1 + 2');
+  const other = await launched(browser, graded);
+  assert.deepEqual((await browser.get(`/api/launches/${other.id}`)).json().grading, graded.grading, 'les autres lancements gardent celle du cours');
+
+  for (const bad of [{ mode: 'points', points: { temperature: 2 }, placement: 1 }, { mode: 'auto' }, 'auto', null]) {
+    assert.equal((await browser.raw('PUT', `/api/launches/${launch.id}/grading`, { grading: bad })).status, 400, JSON.stringify(bad));
+  }
+  addAccount(db, { email: 'autre@example.org', hash: cheapHash(PASSWORD) });
+  const stranger = client(base);
+  await stranger.post('/api/auth/login', { email: 'autre@example.org', password: PASSWORD });
+  assert.equal((await stranger.raw('PUT', `/api/launches/${launch.id}/grading`, { grading: { mode: 'none' } })).status, 404);
+  assert.equal((await browser.raw('PUT', `/api/launches/${launch.id}/grading`, { grading: { mode: 'none' } })).json().participants[0].mark, null, 'sans note');
+});
+
+test('QST-05 : un cours se notant par un barème qui cite une question inconnue est refusé', async (t) => {
+  const { browser } = await site(t);
+  const refused = await browser.post('/api/courses', { draft: { ...QUIZ, grading: { mode: 'points', points: { inconnue: 2 }, placement: 1 } } });
+  assert.equal(refused.status, 400);
+  assert.match(refused.text, /notation/);
+  assert.equal((await browser.post('/api/courses', { draft: { ...QUIZ, grading: { mode: 'points', points: {}, placement: 1 } } })).status, 200);
+});

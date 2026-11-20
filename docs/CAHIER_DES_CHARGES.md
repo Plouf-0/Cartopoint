@@ -1,6 +1,6 @@
 # Cahier des charges — Inventaire botanique
 
-**Version 0.40** · 19 novembre 2026 · établie à partir du code
+**Version 0.47** · 19 novembre 2026 · établie à partir du code
 
 Ce document est la **source de vérité des exigences** du projet : ce que l'application doit faire,
 et ce qu'elle ne doit pas casser. Il décrit l'existant et accueille les demandes d'évolution.
@@ -235,9 +235,10 @@ Code : [`views/student-list.js`](../src/js/views/student-list.js),
 [`eleve/main.js`](../src/js/eleve/main.js)
 
 - **LIS-01** Le panneau « Fiches à placer » montre les seules fiches visibles, dans l'ordre choisi
-  par l'enseignant : vignette, nom, nom scientifique, famille, numéro, état, cases de mesures.
-- **LIS-02** La recherche porte sur la réf. photo, le nom commun, le nom scientifique et la
-  famille, sans distinguer les majuscules.
+  par l'enseignant : vignette, titre, sous-titre et champs marqués « dans la liste » (`CHP-02`), numéro, état, cases de
+  réponse (`CHP-03`). En botanique : nom commun, nom scientifique, famille, et les trois mesures.
+- **LIS-02** La recherche porte sur la réf. photo et sur les champs que le modèle marque pour la recherche, sans
+  distinguer les majuscules. En botanique : nom commun, nom scientifique et famille.
 - **LIS-03** Les filtres **Toutes / À placer / Placées** se combinent avec la recherche.
 - **LIS-04** Un compteur au-dessus du plan indique « x / y fiche(s) placée(s) ».
 - **LIS-05** Un message explicite s'affiche s'il n'y a aucune fiche ou si le filtre ne donne rien.
@@ -247,9 +248,10 @@ Code : [`views/student-list.js`](../src/js/views/student-list.js),
 Code : [`views/reader.js`](../src/js/views/reader.js), [`views/viewer.js`](../src/js/views/viewer.js)
 
 - **CON-01** Un clic sur une fiche de la liste, ou sur son repère, l'ouvre en grand : photo
-  principale, numéro, noms, famille, date d'observation, besoins, mesures, description,
-  observations, autres photos et vidéos. Les rubriques vides ne s'affichent pas.
-- **CON-02** Les besoins sont : ☀️ exposition, 💧 arrosage, 🌱 sol, 🌡️ chaleur, ✂️ entretien.
+  principale, numéro, titre et sous-titre, puis chaque champ du modèle à sa place (`CHP-02`), et enfin les autres photos
+  et vidéos. Les rubriques vides ne s'affichent pas.
+- **CON-02** Un champ peut porter une icône, montrée devant son libellé. En botanique, les besoins sont : ☀️ exposition,
+  💧 arrosage, 🌱 sol, 🌡️ chaleur, ✂️ entretien.
 - **CON-03** La fenêtre s'adapte à la forme de la photo (portrait ou paysage).
 - **CON-04** Un clic sur une photo ou sur la vignette ouvre la visionneuse plein écran : photo
   précédente et suivante (boutons ou flèches ← →), compteur, fermeture par la croix ou un clic à
@@ -263,13 +265,13 @@ Code : [`views/reader.js`](../src/js/views/reader.js), [`views/viewer.js`](../sr
 
 Code : [`views/cards.js`](../src/js/views/cards.js), [`views/reader.js`](../src/js/views/reader.js)
 
-- **MES-01** Chaque fiche reçoit trois mesures : température (°C), hygrométrie (%), éclairement
-  (lux).
-- **MES-02** Elles se saisissent dans les cases de la liste ou dans la fiche ouverte ; les deux
-  affichent la même valeur.
+- **MES-01** Chaque fiche reçoit les réponses aux questions du modèle (`CHP-03`). En botanique, trois mesures :
+  température (°C), hygrométrie (%), éclairement (lux).
+- **MES-02** Elles se saisissent dans les cases de la liste, pour les questions marquées « dans la liste », ou dans la
+  fiche ouverte ; les deux affichent la même valeur.
 - **MES-03** L'enregistrement est automatique, sans bouton.
-- **MES-04** La saisie est libre, sans contrôle : « nuageux » est accepté. Le clavier numérique
-  s'ouvre sur mobile.
+- **MES-04** La saisie d'un nombre est libre, sans contrôle : « nuageux » est accepté. Le clavier numérique, décimal ou
+  non selon la question, s'ouvre sur mobile.
 - **MES-05** Les mesures se figent avec les placements quand l'élève termine (`HOR-06`, Q-05). Dans le fichier de secours,
   elles restent modifiables après la vérification.
 
@@ -316,14 +318,16 @@ Demandes : EV-06, EV-10
 
 Demandes : EV-08
 
-- **CRG-01** Le cours envoyé aux élèves ne contient ni les positions réelles ni les fiches masquées.
+- **CRG-01** Le cours envoyé aux élèves ne contient ni les positions réelles ni les fiches masquées. De chaque fiche, il
+  ne garde que les renseignements (`CHP-04`).
 - **CRG-02** La correction n'est disponible qu'une fois que l'enseignant a cliqué sur « Terminer le cours ». C'est
   le serveur qui le vérifie. Elle part 30 secondes plus tard (`CRG-14`).
 - **CRG-03** Seuls les élèves ayant rejoint ce lancement peuvent la recevoir.
 - **CRG-05** Rendre remplace la vérification actuelle (`VER-01` à `VER-06`) : un élève ne se corrige plus seul
   sur son appareil.
 - **CRG-06** Une fois le cours terminé, l'élève reçoit sa correction complète sur son téléphone, s'il a du réseau
-  et que sa page est toujours ouverte : score, et pour chaque fiche la position réelle, le résultat et l'écart.
+  et que sa page est toujours ouverte : score, et pour chaque fiche la position réelle, le résultat, l'écart et ce que
+  le modèle révèle à la correction (`CHP-04`).
 - **CRG-07** Un élève ne rend qu'une fois, et le serveur le vérifie : il ne peut plus modifier ses réponses.
 - **CRG-08** La correction reste sur le téléphone le temps de la page. Elle résiste à un rechargement, puis
   disparaît avec les données de l'élève quand il ferme ou supprime la page. Un élève qui a fermé la page avant la
@@ -414,20 +418,23 @@ Code : [`views/admin/fiches.js`](../src/js/views/admin/fiches.js)
 
 Code : [`views/editor.js`](../src/js/views/editor.js)
 
-- **EDI-01** Champs : visible élèves, réf. photo, nom commun, nom scientifique, famille, date d'observation, les cinq
-  besoins, description, observations, photos et vidéos. Le fichier de secours y ajoute les trois mesures (`EDI-10`).
+- **EDI-01** Champs : visible élèves, réf. photo, chaque champ du modèle que remplit l'enseignant (`CHP-05`), photos et
+  vidéos. Le fichier de secours y ajoute les questions (`EDI-10`). En botanique : nom commun, nom scientifique, famille,
+  date d'observation, les cinq besoins, description, observations.
 - **EDI-02** Rien n'est modifié avant **Enregistrer**. En cas d'annulation, les photos ajoutées sont
   retirées et les photos enlevées sont conservées.
-- **EDI-03** Une fiche doit avoir au moins un nom (commun ou scientifique).
+- **EDI-03** Une fiche doit avoir au moins un titre ou un sous-titre, quand le modèle en a. Le message les nomme : en
+  botanique, « Indiquez au moins « Nom commun » ou « Nom scientifique » ».
 - **EDI-04** Une réf. photo déjà utilisée sur la carte demande une confirmation, sans interdire.
-- **EDI-05** Une nouvelle fiche prend la date du jour.
+- **EDI-05** Une nouvelle fiche prend la date du jour dans chacun de ses champs de date : celle de l'appareil, même juste
+  après minuit.
 - **EDI-06** Une barre de 24 émojis insère l'émoji choisi à l'emplacement du curseur, dans le dernier
-  champ utilisé.
+  champ utilisé. Elle se trouve dans le premier groupe du formulaire qui a du texte.
 - **EDI-07** Les zones de texte s'agrandissent avec leur contenu.
 - **EDI-08** Plusieurs photos et vidéos s'ajoutent en une fois. Chacune peut être retirée. Les photos sont réduites (`LEG-01`).
 - **EDI-09** On choisit la photo servant de vignette ; à défaut, c'est la première.
-- **EDI-10** Fichier de secours seulement : les mesures saisies ici vont dans la progression de ce navigateur, pas dans la
-  fiche. Sur le site, seuls les élèves les relèvent.
+- **EDI-10** Fichier de secours seulement : les réponses aux questions saisies ici vont dans la progression de ce
+  navigateur, pas dans la fiche. Sur le site, seuls les élèves y répondent.
 - **EDI-11** **Supprimer la fiche** est disponible en bas du formulaire, après confirmation.
 
 ### 5.5 Positions réelles — `POS`
@@ -448,19 +455,24 @@ Code : [`spreadsheet.js`](../src/js/spreadsheet.js), [`xlsx.js`](../src/js/xlsx.
 - **TAB-01** L'import accepte `.xlsx` (première feuille uniquement) et `.csv`, vers la carte affichée.
 - **TAB-02** Le CSV est lu souplement : séparateur `;`, `,` ou tabulation détecté, UTF-8 ou
   Windows-1252.
-- **TAB-03** Les titres de colonnes sont reconnus sans tenir compte des accents ni des majuscules, avec
-  des variantes (« N° photo », « Luminosité »…). Il faut au moins une colonne de nom.
+- **TAB-03** Les colonnes sont celles du modèle de fiche du cours, dans son ordre, entre la réf. photo d'un côté, la
+  visibilité et la position réelle de l'autre. Un titre se reconnaît sans tenir compte des accents, des majuscules ni de
+  l'unité entre parenthèses : le libellé du champ, ou l'une des variantes que lui donne le modèle (« N° photo »,
+  « Luminosité »…). Il faut une colonne de titre ou de sous-titre, ou à défaut d'un champ de la fiche. Avec le modèle
+  botanique, un fichier de la version 1.3.7 se relit tel quel.
 - **TAB-04** Une confirmation résume l'import avant de l'appliquer : nouvelles fiches, fiches
   complétées, lignes sans nom ignorées, colonnes non reconnues.
 - **TAB-05** Une fiche existante (même réf. photo, sinon même nom) est **complétée** au lieu d'être
   créée en double, même si une réf. est en double. Une cellule vide n'efface rien.
 - **TAB-06** Les dates acceptent `JJ/MM/AAAA`, `AAAA-MM-JJ` et le format de série d'Excel. « non, no, n,
   0, false, faux » rendent la fiche invisible. Les positions sont ramenées entre 0 et 100, et ignorées si
-  X ou Y manque.
+  X ou Y manque. Une proposition se reconnaît à son libellé, un oui / non à « oui, o, x, 1 » ou « non, n, 0 », une
+  échelle à son chiffre ou à ses symboles répétés. Ce qui ne correspond à rien reste vide.
 - **TAB-07** Après l'import, les fiches sont rangées par réf. photo si au moins l'une en a une.
 - **TAB-08** Les photos ne s'importent pas : elles s'ajoutent ensuite par **Modifier**.
-- **TAB-09** **Télécharger le modèle** fournit un CSV d'exemple avec les 15 colonnes des fiches. Le fichier de secours y
-  ajoute les trois mesures, soit 18 colonnes.
+- **TAB-09** **Télécharger le modèle** fournit un CSV avec les colonnes du cours et une fiche d'exemple, faite des
+  exemples que donne le modèle de fiche (« Olivier » en botanique) et de la date du jour. Seul le fichier de secours y a
+  les questions.
 - **TAB-10** **Exporter les fiches (CSV)** produit le même format, masquées comprises, et se réimporte (positions arrondies à
   deux décimales, sans les photos). Il n'y a pas d'export `.xlsx`.
 - **TAB-11** Dans un CSV exporté, un texte qu'un tableur prendrait pour une formule (`=`, `+`, `-`, `@` au début) reçoit une
@@ -519,7 +531,7 @@ Demandes : EV-05, EV-15
 - **HIS-07** Si les réponses d'un élève arrivent à la fois par le réseau et par fichier, une seule version est
   gardée : la première reçue.
 - **HIS-08** L'enseignant peut exporter un lancement dans un vrai fichier Excel (`.xlsx`), en remplacement du CSV prévu d'abord (EV-43). La première page
-  donne la précision moyenne (écart moyen entre placement et position réelle) et la moyenne des trois mesures : une ligne par élève, et une ligne pour la
+  donne la précision moyenne (écart moyen entre placement et position réelle) et la moyenne de chaque question chiffrée (`CHP-06`) : une ligne par élève, et une ligne pour la
   classe. Suit une page par élève ayant rendu, avec toutes ses réponses, fiche par fiche. Les nombres sont de vrais nombres, qu'Excel peut calculer.
 - **HIS-09** L'enseignant peut sortir le compte rendu JPG de chaque élève, pour l'imprimer et le lui rendre : un bouton par élève, et un bouton pour tous, qui donne une
   archive `.zip`. Il montre le score, les positions réelles et les écarts, et porte le jour et l'heure du lancement. Un cours à plusieurs cartes donne un compte rendu par carte.
@@ -551,7 +563,10 @@ Demande : EV-11
 
 ### 5.12 Modèle de fiche — `MOD`, `CHP`
 
-Demande : EV-46. Les écrans où l'enseignant compose son modèle arrivent avec la suite de la version 2.0.0.
+Demande : EV-46.
+
+Code : [`fields.js`](../src/js/fields.js), [`views/fields-html.js`](../src/js/views/fields-html.js),
+[`prof/template-tab.js`](../src/js/prof/template-tab.js), [`templates/botanique.js`](../src/js/templates/botanique.js)
 
 - **MOD-01** Chaque cours a un modèle de fiche : la liste ordonnée de ses champs, enregistrée avec le cours et avec chacune de
   ses versions publiées. Chaque fiche garde la valeur de chacun des champs que remplit l'enseignant ; un champ que le modèle ne
@@ -560,11 +575,109 @@ Demande : EV-46. Les écrans où l'enseignant compose son modèle arrivent avec 
   avec le modèle botanique : les champs de toujours, sous leurs noms de toujours. Il garde ses valeurs, ses titres, sa
   recherche, ses numéros et ses résultats, et rien n'est réécrit. Ce modèle intégré ne change jamais : chaque cours en reçoit
   une copie, qu'il peut modifier.
+- **MOD-03** Dans la page d'un cours, l'onglet « Modèle de fiche » liste les champs dans leur ordre, avec leur type, leur
+  public, leur rôle et leur place dans la liste. L'enseignant ajoute un champ de chaque type, à la fin ; il le règle dans
+  une fenêtre qui ne montre que ce qui a un sens pour son type et son public (libellé, type, public, correction,
+  propositions, échelle, unité et clavier, rôle, icône, exemple, liste, recherche, obligatoire, aide) ; il le range avec
+  ▲ ▼ ou en le glissant ; il renomme le modèle. Un modèle impossible, comme deux titres ou un choix sans proposition, est
+  refusé avec la raison, sans rien changer. Les élèves voient le modèle à la prochaine publication, et un lancement en cours
+  garde le sien.
+- **MOD-04** Chaque question porte sa correction (`CHP-08`) : « Corrigée automatiquement », « À corriger par vous » ou
+  « Non corrigée ». L'onglet le résume : « 6 questions : 4 corrigées automatiquement, 2 à corriger par vous ».
+- **MOD-05** Un champ dont des fiches ont déjà une valeur ne change que vers un type qui la garde : texte court et texte
+  long, nombre ou date vers texte. Supprimer un champ, ou le changer de sorte que des fiches perdent ou voient changer leur
+  valeur, demande une confirmation qui dit combien. Supprimer une question ne touche pas les réponses déjà rendues.
+- **MOD-06** Un aperçu montre la carte de la liste et la fiche ouverte telles que les verra un élève, dans la largeur d'un
+  téléphone ou d'un ordinateur, pendant le cours ou à la correction. Il part de la première fiche remplie, sinon des
+  exemples du modèle.
+- **MOD-07** Un nouveau cours choisit sa fiche. « Créer le modèle de fiche » lui donne un modèle sans matière, un titre et
+  une description, et l'ouvre sur l'onglet « Modèle de fiche ». « Reprendre la fiche d'un autre cours » propose ses propres
+  cours, et un fichier de cours (`.json` ou `.html`) venu d'un collègue : le modèle est copié sans les fiches, avec son
+  origine pour information, et modifier ensuite l'autre cours ne change rien à la copie. Dans un cours existant, l'onglet
+  « Modèle de fiche » propose aussi de reprendre la fiche d'un autre cours : les valeurs des champs qu'ils ont en commun
+  sont gardées, et une confirmation dit combien de fiches perdent quelque chose.
+- **MOD-08** « Dupliquer », dans la liste des cours, crée « Copie de … » : une copie complète (modèle, cartes, fiches
+  masquées comprises, positions réelles, photos, dont les fichiers restent partagés), non publiée, sans versions ni
+  lancements.
 - **CHP-01** Un champ a un type : texte court, texte long, nombre, date, choix unique ou multiple, oui ou non, échelle de 2 à 5
   ou intertitre. Il a un public : renseignement lu par l'élève, question à laquelle il répond, champ révélé à la correction,
   ou note de l'enseignant. Un modèle mal formé est refusé, avec la raison : 60 champs au plus, un libellé de 120 caractères au
   plus, de 2 à 30 propositions pour un choix, un identifiant qui ne prend pas le nom d'une propriété de la fiche, et aucune
   propriété inconnue.
+- **CHP-02** Une fiche se lit dans l'ordre de son modèle. Hors intertitre, un texte court se lit en tête de fiche et un
+  texte long en paragraphe ; sous un intertitre, les renseignements se lisent en tableau, et les questions se regroupent
+  dans un cadre qui porte l'intertitre et son aide. Un intertitre sans libellé ferme le groupe. Le titre et le sous-titre
+  sont en tête, et les champs marqués « dans la liste » paraissent aussi sous le titre, dans la liste des fiches. Une
+  valeur se lit en clair : le libellé d'un choix, « Oui », une date à la française, une mesure avec son unité.
+- **CHP-03** Chaque question a sa saisie : une case pour un texte court ou un nombre, avec son unité ; une zone pour un
+  texte long ; de gros boutons pour un choix, un oui ou non, une échelle. Une question courte marquée « dans la liste » a
+  aussi sa case sur la carte de la fiche, en liste déroulante pour un choix unique, un oui ou non, une échelle. Les
+  réponses se figent avec le travail (`MES-05`).
+- **CHP-04** Un champ révélé à la correction ne paraît chez l'élève qu'une fois le travail corrigé, et une note de
+  l'enseignant jamais. Le serveur n'envoie d'une fiche que ses renseignements ; ce qui est révélé arrive avec la
+  correction (`CRG-06`) ; la note de l'enseignant ne part pas, pas même la définition de son champ. Le modèle envoyé à
+  l'élève n'a ni les variantes de titre du tableur ni l'exemple d'un renseignement. Sans serveur, la version élèves et le
+  fichier de secours d'un cours n'emportent pas la note de l'enseignant, mais gardent ce qui est révélé, comme les
+  positions réelles : la page le montre après la vérification.
+- **CHP-05** Le formulaire d'une fiche suit le modèle : la réf. photo, puis chaque champ que remplit l'enseignant, groupé
+  sous ses intertitres, et la bonne réponse des questions corrigées automatiquement (`QST-01`). Un intertitre qui ne garde
+  que d'autres questions disparaît. Un champ révélé à la correction ou
+  réservé à l'enseignant le dit à côté de son libellé. Le formulaire s'ouvre sur le titre.
+- **CHP-06** Les rendus prennent leurs colonnes dans le modèle : le titre et le sous-titre nomment la fiche, chaque
+  question a sa colonne, lue en clair, et seule une question chiffrée a sa moyenne. C'est vrai du fichier Excel d'un
+  lancement (`HIS-08`), du détail d'un élève, du fichier CSV pour l'enseignant du fichier de secours et du compte rendu JPG.
+  Ce dernier ne montre que les questions marquées « dans la liste », six au plus, pour que le nom de la fiche reste
+  lisible.
+- **CHP-07** Le serveur vérifie le modèle et chaque valeur qu'il reçoit, sans rien réparer : un modèle mal formé, ou une
+  valeur qui ne convient pas à son champ, fait refuser le cours avec la raison. Une proposition choisie existe, un oui ou
+  non est « oui » ou « non », une échelle reste dans ses bornes. Un texte de l'enseignant fait 300 caractères au plus, un
+  texte long 10 000. Les réponses d'un élève se vérifient d'après les questions du modèle de la version lancée : un texte
+  de 300 caractères au plus, un texte long de 2 000, une mesure de 50, et 512 Ko en tout. Une version publiée sans modèle
+  attend les trois mesures botaniques, comme avant la version 2.0.0. Chaque case de saisie porte sa longueur permise, et
+  un texte trop long est coupé à la lecture plutôt que de faire refuser tout le cours ou tout le rendu.
+- **CHP-08** Une question dit comment elle sera corrigée : automatiquement, d'après la réponse attendue de chaque fiche
+  (texte court, nombre, choix, oui ou non, échelle) ; par l'enseignant, après le cours (texte court, texte long, nombre) ;
+  ou pas du tout, quand la réponse est seulement recueillie. Sans réglage, un choix, un oui ou non et une échelle se
+  corrigent automatiquement, un texte par l'enseignant, et un nombre pas du tout : le modèle botanique garde ainsi ses
+  mesures non corrigées.
+
+### 5.13 Questions corrigées — `QST`
+
+Demande : EV-46. Code : [`verdicts.js`](../src/js/verdicts.js), [`server/answers.mjs`](../server/answers.mjs)
+
+- **QST-01** Une question corrigée automatiquement (`CHP-08`) a, sur chaque fiche, sa bonne réponse, que l'enseignant donne
+  dans le formulaire de la fiche : les réponses acceptées d'un texte, une par ligne ; la valeur d'un nombre et sa
+  tolérance ; la ou les bonnes propositions d'un choix ; « oui » ou « non » ; le cran d'une échelle. La liste des fiches
+  dit combien de bonnes réponses manquent à chacune. Comme une position réelle, une bonne réponse ne part chez l'élève
+  qu'avec la correction, et le serveur refuse celle qui ne convient pas à sa question.
+- **QST-02** Le serveur corrige chaque question à la réception des réponses : juste ou faux pour une question fermée qui a
+  sa bonne réponse (un texte sans tenir compte des accents, des majuscules ni des espaces en trop ; un nombre dans sa
+  tolérance ; un choix multiple seulement s'il a toutes les bonnes propositions et aucune autre) ; « à corriger » pour une
+  question ouverte, ou fermée sans bonne réponse sur cette fiche. Une question sans réponse est fausse. Une question
+  seulement recueillie, comme une mesure, n'a pas de verdict.
+- **QST-03** À la fin du cours, la correction de l'élève montre, sous chaque question, son verdict et la bonne réponse
+  quand il s'est trompé, et compte ses réponses justes et fausses. Une question que l'enseignant corrigera porte
+  « Corrigée plus tard par l'enseignant », et un message dit combien il y en a (Q-O) : sa correction ne viendra pas sur ce
+  téléphone (`CRG-08`).
+- **QST-04** Dans la page d'un lancement, « Corriger les réponses » montre les réponses des élèves qui ont rendu, question
+  par question pour toute la classe ou élève par élève, d'abord celles qui restent à corriger. Pour chacune : ce que
+  l'élève a écrit, la bonne réponse s'il y en a une, le verdict et qui l'a donné. L'enseignant choisit juste, à moitié
+  juste ou faux, avec un commentaire facultatif ; son verdict l'emporte sur celui du serveur, qu'il peut aussi changer
+  (une faute d'orthographe) ou lui rendre. Chaque correction s'enregistre aussitôt, et la liste des élèves compte pour
+  chacun ses réponses justes, à moitié justes, fausses et à corriger. Seul l'enseignant du cours corrige (`ANO-06`), et
+  seulement une question corrigée, d'un élève qui a rendu.
+- **QST-05** L'enseignant choisit comment noter, dans l'onglet « Modèle de fiche » : sans note (le nombre de réponses
+  justes, à moitié justes et fausses) ; un barème, des points pour chaque question corrigée et pour le placement de chaque
+  fiche, une question sans barème valant 1 point ; ou une note sur un maximum (20 d'abord), chaque réponse ayant le même
+  poids, placement compris ou non. Le placement compte comme une réponse : bien placée, juste ; proche, à moitié ; à revoir
+  ou non placée, faux ; sans position réelle, il ne compte pas. Une réponse à moitié juste rapporte la moitié, une réponse
+  encore à corriger rien : la note est alors « provisoire » et ne peut que monter. Elle se calcule à la lecture, au dixième
+  à l'écran, et paraît dans la page du lancement, l'Excel (`HIS-08`) et le compte rendu de l'enseignant (`HIS-09`) ; l'élève
+  n'en voit pas. Un lancement reprend la notation de sa version, et l'enseignant peut la changer dans la page du lancement :
+  ses notes se recalculent, celles des autres lancements ne bougent pas. Le serveur refuse une notation qui ne convient
+  pas au modèle, et l'éditeur retire le barème d'une question qui ne se corrige plus.
+- **QST-06** Une question peut être obligatoire, et le dit à côté de son libellé. « Terminer » prévient de combien de
+  réponses obligatoires manquent encore, sans bloquer.
 
 ---
 
@@ -1033,11 +1146,11 @@ Code : [`report.js`](../src/js/report.js), [`spreadsheet.js`](../src/js/spreadsh
 - **REN-01** **Image du plan (JPG)** : le plan à sa taille d'origine avec les repères, et les
   positions réelles si l'exercice est vérifié. Disponible avant la vérification.
 - **REN-02** **Compte rendu (JPG)** : une seule image avec le titre, les élèves, la carte, la date
-  et l'heure, le score, le plan, la légende, puis un tableau (n°, fiche, trois mesures, résultat et
-  écart). Elle reprend les couleurs du thème. Côté élèves, disponible après la vérification.
-- **REN-03** **Rendu prof (CSV)** : une ligne par fiche visible (élèves, n°, réf. photo, noms, trois
-  mesures, résultat, écart), puis une ligne **Moyenne** (moyenne de chaque mesure numérique, écart
-  moyen, score). Disponible depuis la fenêtre des résultats.
+  et l'heure, le score, le plan, la légende, puis un tableau (n°, fiche, réponses aux questions marquées « dans la
+  liste », résultat et écart ; en botanique, les trois mesures, `CHP-06`). Elle reprend les couleurs du thème. Côté élèves, disponible après la vérification.
+- **REN-03** **Rendu prof (CSV)** : une ligne par fiche visible (élèves, n°, réf. photo, titre et sous-titre, une
+  colonne par question, résultat, écart), puis une ligne **Moyenne** (moyenne de chaque question chiffrée et de
+  chaque mesure numérique, écart moyen, score). Disponible depuis la fenêtre des résultats.
 - **REN-04** Le rendu prof s'ouvre directement dans Excel (séparateur `;`, virgule décimale, UTF-8
   avec BOM). Les noms sont répétés sur chaque ligne pour pouvoir coller les rendus de plusieurs
   groupes. Une mesure non numérique est conservée telle quelle et exclue de la moyenne.
@@ -1165,3 +1278,10 @@ Ils ne sont pas réutilisés.
 | 0.38    | 5 novembre 2026   | Formules neutralisées dans les CSV (`TAB-11`), règle de sécurité du navigateur envoyée par le serveur (`SEC-06`) |
 | 0.39    | 19 novembre 2026  | Remise à plat : la section 12 rejoint les sections 4 à 8, la section 12 décrit désormais le fichier de secours ; identifiants de l'ancienne publication retirés (12.9) ; QUA-05 porte sur les sections 4 à 8 ; demandes EV-46 à EV-53 et décisions Q-25 à Q-29 pour la version 2.0.0 ; Q-01 tranchée ; Q-19, Q-20 et Q-21 des 4 et 5 novembre renommées Q-22, Q-23 et Q-24 |
 | 0.40    | 19 novembre 2026  | Format 4 : le modèle de fiche d'un cours (`MOD-01`, `MOD-02`, `CHP-01`, section 5.12) ; `COM-01` ; EV-46 en cours |
+| 0.41    | 19 novembre 2026  | L'affichage suit le modèle de fiche (`CHP-02` à `CHP-06`) ; `LIS-01`, `LIS-02`, `CON-01`, `CON-02`, `MES-01`, `MES-02`, `MES-04`, `EDI-01`, `EDI-03`, `EDI-05`, `EDI-06`, `EDI-10`, `TAB-03`, `TAB-06`, `TAB-09` et `HIS-08` ne nomment plus les champs botaniques qu'en exemple |
+| 0.42    | 19 novembre 2026  | Le serveur suit le modèle de fiche : ce que reçoit l'élève (`CRG-01`, `CHP-04`), la correction (`CRG-06`), la vérification du modèle, des valeurs et des réponses (`CHP-07`) |
+| 0.43    | 19 novembre 2026  | L'éditeur du modèle de fiche (`MOD-03` à `MOD-06`) et la correction d'une question (`CHP-08`) |
+| 0.44    | 19 novembre 2026  | Créer le modèle de fiche d'un cours, reprendre celle d'un autre cours, dupliquer un cours (`MOD-07`, `MOD-08`) ; `EDI-05` : la date de l'appareil |
+| 0.45    | 20 novembre 2026  | Questions corrigées : bonne réponse de chaque fiche, correction par le serveur, verdicts à la fin du cours (`QST-01` à `QST-03`, section 5.13) |
+| 0.46    | 20 novembre 2026  | L'enseignant corrige les réponses de ses élèves (`QST-04`), migration 008 |
+| 0.47    | 20 novembre 2026  | La notation, en trois modes (`QST-05`), et les questions obligatoires (`QST-06`) |

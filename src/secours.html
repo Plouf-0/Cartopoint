@@ -68,33 +68,8 @@
     <div class="dlg-head"><h2 id="editTitle">Fiche</h2><button class="x" type="button" data-close aria-label="Fermer">×</button></div>
     <div class="dlg-body">
       <label class="check"><input type="checkbox" id="eVisible"> Visible dans l'espace élèves</label>
-      <div class="form-grid">
-        <div class="field"><label for="eRef">Réf. photo (étiquette sur le terrain)</label><input id="eRef" placeholder="12b"><span class="hint">Le numéro vu par les élèves est automatique.</span></div>
-        <div class="field"><label for="eCommon">Nom commun</label><input id="eCommon" placeholder="Olivier"></div>
-        <div class="field"><label for="eSpecies">Nom scientifique</label><input id="eSpecies" placeholder="Olea europaea"></div>
-        <div class="field"><label for="eFamily">Famille</label><input id="eFamily" placeholder="Oleaceae"></div>
-        <div class="field"><label for="eDate">Date d'observation</label><input id="eDate" type="date"></div>
-        <div class="field"></div>
-
-        <div class="field wide needs-edit">
-          <div class="needs-head"><h3>Besoins</h3><span class="hint">Cliquez dans une case, puis sur un émoji pour l'ajouter</span></div>
-          <div class="emoji-bar" id="emojiBar" role="toolbar" aria-label="Émojis"></div>
-          <div class="needs-grid">
-            <div class="field"><label for="eExposure">☀️ Exposition</label><textarea id="eExposure" rows="2" placeholder="☀️☀️☀️ Plein soleil"></textarea></div>
-            <div class="field"><label for="eWatering">💧 Arrosage</label><textarea id="eWatering" rows="2" placeholder="💧 Faible une fois installé"></textarea></div>
-            <div class="field"><label for="eSoil">🌱 Sol</label><textarea id="eSoil" rows="2" placeholder="Léger, bien drainé"></textarea></div>
-            <div class="field"><label for="eHeat">🌡️ Chaleur</label><textarea id="eHeat" rows="2" placeholder="Très bonne tolérance · ❄️ jusqu'à -10 °C"></textarea></div>
-            <div class="field wide"><label for="eCare">✂️ Entretien</label><textarea id="eCare" rows="2" placeholder="Taille légère après floraison"></textarea></div>
-          </div>
-        </div>
-
-        <div class="field wide"><h3 class="mini-h">Mesures de terrain</h3></div>
-        <div class="field"><label for="eTemp">Température</label><div class="unit-input"><input id="eTemp" inputmode="decimal"><span>°C</span></div></div>
-        <div class="field"><label for="eHumidity">Hygrométrie</label><div class="unit-input"><input id="eHumidity" inputmode="decimal"><span>%</span></div></div>
-        <div class="field"><label for="eLight">Éclairement</label><div class="unit-input"><input id="eLight" inputmode="numeric"><span>lux</span></div></div>
-        <div class="field wide"><label for="eDesc">Description</label><textarea id="eDesc"></textarea></div>
-        <div class="field wide"><label for="eNotes">Observations de terrain</label><textarea id="eNotes"></textarea></div>
-      </div>
+      <!-- Champs du modèle de fiche du cours : générés par views/fields-html.js -->
+      <div class="form-grid" id="eFields"></div>
       <div class="section">
         <div class="inline spread">
           <h3>Photos et vidéos</h3>

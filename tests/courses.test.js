@@ -150,6 +150,74 @@ test('un contenu qui n’est pas un cours est refusé, et ne remplace rien', asy
   assert.equal((await browser.get(`/api/courses/${course.id}`)).json().revision, 1);
 });
 
+test('CHP-07, QST-01 : un modèle mal formé, ou une valeur ou une réponse attendue qui ne convient pas à son champ, est refusé avec la raison, sans rien remplacer', async (t) => {
+  const { base } = await site(t);
+  const browser = await loggedIn(base);
+  const template = {
+    fields: [
+      { id: 'c-nom', type: 'text', label: 'Monument', audience: 'info', role: 'title' },
+      {
+        id: 'c-style',
+        type: 'choice',
+        label: 'Style',
+        audience: 'info',
+        choices: [
+          { id: 'roman', label: 'Roman' },
+          { id: 'gothique', label: 'Gothique' }
+        ]
+      },
+      { id: 'c-etat', type: 'scale', label: 'État', audience: 'teacher', max: 3 },
+      { id: 'c-histoire', type: 'longtext', label: 'Histoire', audience: 'correction' }
+    ]
+  };
+  const draft = (fiche, tpl = template) => ({ ...draftWith('Ville', [{ id: 'f1', ...fiche }]), version: 4, template: tpl });
+  const good = draft({ 'c-nom': 'Halle', 'c-style': 'roman', 'c-etat': 2, 'c-histoire': 'x'.repeat(10000), inconnu: 'ignoré' });
+  const course = await createCourse(browser, good);
+  for (const [fiche, label] of [
+    [{ 'c-style': 'baroque' }, 'Style'],
+    [{ 'c-style': ['roman'] }, 'Style'],
+    [{ 'c-etat': 4 }, 'État'],
+    [{ 'c-etat': '2' }, 'État'],
+    [{ 'c-nom': 'x'.repeat(301) }, 'Monument'],
+    [{ 'c-nom': 12 }, 'Monument'],
+    [{ 'c-nom': null }, 'Monument'],
+    [{ 'c-histoire': 'x'.repeat(10001) }, 'Histoire']
+  ]) {
+    const refused = await put(browser, course.id, course.revision, draft(fiche));
+    assert.equal(refused.status, 400, JSON.stringify(fiche).slice(0, 60));
+    assert.match(refused.text, new RegExp(`« ${label} »`));
+  }
+  const question = { id: 'c-q', type: 'yesno', label: 'Ouvert ?', audience: 'question' };
+  const withQuestion = { fields: [...template.fields, question] };
+  assert.equal((await put(browser, course.id, course.revision, draft({ expected: { 'c-q': 'oui' } }, withQuestion))).status, 200, 'QST-01');
+  const latest = (await browser.get(`/api/courses/${course.id}`)).json();
+  for (const expected of [{ 'c-q': 'peut-être' }, { 'c-q': true }, { 'c-nom': ['Halle'] }, ['oui']]) {
+    const refused = await put(browser, course.id, latest.revision, draft({ expected }, withQuestion));
+    assert.equal(refused.status, 400, JSON.stringify(expected));
+    assert.match(refused.text, /réponse/);
+  }
+  await put(browser, course.id, latest.revision, good);
+  const broken = await put(browser, course.id, latest.revision + 1, draft({}, { fields: [{ id: 'id', type: 'text', label: 'Réf.', audience: 'info' }] }));
+  assert.equal(broken.status, 400);
+  assert.match(broken.text, /Le modèle de fiche n'est pas valable : champ 1 : identifiant invalide/);
+  assert.equal((await browser.post('/api/courses', { draft: draft({}, { fields: 'non' }) })).status, 400);
+  assert.deepEqual((await browser.get(`/api/courses/${course.id}`)).json().draft, good, 'le brouillon d’avant reste');
+});
+
+test('MOD-02, CHP-07 : un contenu sans modèle se vérifie avec le modèle botanique', async (t) => {
+  const { base } = await site(t);
+  const browser = await loggedIn(base);
+  await createCourse(browser, draftWith('Parc', [{ id: 'f1', common: 'Olivier', temperature: 21, autre: 12 }]));
+  const refused = await browser.post('/api/courses', { draft: draftWith('Parc', [{ id: 'f1', common: 12 }]) });
+  assert.equal(refused.status, 400);
+  assert.match(refused.text, /« Nom commun »/);
+  assert.equal(
+    (await browser.post('/api/courses', { draft: { format: 'inventaire-botanique', maps: [{ locations: [{ family: [] }] }] } })).status,
+    400,
+    'les anciennes fiches aussi'
+  );
+});
+
 test('COU-14 : un plan ou une photo est un fichier de ce serveur, ou rien', async (t) => {
   const { base, db } = await site(t);
   const browser = await loggedIn(base);

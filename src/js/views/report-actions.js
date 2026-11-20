@@ -30,7 +30,7 @@ export function saveReport() {
 export function saveTeacherCsv() {
   const names = requireNames();
   if (names === null) return;
-  const csv = buildTeacherCsv(resultRows(), { names, widthMeters: S.map.widthMeters });
+  const csv = buildTeacherCsv(resultRows(), { names, widthMeters: S.map.widthMeters, template: S.project.template });
   download(csv, safeFileName(`Rendu prof - ${names || S.map.name}`) + '.csv', 'text/csv;charset=utf-8');
   toast('✓ Rendu prof téléchargé');
 }

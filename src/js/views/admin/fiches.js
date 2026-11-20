@@ -3,8 +3,10 @@
  * import / export tableur, séance en cours.
  */
 import { $, esc, prefs, toast, download, safeFileName } from '../../util.js';
-import { S, fiches, byId, posOf, verified, progress, changedMap, changedProgress, deleteFiches } from '../../store.js';
-import { numberOf, titleOf, hasRef, matches, sortByRef, emptyProgress } from '../../model.js';
+import { S, fiches, byId, posOf, verified, progress, changedMap, changedProgress, deleteFiches, courseTemplate } from '../../store.js';
+import { numberOf, titleOf, subtitleOf, hasRef, matches, sortByRef, emptyProgress } from '../../model.js';
+import { answersWord, questionNames } from '../../fields.js';
+import { autoQuestions } from '../../verdicts.js';
 import { render } from '../../render.js';
 import { photoHTML, measuresHTML, bindMeasures, bindCards, bindSearch } from '../cards.js';
 import { openEditor } from '../editor.js';
@@ -12,22 +14,28 @@ import { showResults } from '../results.js';
 import { importSpreadsheet, buildCsv, templateCsv } from '../../spreadsheet.js';
 
 export function html() {
+  const template = courseTemplate();
   const all = fiches();
   const dense = all.length > 6;
   const shown = all.filter((f) => f.visible).length;
   const rows = all
-    .filter((f) => matches(f, S.ui.adminQuery))
+    .filter((f) => matches(f, S.ui.adminQuery, template))
     .map((f) => {
       const i = all.indexOf(f);
+      const title = titleOf(f, template);
+      const sub = subtitleOf(f, template);
+      // Une question fermée sans bonne réponse sur cette fiche passerait à corriger par l'enseignant : il le sait d'avance (4.4)
+      const missing = S.teacherSpace ? autoQuestions(template).filter((question) => f.expected?.[question.id] === undefined).length : 0;
       const place = hasRef(f) ? (dense ? 'Replacer' : 'Replacer la position réelle') : dense ? 'Placer' : 'Placer la position réelle';
       return `
       <div class="row ${f.visible ? '' : 'off'}" data-open="${esc(f.id)}" draggable="true" data-drag="${esc(f.id)}">
         <label class="vis" title="Visible pour les élèves"><input type="checkbox" data-vis="${esc(f.id)}" ${f.visible ? 'checked' : ''}>élèves</label>
         ${photoHTML(f)}
         <div style="min-width:0">
-          <h3><span class="num ${f.visible ? 'on' : ''}" title="${f.visible ? 'Numéro vu par les élèves' : 'Fiche masquée : pas de numéro'}">${esc(numberOf(S.map, f))}</span>${esc(titleOf(f))}</h3>
-          ${f.species && f.species !== titleOf(f) ? `<p class="sci" style="font-size:13px">${esc(f.species)}</p>` : ''}
+          <h3><span class="num ${f.visible ? 'on' : ''}" title="${f.visible ? 'Numéro vu par les élèves' : 'Fiche masquée : pas de numéro'}">${esc(numberOf(S.map, f))}</span>${esc(title)}</h3>
+          ${sub ? `<p class="sci" style="font-size:13px">${esc(sub)}</p>` : ''}
           ${f.ref ? `<div class="ref-photo">Réf. photo : ${esc(f.ref)}</div>` : ''}
+          ${missing ? `<div class="ref-state missing-expected">⚠ ${missing} bonne(s) réponse(s) à donner, sinon vous corrigerez vous-même</div>` : ''}
           <div class="ref-state ${hasRef(f) ? 'set' : ''}">${hasRef(f) ? '■ Position réelle placée' : 'Position réelle à placer'}${posOf(f) ? ' · placée par les élèves' : ''}</div>
         </div>
         <div class="actions">
@@ -37,7 +45,7 @@ export function html() {
           </span>
           <button type="button" class="btn soft sm" data-edit="${esc(f.id)}">Modifier</button>
           <button type="button" class="btn ghost sm" data-place-ref="${esc(f.id)}">${place}</button>
-          <button type="button" class="btn danger sm" data-del="${esc(f.id)}" title="Supprimer la fiche" aria-label="Supprimer « ${esc(titleOf(f))} »">🗑</button>
+          <button type="button" class="btn danger sm" data-del="${esc(f.id)}" title="Supprimer la fiche" aria-label="Supprimer « ${esc(title)} »">🗑</button>
         </div>
         ${S.teacherSpace ? '' : measuresHTML(f)}
       </div>`;
@@ -72,7 +80,7 @@ export function html() {
 function sessionHTML() {
   return `<div class="section">
       <h3>Séance en cours</h3>
-      <p>${verified() ? "L'exercice a été vérifié : les placements des élèves sont figés." : 'Les élèves peuvent placer les fiches.'} Placements et mesures sont enregistrés dans ce navigateur.</p>
+      <p>${verified() ? "L'exercice a été vérifié : les placements des élèves sont figés." : 'Les élèves peuvent placer les fiches.'} Placements et ${answersWord(courseTemplate())} sont enregistrés dans ce navigateur.</p>
       <div class="inline">
         <button type="button" class="btn soft sm" id="compare">Voir les écarts</button>
         ${verified() ? '<button type="button" class="btn soft sm" id="reopen">Rouvrir l\'exercice</button>' : ''}
@@ -117,7 +125,9 @@ export function bind(panel) {
         const f = byId(b.dataset.del);
         const photos = f.media.length ? ` et ses ${f.media.length} photo(s)` : '';
         if (
-          !confirm(`Supprimer définitivement « ${titleOf(f)} »${photos} ?\n\nPour la retirer seulement de l'espace élèves, décochez plutôt la case « élèves ».`)
+          !confirm(
+            `Supprimer définitivement « ${titleOf(f, courseTemplate())} »${photos} ?\n\nPour la retirer seulement de l'espace élèves, décochez plutôt la case « élèves ».`
+          )
         )
           return;
         await deleteFiches([f]);
@@ -130,7 +140,7 @@ export function bind(panel) {
     const names =
       hidden
         .slice(0, 12)
-        .map((f) => '• ' + titleOf(f))
+        .map((f) => '• ' + titleOf(f, courseTemplate()))
         .join('\n') + (hidden.length > 12 ? `\n… et ${hidden.length - 12} autre(s)` : '');
     if (!confirm(`Supprimer définitivement les ${hidden.length} fiche(s) masquée(s) et leurs photos ?\n\n${names}`)) return;
     await deleteFiches(hidden);
@@ -157,8 +167,9 @@ export function bind(panel) {
     e.target.value = '';
     if (file) await importSpreadsheet(file);
   };
-  $('#sheetTemplate').onclick = () => download(templateCsv(), 'Modèle de fiches.csv', 'text/csv;charset=utf-8');
-  $('#sheetExport').onclick = () => download(buildCsv(fiches(), progress()), safeFileName(`Fiches - ${S.map.name}`) + '.csv', 'text/csv;charset=utf-8');
+  $('#sheetTemplate').onclick = () => download(templateCsv(courseTemplate()), 'Modèle de fiches.csv', 'text/csv;charset=utf-8');
+  $('#sheetExport').onclick = () =>
+    download(buildCsv(fiches(), progress(), courseTemplate()), safeFileName(`Fiches - ${S.map.name}`) + '.csv', 'text/csv;charset=utf-8');
 
   if (!S.teacherSpace) bindSession();
 }
@@ -175,7 +186,7 @@ function bindSession() {
   $('#newSession').onclick = () => {
     if (
       !confirm(
-        'Commencer une nouvelle séance ?\n\nLes placements des élèves, leurs mesures (température, hygrométrie, éclairement) et leurs noms seront effacés de ce navigateur. Les fiches et les positions réelles sont conservées.'
+        `Commencer une nouvelle séance ?\n\nLes placements des élèves, leurs ${answersWord(courseTemplate())} (${questionNames(courseTemplate())}) et leurs noms seront effacés de ce navigateur. Les fiches et les positions réelles sont conservées.`
       )
     )
       return;
